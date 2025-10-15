@@ -1,0 +1,32 @@
+# Rust
+target/
+**/*.rs.bk
+*.pdb
+Cargo.lock
+
+# Debug/Release builds
+debug/
+release/
+
+# OS files
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+
+# IDEs
+.vscode/
+.idea/
+*.iml
+
+# Environment
+.env
+.env.local
+
+# Logs
+*.log
+
+
+# Added by cargo
+
+/target

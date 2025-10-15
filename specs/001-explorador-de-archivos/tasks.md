@@ -1,0 +1,638 @@
+# Tasks: Explorador de Archivos TUI
+
+**Input**: Design documents from `/specs/001-explorador-de-archivos/`
+**Prerequisites**: plan.md ✅, spec.md ✅
+
+**Organization**: Tasks are grouped by user story (US1-US4) to enable independent implementation and testing.
+
+## Format: `[ID] [P?] [Story] Description`
+- **[P]**: Can run in parallel (different files, no dependencies)
+- **[Story]**: Which user story this task belongs to (US1, US2, US3, US4, SETUP)
+
+---
+
+## Bugs & Issues
+
+### Active Bugs
+
+<!--
+  Format: **BUG-###** [Priority] [Component] Description
+  Priority: CRITICAL, HIGH, MEDIUM, LOW
+  Status: OPEN, IN_PROGRESS, FIXED, VERIFIED
+-->
+
+<!-- Example:
+- [ ] **BUG-001** [HIGH] [UI] Panel scrolling breaks when directory has >100 files
+  - **Status**: OPEN
+  - **Reported**: 2024-10-14
+  - **Related Tasks**: T116
+  - **Steps to Reproduce**: 
+    1. Navigate to /usr/bin (has ~1000+ files)
+    2. Try to scroll down
+    3. UI freezes
+  - **Expected**: Should scroll smoothly
+  - **Actual**: Application hangs
+-->
+
+### Fixed Bugs
+
+- [X] **BUG-001** [HIGH] [EVENT] Double key events causing duplicate navigation
+  - **Status**: FIXED ✅
+  - **Reported**: 2025-10-14
+  - **Fixed**: 2025-10-14
+  - **Related Tasks**: T122, T124
+  - **Root Cause**: Crossterm was sending both Press and Release events for each keystroke
+  - **Solution**: Added filter in `map_key_to_action()` to only process `KeyEventKind::Press` events
+  - **Files Modified**: `src/events/keybindings.rs`
+  - **Verified**: User confirmed single movement per keystroke ✓
+
+<!--
+  Move bugs here after they are verified as fixed
+-->
+
+---
+
+## Phase 0: Setup (Shared Infrastructure)
+
+**Purpose**: Project initialization and basic structure needed before implementing any user story
+
+- [X] **T001** [SETUP] Create Rust project with `cargo new leeky-explorer` in repository root
+- [X] **T002** [SETUP] Configure `Cargo.toml` with dependencies: ratatui 0.25+, crossterm 0.27+, tokio 1.35+, walkdir 2.5+, humansize 2.1+, serde 1.0+, serde_json 1.0+, anyhow 1.0+
+- [X] **T003** [P] [SETUP] Create directory structure: `src/models/`, `src/ui/`, `src/fs/`, `src/events/`, `src/config/`
+- [X] **T004** [P] [SETUP] Create module files: `src/models/mod.rs`, `src/ui/mod.rs`, `src/fs/mod.rs`, `src/events/mod.rs`, `src/config/mod.rs`
+- [X] **T005** [P] [SETUP] Create `tests/unit/` and `tests/integration/` directories
+- [X] **T006** [SETUP] Create basic `src/main.rs` with hello world to verify project compiles
+
+---
+
+## Phase 1: User Story 1 - Navegación Dual Panel (P1 - MVP)
+
+**Goal**: Implement dual-pane navigation with keyboard control
+
+### Models & Data Structures
+
+- [X] **T101** [P] [US1] Create `src/models/file_entry.rs` with `FileEntry` struct (name, entry_type, size, modified, permissions)
+- [X] **T102** [P] [US1] Implement `EntryType` enum (File, Dir, Symlink) in `src/models/file_entry.rs`
+- [X] **T103** [US1] Add `Display` trait for `FileEntry` to format name, size (humansize), date
+- [X] **T104** [P] [US1] Create `src/models/panel.rs` with `Panel` struct (current_path, entries, cursor, scroll_offset)
+- [X] **T105** [US1] Implement `Panel::new(path: PathBuf)` constructor
+- [X] **T106** [US1] Implement `Panel::move_cursor_up()` and `Panel::move_cursor_down()` with bounds checking
+- [X] **T107** [P] [US1] Create `src/app.rs` with `AppState` struct (left_panel, right_panel, active_panel: PanelSide)
+- [X] **T108** [US1] Implement `AppState::new()` to initialize both panels at HOME directory
+
+### Filesystem Navigation
+
+- [X] **T109** [P] [US1] Create `src/fs/navigator.rs` module
+- [X] **T110** [US1] Implement `read_dir(path: &Path) -> Result<Vec<FileEntry>>` to read directory contents
+- [X] **T111** [US1] Implement `Panel::enter_dir()` to navigate into selected directory
+- [X] **T112** [US1] Implement `Panel::go_up()` to navigate to parent directory
+- [X] **T113** [US1] Add error handling for permission denied / invalid paths in navigator
+
+### UI Components
+
+- [X] **T114** [P] [US1] Create `src/ui/layout.rs` with `create_layout(area: Rect)` function for 2-column split
+- [X] **T115** [P] [US1] Create `src/ui/panel_widget.rs` with `render_panel()` function
+- [X] **T116** [US1] Implement file list rendering with scroll support in `panel_widget.rs`
+- [X] **T117** [US1] Add cursor highlight (different color for selected item) in `panel_widget.rs`
+- [X] **T118** [P] [US1] Create `src/ui/theme.rs` with color definitions (dirs=blue, files=white, symlinks=cyan, executables=green)
+- [X] **T119** [US1] Apply colors to `FileEntry` rendering based on type
+- [X] **T120** [US1] Add header rendering showing current path for each panel in `src/ui/layout.rs`
+- [X] **T121** [US1] Add footer with key bindings display: "↑↓:Navigate  Tab:Switch  Enter:Open  Backspace:Up  Q:Quit"
+
+### Event Handling
+
+- [X] **T122** [P] [US1] Create `src/events/keybindings.rs` with key code constants
+- [X] **T123** [P] [US1] Create `src/events/handler.rs` with `handle_key(app: &mut AppState, key: KeyEvent)` function
+- [X] **T124** [US1] Implement arrow up/down handling to move cursor in active panel
+- [X] **T125** [US1] Implement Tab key handling to switch active panel (left ↔ right)
+- [X] **T126** [US1] Implement Enter key handling to enter selected directory
+- [X] **T127** [US1] Implement Backspace key handling to go up one directory level
+- [X] **T128** [US1] Implement 'q' or 'Q' key handling to quit application
+
+### Main Loop & Terminal Setup
+
+- [X] **T129** [US1] Update `src/main.rs` to initialize crossterm terminal (enable raw mode)
+- [X] **T130** [US1] Implement terminal cleanup on exit (disable raw mode, show cursor)
+- [X] **T131** [US1] Create event loop: poll for keyboard events with 100ms timeout
+- [X] **T132** [US1] Integrate `ui::render()` call in event loop to draw frame
+- [X] **T133** [US1] Handle terminal resize events to redraw layout
+- [X] **T134** [US1] Add graceful error handling in main loop (show error, don't crash)
+
+### Testing
+
+- [X] **T135** [P] [US1] Write unit test for `Panel::move_cursor_up/down` with boundary conditions
+- [X] **T136** [P] [US1] Write unit test for `read_dir()` using temp directory fixtures
+- [X] **T137** [P] [US1] Write unit test for `Panel::enter_dir()` and `Panel::go_up()`
+- [X] **T138** [US1] Write integration test simulating arrow navigation workflow
+
+---
+
+## Phase 2: User Story 2 - Copiar y Mover Archivos (P2)
+
+**Goal**: Implement F5 (copy) and F6 (move) operations with progress bars
+
+### Models & Operations
+
+- [X] **T201** [P] [US2] Create `src/models/operation.rs` with `Operation` enum (Copy, Move, Delete)
+- [X] **T202** [P] [US2] Create `Progress` struct (bytes_done, bytes_total, files_done, files_total) in `operation.rs`
+- [X] **T203** [US2] Add `current_operation: Option<Operation>` field to `AppState`
+- [X] **T204** [P] [US2] Create `DialogState` enum (Confirm, Input, Progress, Error) in `src/ui/dialog.rs`
+- [X] **T205** [US2] Add `dialog_state: Option<DialogState>` field to `AppState`
+
+### File Operations
+
+- [X] **T206** [P] [US2] Create `src/fs/operations.rs` module
+- [X] **T207** [US2] Implement `copy_file_with_progress(src, dst, tx: Sender<Progress>) -> Result<()>` using tokio
+- [X] **T208** [US2] Implement `copy_dir_recursive(src, dst, tx: Sender<Progress>) -> Result<()>` using walkdir + tokio
+- [X] **T209** [US2] Implement `move_item(src, dst) -> Result<()>` (rename or copy+delete)
+- [X] **T210** [US2] Add `get_total_size(path: &Path) -> Result<u64>` helper for progress calculation
+- [X] **T211** [US2] Handle edge case: source and destination are the same (error)
+- [X] **T212** [US2] Handle edge case: destination file already exists (prompt user)
+
+### UI Dialogs
+
+- [X] **T213** [P] [US2] Implement `render_confirm_dialog(msg: &str)` in `src/ui/dialog.rs`
+- [X] **T214** [P] [US2] Implement `render_progress_dialog(operation: &Operation, progress: &Progress)` with bar
+- [X] **T215** [US2] Add progress bar calculation (percentage, MB copied/total)
+- [X] **T216** [P] [US2] Implement `render_error_dialog(error: &str)` 
+- [X] **T217** [US2] Add modal overlay styling (centered box with border)
+
+### Event Handling
+
+- [X] **T218** [US2] Implement F5 key handler: show confirm dialog for copy
+- [X] **T219** [US2] Implement F6 key handler: show confirm dialog for move
+- [X] **T220** [US2] Implement Y/N handling in confirm dialog (start operation or cancel)
+- [X] **T221** [US2] Spawn async tokio task for copy/move operation with progress channel
+- [X] **T222** [US2] Poll progress channel in event loop and update `AppState`
+- [X] **T223** [US2] Handle operation completion: show success message, refresh panels
+- [X] **T224** [US2] Handle operation error: show error dialog, log error details
+
+### Testing
+
+- [X] **T225** [P] [US2] Write unit test for `copy_file_with_progress` with temp files
+- [X] **T226** [P] [US2] Write unit test for `copy_dir_recursive` with nested directories
+- [X] **T227** [P] [US2] Write unit test for `move_item` verifying source is deleted
+- [X] **T228** [US2] Write integration test for F5 copy workflow (navigate, F5, confirm, verify)
+- [X] **T229** [US2] Write integration test for F6 move workflow
+
+---
+
+## Phase 3: User Story 3 - Eliminar y Crear Carpetas (P3)
+
+**Goal**: Implement F8 (delete) and F7 (create folder) operations
+
+### File Operations
+
+- [X] **T301** [P] [US3] Implement `delete_file(path: &Path) -> Result<()>` in `src/fs/operations.rs`
+- [X] **T302** [P] [US3] Implement `delete_dir_recursive(path: &Path, tx: Sender<Progress>) -> Result<()>` with progress
+- [X] **T303** [P] [US3] Implement `create_dir(path: &Path) -> Result<()>` wrapper
+- [X] **T304** [US3] Handle edge case: delete non-empty directory (require double confirmation)
+- [X] **T305** [US3] Handle edge case: insufficient permissions for delete/create
+
+### UI Dialogs
+
+- [X] **T306** [P] [US3] Implement `render_input_dialog(prompt: &str, current: &str)` in `src/ui/dialog.rs`
+- [X] **T307** [US3] Add text input handling in dialog (type chars, backspace, enter to confirm)
+- [X] **T308** [US3] Add double confirmation dialog for recursive delete (separate function)
+
+### Event Handling
+
+- [X] **T309** [US3] Implement F7 key handler: show input dialog for new folder name
+- [X] **T310** [US3] Handle input dialog text entry and create folder on Enter
+- [X] **T311** [US3] Implement F8 key handler: show confirm dialog for delete
+- [X] **T312** [US3] Check if target is non-empty directory, show second confirmation if true
+- [X] **T313** [US3] Spawn async delete operation with progress for directories
+- [X] **T314** [US3] Refresh panel after successful create/delete operation
+
+### Testing
+
+- [X] **T315** [P] [US3] Write unit test for `delete_file` with temp file
+- [X] **T316** [P] [US3] Write unit test for `delete_dir_recursive` with nested structure
+- [X] **T317** [P] [US3] Write unit test for `create_dir` verifying directory exists after
+- [X] **T318** [US3] Write integration test for error handling (nonexistent, existing dir)
+- [X] **T319** [US3] Write integration test for `is_dir_empty` utility function
+- [X] **T320** [US3] Write integration test for delete progress tracking validation
+
+---
+
+## Phase 4: User Story 4 - Búsqueda y Filtrado (P4)
+
+**Goal**: Implement '/' search with glob pattern filtering
+
+### Filtering Logic
+
+- [X] **T401** [P] [US4] Add `filter: Option<String>` field to `Panel` struct
+- [X] **T402** [US4] Implement `Panel::apply_filter(pattern: &str)` to filter entries list
+- [X] **T403** [US4] Support simple text matching (case-insensitive contains)
+- [X] **T404** [US4] Support glob patterns using `glob` crate (e.g., "*.rs", "test_*")
+- [X] **T405** [US4] Implement `Panel::clear_filter()` to restore full list
+- [X] **T406** [US4] Update `Panel::enter_dir()` to preserve filter when navigating
+
+### UI Components
+
+- [X] **T407** [P] [US4] Add search bar rendering at bottom of active panel in `src/ui/panel_widget.rs`
+- [X] **T408** [US4] Show "Buscar: {pattern}_" when search is active
+- [X] **T409** [US4] Show "Sin resultados para: {pattern}" when filter returns empty list
+- [X] **T410** [US4] Update footer to show "/" key hint: "/:Search  Esc:Clear"
+
+### Event Handling
+
+- [X] **T411** [US4] Implement '/' key handler: activate search mode
+- [X] **T412** [US4] Handle text input in search mode: append to filter pattern
+- [X] **T413** [US4] Apply filter in real-time as user types
+- [X] **T414** [US4] Implement Esc key handler: deactivate search mode and clear filter
+- [X] **T415** [US4] Implement Enter key in search mode: finalize filter, return to navigation
+
+### Testing
+
+- [X] **T416** [P] [US4] Write unit test for `apply_filter` with simple text pattern
+- [X] **T417** [P] [US4] Write unit test for `apply_filter` with glob pattern "*.txt"
+- [X] **T418** [P] [US4] Write unit test for `apply_filter` with no matches (empty result)
+- [X] **T419** [US4] Write integration test for search workflow (/, type pattern, see filtered results, Esc)
+
+---
+
+## Phase 5: Configuration & Persistence
+
+**Goal**: Save/restore application state between sessions
+
+### State Persistence
+
+- [X] **T501** [P] [US-ALL] Create `src/config/state.rs` with `PersistedState` struct
+- [X] **T502** [P] [US-ALL] Add serde Serialize/Deserialize derives to `PersistedState`
+- [X] **T503** [P] [US-ALL] Create `src/config/paths.rs` with `get_config_dir()` helper (~/.config/leeky-explorer)
+- [X] **T504** [US-ALL] Implement `PersistedState::load() -> Result<Self>` reading from JSON file
+- [X] **T505** [US-ALL] Implement `PersistedState::save(&self) -> Result<()>` writing to JSON file
+- [X] **T506** [US-ALL] Create config directory if it doesn't exist on first save
+- [X] **T507** [US-ALL] Update `AppState::new()` to load persisted state (left_path, right_path, active_panel)
+- [X] **T508** [US-ALL] Save state on application exit in `main.rs` cleanup
+- [X] **T509** [US-ALL] Handle missing config file gracefully (use defaults: HOME directory)
+
+### Testing
+
+- [X] **T510** [P] [US-ALL] Write unit test for `load()` with valid JSON file
+- [X] **T511** [P] [US-ALL] Write unit test for `load()` with missing file (returns default)
+- [X] **T512** [P] [US-ALL] Write unit test for `save()` creating config directory
+- [X] **T513** [US-ALL] Write integration test for full cycle: save state, restart app, verify state restored
+
+---
+
+## Phase 6: Polish & Documentation
+
+**Goal**: Final touches, README, error handling improvements
+
+### Error Handling
+
+- [ ] **T601** [US-ALL] Audit all `unwrap()` calls and replace with proper error handling
+- [ ] **T602** [US-ALL] Add context messages to all errors using anyhow `.context()`
+- [ ] **T603** [US-ALL] Test permission denied scenarios (read, write, delete)
+- [ ] **T604** [US-ALL] Test disk full scenario during copy operation
+- [ ] **T605** [US-ALL] Test symlink handling (broken symlinks, circular references)
+
+### Documentation
+
+- [ ] **T606** [P] [US-ALL] Write `README.md` with installation instructions (`cargo install --path .`)
+- [ ] **T607** [P] [US-ALL] Document all key bindings in README
+- [ ] **T608** [P] [US-ALL] Add usage examples and screenshots (ASCII art)
+- [ ] **T609** [P] [US-ALL] Write inline code documentation (/// comments) for public functions
+- [ ] **T610** [P] [US-ALL] Generate cargo docs: `cargo doc --no-deps --open`
+
+### Performance & Optimization
+
+- [ ] **T611** [US-ALL] Profile navigation performance with large directories (10k+ files)
+- [ ] **T612** [US-ALL] Optimize rendering to only redraw changed panels
+- [ ] **T613** [US-ALL] Add benchmarks for file operations (copy, delete) in `benches/`
+- [ ] **T614** [US-ALL] Test terminal responsiveness on Windows/Linux/macOS
+
+### Final Testing
+
+- [ ] **T615** [US-ALL] Run full test suite: `cargo test`
+- [ ] **T616** [US-ALL] Manual QA: test all user stories end-to-end
+- [ ] **T617** [US-ALL] Test edge cases from spec.md (same src/dst, permission errors, etc.)
+- [ ] **T618** [US-ALL] Test terminal compatibility (minimum 80x24, resize handling)
+
+---
+
+## Phase 5.5: User Story 5 - Selección Múltiple (P5)
+
+**Goal**: Implement multi-select functionality for batch operations
+
+### Selection State Management
+
+- [ ] **T551** [P] [US5] Create `src/models/selection.rs` with `SelectionState` struct (left_marked: HashSet<PathBuf>, right_marked: HashSet<PathBuf>)
+- [ ] **T552** [US5] Implement `SelectionState::toggle_mark(panel: PanelSide, path: PathBuf)` to mark/unmark items
+- [ ] **T553** [US5] Implement `SelectionState::mark_all(panel: PanelSide, paths: Vec<PathBuf>)` for Ctrl+A
+- [ ] **T554** [US5] Implement `SelectionState::clear(panel: PanelSide)` to remove all marks
+- [ ] **T555** [US5] Implement `SelectionState::get_marked(panel: PanelSide) -> Vec<PathBuf>` to retrieve selection
+- [ ] **T556** [US5] Implement `SelectionState::is_marked(panel: PanelSide, path: &Path) -> bool` for visual check
+- [ ] **T557** [US5] Add `selection_state: SelectionState` field to `AppState` in `src/app.rs`
+
+### UI Indicators
+
+- [ ] **T558** [US5] Update `render_panel()` in `src/ui/panel_widget.rs` to show "*" prefix for marked items
+- [ ] **T559** [US5] Add alternativebackground color for marked items in `src/ui/theme.rs` (e.g., DarkGray)
+- [ ] **T560** [US5] Add selection counter in panel header: "3 items seleccionados" when marks exist
+- [ ] **T561** [US5] Update footer to show: "Space: Select | Ctrl+A: All | Esc: Clear"
+
+### Keyboard Handling
+
+- [ ] **T562** [P] [US5] Add `Action::ToggleSelection` to `src/events/handler.rs`
+- [ ] **T563** [P] [US5] Add `Action::SelectAll` to `src/events/handler.rs`
+- [ ] **T564** [P] [US5] Add `Action::ClearSelection` to `src/events/handler.rs`
+- [ ] **T565** [US5] Map Space key to `Action::ToggleSelection` in `src/events/keybindings.rs`
+- [ ] **T566** [US5] Map Ctrl+A to `Action::SelectAll` in `src/events/keybindings.rs`
+- [ ] **T567** [US5] Map Esc to `Action::ClearSelection` when marks exist (without closing app)
+- [ ] **T568** [US5] Implement toggle logic: mark item, advance cursor to next item
+- [ ] **T569** [US5] Implement select all: toggle all visible items in active panel
+
+### Batch Operations Integration
+
+- [ ] **T570** [US5] Update `start_copy()` in `src/app.rs` to check for marked items first
+- [ ] **T571** [US5] Update `start_move()` in `src/app.rs` to check for marked items first
+- [ ] **T572** [US5] Update `start_delete()` in `src/app.rs` to check for marked items first
+- [ ] **T573** [US5] Modify confirmation dialogs to show "Copiar 3 items..." when multiple selected
+- [ ] **T574** [US5] Implement batch progress tracking: "Copiando 2/3: archivo.txt (45%)"
+- [ ] **T575** [US5] Clear marks automatically after successful batch operation
+- [ ] **T576** [US5] Handle errors during batch: show "(C)ontinuar / (R)eintentar / (A)bortar" dialog
+- [ ] **T577** [US5] Keep track of failed items to show summary: "3 copiados, 1 fallido"
+
+### Navigation & Filtering Integration
+
+- [ ] **T578** [US5] Clear marks when navigating to different directory (Enter/Backspace)
+- [ ] **T579** [US5] Preserve marks when switching panels (Tab)
+- [ ] **T580** [US5] Update filter logic: marks on filtered-out items should be removed
+
+### Testing
+
+- [ ] **T581** [P] [US5] Create `tests/unit/selection_tests.rs`
+- [ ] **T582** [US5] Test `toggle_mark()`: mark, unmark, mark again same item
+- [ ] **T583** [US5] Test `mark_all()`: select all, then toggle all to deselect
+- [ ] **T584** [US5] Test batch operations: mark 3 files, copy, verify all copied
+- [ ] **T585** [US5] Test marks cleared on directory change
+- [ ] **T586** [US5] Test marks preserved when switching panels
+- [ ] **T587** [US5] Test error handling: batch operation with one permission error
+
+---
+
+## Phase 5.6: User Story 6 - Preview de Texto (P6)
+
+**Goal**: Implement text file preview in modal dialog
+
+### Preview Module Setup
+
+- [ ] **T601** [P] [US6] Create `src/preview/` directory
+- [ ] **T602** [P] [US6] Create `src/preview/mod.rs` and declare text_viewer, encoding submodules
+- [ ] **T603** [P] [US6] Add `encoding_rs` dependency to `Cargo.toml` for charset detection
+
+### Text Loading & Encoding
+
+- [ ] **T604** [P] [US6] Create `src/preview/encoding.rs`
+- [ ] **T605** [US6] Implement `detect_encoding(bytes: &[u8]) -> &'static Encoding` using encoding_rs
+- [ ] **T606** [US6] Implement `load_text_file(path: &Path) -> Result<String>` with encoding detection
+- [ ] **T607** [US6] Add UTF-8 validation and fallback to Latin-1 if detection fails
+- [ ] **T608** [US6] Handle binary file detection: return error if >10% non-printable chars
+- [ ] **T609** [US6] Add file size limit: show warning for files >5MB, error for >10MB
+
+### Preview State Management
+
+- [ ] **T610** [P] [US6] Create `PreviewState` enum in `src/app.rs`: Text{content, scroll_offset, total_lines}
+- [ ] **T611** [US6] Add `preview_state: Option<PreviewState>` field to `AppState`
+- [ ] **T612** [US6] Implement `AppState::open_text_preview(path: PathBuf)` async
+- [ ] **T613** [US6] Implement `AppState::close_preview()` to clear preview_state
+- [ ] **T614** [US6] Implement `AppState::scroll_preview(direction: i32)` for up/down
+- [ ] **T615** [US6] Implement `AppState::jump_preview(target: JumpTarget)` for Home/End
+
+### UI Modal Rendering
+
+- [ ] **T616** [P] [US6] Create `src/ui/preview_modal.rs`
+- [ ] **T617** [US6] Implement `render_text_preview(f: &mut Frame, state: &PreviewState, area: Rect)`
+- [ ] **T618** [US6] Calculate modal size: 80% width, 80% height, centered
+- [ ] **T619** [US6] Draw modal border with Clear background (to cover panels)
+- [ ] **T620** [US6] Render title bar: "filename.txt (2.5 KB)"
+- [ ] **T621** [US6] Render text content with line numbers in left margin (4 chars wide)
+- [ ] **T622** [US6] Implement viewport scrolling: show only visible lines within modal height
+- [ ] **T623** [US6] Add footer hints: "↑↓: Scroll | Home/End: Inicio/Fin | Esc/Q: Cerrar"
+- [ ] **T624** [US6] Show position indicator: "Línea 150/523 (28%)" in bottom right
+
+### Keyboard Handling
+
+- [ ] **T625** [P] [US6] Add `Action::OpenPreview` to `src/events/handler.rs`
+- [ ] **T626** [US6] Map F4 key to `Action::OpenPreview` in `src/events/keybindings.rs`
+- [ ] **T627** [US6] Add preview mode check in `handle_key()`: route arrows to scroll_preview() when active
+- [ ] **T628** [US6] Map Esc/Q to close_preview() when preview is active
+- [ ] **T629** [US6] Map Home/End to jump to start/end of file
+- [ ] **T630** [US6] Map PageUp/PageDown to scroll by viewport height
+
+### File Type Detection
+
+- [ ] **T631** [P] [US6] Create helper `is_text_file(path: &Path) -> bool` checking extensions
+- [ ] **T632** [US6] Add text extensions: .txt, .md, .rs, .py, .js, .json, .xml, .log, .conf, .ini, .toml, .yaml
+- [ ] **T633** [US6] Show error dialog "No se puede previsualizar: archivo binario" for non-text
+
+### Testing
+
+- [ ] **T634** [P] [US6] Create `tests/unit/preview_tests.rs`
+- [ ] **T635** [US6] Test `load_text_file()` with UTF-8 file
+- [ ] **T636** [US6] Test encoding detection with Latin-1 file
+- [ ] **T637** [US6] Test binary file rejection (e.g., .png)
+- [ ] **T638** [US6] Test scroll: load 100-line file, scroll down, verify offset
+- [ ] **T639** [US6] Test Home/End jumps
+- [ ] **T640** [US6] Test Esc closes preview and returns to navigation
+
+---
+
+## Phase 5.7: User Story 7 - Preview de Imágenes (P7)
+
+**Goal**: Implement image preview as ASCII/Unicode art in modal
+
+### Image Processing Setup
+
+- [ ] **T701** [P] [US7] Add `image` dependency to `Cargo.toml` (version 0.24+)
+- [ ] **T702** [P] [US7] Add `artem` or `viuer` dependency for ASCII/Unicode conversion
+- [ ] **T703** [P] [US7] Create `src/preview/image_viewer.rs`
+
+### Image Loading & Conversion
+
+- [ ] **T704** [US7] Implement `load_image(path: &Path) -> Result<DynamicImage>` using image crate
+- [ ] **T705** [US7] Implement `get_image_metadata(path: &Path) -> Result<ImageMeta>` (width, height, format)
+- [ ] **T706** [US7] Implement `image_to_ascii(img: DynamicImage, max_width: u16, max_height: u16) -> Result<String>`
+- [ ] **T707** [US7] Add automatic scaling: calculate aspect ratio, resize to fit modal
+- [ ] **T708** [US7] Detect terminal color capability using crossterm: truecolor, 256, 16, mono
+- [ ] **T709** [US7] Use Unicode blocks (▀▄█) for better vertical resolution when supported
+- [ ] **T710** [US7] Fallback to ASCII characters (.:;+=*%@#) for limited terminals
+- [ ] **T711** [US7] Handle image decoding errors: corrupt file, unsupported format
+
+### Preview State Extension
+
+- [ ] **T712** [US7] Extend `PreviewState` enum: add Image{ascii_art, metadata, original_size}
+- [ ] **T713** [US7] Implement `AppState::open_image_preview(path: PathBuf)` async
+- [ ] **T714** [US7] Add file size check: confirm dialog for images >10MB before loading
+- [ ] **T715** [US7] Show "Cargando imagen..." dialog during processing
+
+### UI Modal Rendering
+
+- [ ] **T716** [US7] Extend `render_preview_modal()` to handle Image variant
+- [ ] **T717** [US7] Calculate modal size: 90% width, 90% height (larger for images)
+- [ ] **T718** [US7] Render title: "imagen.png (1920x1080, 2.5 MB, PNG)"
+- [ ] **T719** [US7] Center ASCII art within modal area
+- [ ] **T720** [US7] Add footer hint: "Esc/Q: Cerrar"
+- [ ] **T721** [US7] Handle animated GIFs: show only first frame with note "(GIF animado - frame 1)"
+
+### File Type Detection
+
+- [ ] **T722** [P] [US7] Create helper `is_image_file(path: &Path) -> bool`
+- [ ] **T723** [US7] Add image extensions: .png, .jpg, .jpeg, .gif, .bmp, .webp
+- [ ] **T724** [US7] Detect format by extension first, then by magic bytes if extension ambiguous
+
+### Keyboard Handling
+
+- [ ] **T725** [US7] Reuse F4 key for both text and image preview (auto-detect file type)
+- [ ] **T726** [US7] Map Esc/Q to close image preview
+- [ ] **T727** [US7] No scroll needed for images (always fit to screen)
+
+### Testing
+
+- [ ] **T728** [P] [US7] Create test fixtures: small PNG (100x100), large JPEG (4K), GIF
+- [ ] **T729** [US7] Test `load_image()` with valid PNG
+- [ ] **T730** [US7] Test corrupt image handling
+- [ ] **T731** [US7] Test aspect ratio preservation on resize
+- [ ] **T732** [US7] Test ASCII conversion produces non-empty output
+- [ ] **T733** [US7] Test GIF shows first frame
+- [ ] **T734** [US7] Test file size confirmation for large images
+
+---
+
+## Phase 5.8: User Story 8 - Descompresión (P8)
+
+**Goal**: Implement archive extraction with password support
+
+### Archive Processing Setup
+
+- [ ] **T801** [P] [US8] Add dependencies to `Cargo.toml`: zip (0.6+), tar (0.4+), flate2 (1.0+), xz2 (0.1+)
+- [ ] **T802** [P] [US8] Add `sevenz-rust` (0.5+) for 7Z support
+- [ ] **T803** [P] [US8] Add `unrar` (0.5+) for RAR support (note: requires libunrar)
+- [ ] **T804** [P] [US8] Create `src/archive/` directory
+- [ ] **T805** [P] [US8] Create `src/archive/mod.rs` and declare formats, extractor, password submodules
+
+### Format Detection
+
+- [ ] **T806** [P] [US8] Create `src/archive/formats.rs`
+- [ ] **T807** [US8] Implement `ArchiveFormat` enum: ZIP, TAR, TAR_GZ, TAR_BZ2, TAR_XZ, SEVENZ, RAR, UNKNOWN
+- [ ] **T808** [US8] Implement `detect_format(path: &Path) -> Result<ArchiveFormat>` using magic bytes
+- [ ] **T809** [US8] Add magic byte signatures: ZIP (PK\x03\x04), TAR (ustar), 7Z (7z\xBC\xAF\x27\x1C), RAR (Rar!)
+- [ ] **T810** [US8] Fallback to extension detection if magic bytes unrecognized
+
+### Archive Listing
+
+- [ ] **T811** [P] [US8] Create `ArchiveEntry` struct: name, size_compressed, size_uncompressed, is_dir
+- [ ] **T812** [US8] Implement `list_archive_contents(path: &Path, format: ArchiveFormat) -> Result<Vec<ArchiveEntry>>`
+- [ ] **T813** [US8] Implement ZIP listing using zip crate
+- [ ] **T814** [US8] Implement TAR listing using tar crate
+- [ ] **T815** [US8] Implement 7Z listing using sevenz-rust
+- [ ] **T816** [US8] Implement RAR listing using unrar
+- [ ] **T817** [US8] Calculate compression ratio: (1 - compressed/uncompressed) * 100
+
+### Password Handling
+
+- [ ] **T818** [P] [US8] Create `src/archive/password.rs`
+- [ ] **T819** [US8] Implement `PasswordDialog` struct with input field (hidden chars)
+- [ ] **T820** [US8] Implement `prompt_password() -> Option<String>` returning user input or None if cancelled
+- [ ] **T821** [US8] Detect password-protected archives: check ZIP encryption flag, 7Z header
+- [ ] **T822** [US8] Handle incorrect password: show error, allow retry or cancel
+
+### Extraction Logic
+
+- [ ] **T823** [P] [US8] Create `src/archive/extractor.rs`
+- [ ] **T824** [US8] Implement `extract_archive(path: &Path, dest: &Path, password: Option<String>, tx: Sender<Progress>) -> Result<()>`
+- [ ] **T825** [US8] Implement ZIP extraction with password support using zip crate
+- [ ] **T826** [US8] Implement TAR extraction (plain, GZ, BZ2, XZ) using tar + flate2/xz2
+- [ ] **T827** [US8] Implement 7Z extraction with password using sevenz-rust
+- [ ] **T828** [US8] Implement RAR extraction with password using unrar
+- [ ] **T829** [US8] Preserve directory structure: create parent dirs as needed
+- [ ] **T830** [US8] Preserve file permissions and timestamps where supported
+- [ ] **T831** [US8] Handle symlinks in TAR: preserve on Unix, skip on Windows
+- [ ] **T832** [US8] Sanitize paths: convert absolute paths to relative for security
+- [ ] **T833** [US8] Detect multi-part RAR archives: find .part1.rar, .part2.rar automatically
+
+### Progress Tracking
+
+- [ ] **T834** [US8] Define `ExtractionProgress` struct: current_file, file_index, total_files, bytes_extracted
+- [ ] **T835** [US8] Send progress updates via channel every 100ms or per-file
+- [ ] **T836** [US8] Show progress modal: "Extrayendo 5/23: documento.pdf (22%)"
+- [ ] **T837** [US8] Update UI with current filename and percentage
+
+### UI Integration
+
+- [ ] **T838** [P] [US8] Add `Action::ExtractArchive` to `src/events/handler.rs`
+- [ ] **T839** [US8] Map F9 key to `Action::ExtractArchive` in `src/events/keybindings.rs`
+- [ ] **T840** [US8] Implement archive preview modal: show list of files with scroll
+- [ ] **T841** [US8] Show archive metadata in title: "archivo.zip (23 files, 15 MB → 42 MB, ratio 64%)"
+- [ ] **T842** [US8] Add extraction destination dialog: pre-fill with opposite panel path
+- [ ] **T843** [US8] Show password input dialog for encrypted archives
+- [ ] **T844** [US8] Handle collisions: prompt "(S)obreescribir / (T)odos / (R)enombrar / (O)mitir / (C)ancelar"
+
+### Error Handling & Safety
+
+- [ ] **T845** [US8] Check disk space before extraction: compare available vs uncompressed size
+- [ ] **T846** [US8] Handle corrupt archives: catch decompression errors, show clear message
+- [ ] **T847** [US8] Implement ZIP bomb protection: limit total extracted size to 10GB
+- [ ] **T848** [US8] Handle permission errors during extraction: offer to skip or abort
+- [ ] **T849** [US8] Support cancellation: pressing Esc shows confirmation, cleans up partial files
+- [ ] **T850** [US8] Handle duplicate filenames within archive: keep last, log warning
+
+### Testing
+
+- [ ] **T851** [P] [US8] Create `tests/unit/archive_tests.rs`
+- [ ] **T852** [US8] Create test fixtures: small.zip, small.tar.gz, small.7z with known contents
+- [ ] **T853** [US8] Create password-protected test archives: encrypted.zip, encrypted.7z
+- [ ] **T854** [US8] Test `detect_format()` with various archive types
+- [ ] **T855** [US8] Test `list_archive_contents()` for ZIP
+- [ ] **T856** [US8] Test extraction of ZIP to temp dir, verify files exist
+- [ ] **T857** [US8] Test password-protected ZIP: correct password succeeds
+- [ ] **T858** [US8] Test password-protected ZIP: wrong password fails with retry option
+- [ ] **T859** [US8] Test TAR.GZ extraction preserves directory structure
+- [ ] **T860** [US8] Test 7Z extraction
+- [ ] **T861** [US8] Test cancellation: Esc during extraction cleans up partial files
+- [ ] **T862** [US8] Test corrupt archive: should error gracefully
+
+---
+
+## Summary
+
+**Total Tasks**: 262
+- **Setup (Phase 0)**: 6 tasks
+- **US1 - Navegación (P1 - MVP)**: 38 tasks
+- **US2 - Copiar/Mover (P2)**: 29 tasks  
+- **US3 - Eliminar/Crear (P3)**: 20 tasks
+- **US4 - Búsqueda/Filtro (P4)**: 15 tasks
+- **US5 - Selección Múltiple (P5)**: 37 tasks ⭐ NEW
+- **US6 - Preview Texto (P6)**: 37 tasks ⭐ NEW
+- **US7 - Preview Imágenes (P7)**: 34 tasks ⭐ NEW
+- **US8 - Descompresión (P8)**: 62 tasks ⭐ NEW
+- **Config/Persistence (Phase 5)**: 13 tasks
+- **Polish/Docs (Phase 6)**: 17 tasks
+
+**Estimated Effort**: 
+- US1 (MVP): ~2-3 days (core navigation working) ✅ DONE
+- US2: ~1-2 days (copy/move operations) ✅ DONE
+- US3: ~1 day (delete/create) ✅ DONE
+- US4: ~1 day (search/filter) ✅ DONE
+- **Phase 5 (Persistence)**: ~1 day ✅ DONE
+- **US5 (Multi-select)**: ~1-2 days ⏳ NEW
+- **US6 (Text preview)**: ~1-2 days ⏳ NEW
+- **US7 (Image preview)**: ~2-3 days ⏳ NEW (includes ASCII art conversion)
+- **US8 (Archive extraction)**: ~3-4 days ⏳ NEW (complex: multiple formats, passwords)
+- **Phase 6 (Polish)**: ~1 day ⏳ PENDING
+
+**Incremental Delivery**: Each User Story (US1-US8) can be implemented and tested independently, allowing for MVP delivery after US1 completion.
+
+**Current Status**: 
+- ✅ **Phases 0-5 Complete**: Setup, Navigation, File Operations, Search, Config Persistence (121/121 tasks)
+- ⏳ **Phase 5.5-5.8 Pending**: Multi-select, Preview (Text/Image), Archive Extraction (170 new tasks)
+- ⏳ **Phase 6 Pending**: Polish, Documentation, Performance (17 tasks)
+
+**New Features Added**:
+1. **Multi-select**: Space to mark, Ctrl+A for all, batch operations on marked items
+2. **Text Preview**: F4 on text files, modal with scroll, line numbers, encoding detection
+3. **Image Preview**: F4 on images, ASCII/Unicode art representation, color adaptation
+4. **Archive Extraction**: F9 to extract ZIP/TAR/7Z/RAR, password support, progress tracking
