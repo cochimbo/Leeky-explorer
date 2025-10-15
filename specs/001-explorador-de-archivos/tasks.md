@@ -508,55 +508,55 @@
 
 ### Archive Processing Setup
 
-- [ ] **T801** [P] [US8] Add dependencies to `Cargo.toml`: zip (0.6+), tar (0.4+), flate2 (1.0+), xz2 (0.1+)
-- [ ] **T802** [P] [US8] Add `sevenz-rust` (0.5+) for 7Z support
-- [ ] **T803** [P] [US8] Add `unrar` (0.5+) for RAR support (note: requires libunrar)
-- [ ] **T804** [P] [US8] Create `src/archive/` directory
-- [ ] **T805** [P] [US8] Create `src/archive/mod.rs` and declare formats, extractor, password submodules
+- [x] **T801** [P] [US8] Add dependencies to `Cargo.toml`: zip (0.6+), tar (0.4+), flate2 (1.0+), xz2 (0.1+)
+- [x] **T802** [P] [US8] Add `sevenz-rust` (0.5+) for 7Z support
+- [x] **T803** [P] [US8] Add `unrar` (0.5+) for RAR support (note: requires libunrar)
+- [x] **T804** [P] [US8] Create `src/archive/` directory
+- [x] **T805** [P] [US8] Create `src/archive/mod.rs` and declare formats, extractor, password submodules
 
 ### Format Detection
 
-- [ ] **T806** [P] [US8] Create `src/archive/formats.rs`
-- [ ] **T807** [US8] Implement `ArchiveFormat` enum: ZIP, TAR, TAR_GZ, TAR_BZ2, TAR_XZ, SEVENZ, RAR, UNKNOWN
-- [ ] **T808** [US8] Implement `detect_format(path: &Path) -> Result<ArchiveFormat>` using magic bytes
-- [ ] **T809** [US8] Add magic byte signatures: ZIP (PK\x03\x04), TAR (ustar), 7Z (7z\xBC\xAF\x27\x1C), RAR (Rar!)
-- [ ] **T810** [US8] Fallback to extension detection if magic bytes unrecognized
+- [x] **T806** [P] [US8] Create `src/archive/formats.rs`
+- [x] **T807** [US8] Implement `ArchiveFormat` enum: ZIP, TAR, TAR_GZ, TAR_BZ2, TAR_XZ, SEVENZ, RAR, UNKNOWN
+- [x] **T808** [US8] Implement `detect_format(path: &Path) -> Result<ArchiveFormat>` using magic bytes
+- [x] **T809** [US8] Add magic byte signatures: ZIP (PK\x03\x04), TAR (ustar), 7Z (7z\xBC\xAF\x27\x1C), RAR (Rar!)
+- [x] **T810** [US8] Fallback to extension detection if magic bytes unrecognized
 
 ### Archive Listing
 
-- [ ] **T811** [P] [US8] Create `ArchiveEntry` struct: name, size_compressed, size_uncompressed, is_dir
-- [ ] **T812** [US8] Implement `list_archive_contents(path: &Path, format: ArchiveFormat) -> Result<Vec<ArchiveEntry>>`
-- [ ] **T813** [US8] Implement ZIP listing using zip crate
-- [ ] **T814** [US8] Implement TAR listing using tar crate
-- [ ] **T815** [US8] Implement 7Z listing using sevenz-rust
+- [x] **T811** [P] [US8] Create `ArchiveEntry` struct: name, size_compressed, size_uncompressed, is_dir
+- [x] **T812** [US8] Implement `list_archive_contents(path: &Path, format: ArchiveFormat) -> Result<Vec<ArchiveEntry>>`
+- [x] **T813** [US8] Implement ZIP listing using zip crate
+- [x] **T814** [US8] Implement TAR listing using tar crate
+- [x] **T815** [US8] Implement 7Z listing using sevenz-rust
 - [ ] **T816** [US8] Implement RAR listing using unrar
-- [ ] **T817** [US8] Calculate compression ratio: (1 - compressed/uncompressed) * 100
+- [x] **T817** [US8] Calculate compression ratio: (1 - compressed/uncompressed) * 100
 
 ### Password Handling
 
-- [ ] **T818** [P] [US8] Create `src/archive/password.rs`
-- [ ] **T819** [US8] Implement `PasswordDialog` struct with input field (hidden chars)
-- [ ] **T820** [US8] Implement `prompt_password() -> Option<String>` returning user input or None if cancelled
-- [ ] **T821** [US8] Detect password-protected archives: check ZIP encryption flag, 7Z header
-- [ ] **T822** [US8] Handle incorrect password: show error, allow retry or cancel
+- [x] **T818** [P] [US8] Create `src/archive/password.rs`
+- [x] **T819** [US8] Implement `PasswordDialog` struct with input field (hidden chars)
+- [x] **T820** [US8] Implement `prompt_password() -> Option<String>` returning user input or None if cancelled
+- [x] **T821** [US8] Detect password-protected archives: check ZIP encryption flag, 7Z header
+- [x] **T822** [US8] Handle incorrect password: show error, allow retry or cancel
 
 ### Extraction Logic
 
-- [ ] **T823** [P] [US8] Create `src/archive/extractor.rs`
-- [ ] **T824** [US8] Implement `extract_archive(path: &Path, dest: &Path, password: Option<String>, tx: Sender<Progress>) -> Result<()>`
-- [ ] **T825** [US8] Implement ZIP extraction with password support using zip crate
-- [ ] **T826** [US8] Implement TAR extraction (plain, GZ, BZ2, XZ) using tar + flate2/xz2
-- [ ] **T827** [US8] Implement 7Z extraction with password using sevenz-rust
+- [x] **T823** [P] [US8] Create `src/archive/extractor.rs`
+- [x] **T824** [US8] Implement `extract_archive(path: &Path, dest: &Path, password: Option<String>, tx: Sender<Progress>) -> Result<()>`
+- [x] **T825** [US8] Implement ZIP extraction with password support using zip crate
+- [x] **T826** [US8] Implement TAR extraction (plain, GZ, BZ2, XZ) using tar + flate2/xz2
+- [x] **T827** [US8] Implement 7Z extraction with password using sevenz-rust
 - [ ] **T828** [US8] Implement RAR extraction with password using unrar
-- [ ] **T829** [US8] Preserve directory structure: create parent dirs as needed
-- [ ] **T830** [US8] Preserve file permissions and timestamps where supported
-- [ ] **T831** [US8] Handle symlinks in TAR: preserve on Unix, skip on Windows
-- [ ] **T832** [US8] Sanitize paths: convert absolute paths to relative for security
+- [x] **T829** [US8] Preserve directory structure: create parent dirs as needed
+- [x] **T830** [US8] Preserve file permissions and timestamps where supported
+- [x] **T831** [US8] Handle symlinks in TAR: preserve on Unix, skip on Windows
+- [x] **T832** [US8] Sanitize paths: convert absolute paths to relative for security
 - [ ] **T833** [US8] Detect multi-part RAR archives: find .part1.rar, .part2.rar automatically
 
 ### Progress Tracking
 
-- [ ] **T834** [US8] Define `ExtractionProgress` struct: current_file, file_index, total_files, bytes_extracted
+- [x] **T834** [US8] Define `ExtractionProgress` struct: current_file, file_index, total_files, bytes_extracted
 - [ ] **T835** [US8] Send progress updates via channel every 100ms or per-file
 - [ ] **T836** [US8] Show progress modal: "Extrayendo 5/23: documento.pdf (22%)"
 - [ ] **T837** [US8] Update UI with current filename and percentage
