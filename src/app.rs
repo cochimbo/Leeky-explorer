@@ -1,7 +1,7 @@
 // Application state management
 use crate::models::panel::Panel;
 use crate::models::operation::Operation;
-use crate::models::file_entry::FileEntry;
+use crate::models::file_entry::{FileEntry, EntryType};
 use crate::models::selection::SelectionState;
 use std::path::PathBuf;
 
@@ -9,6 +9,12 @@ use std::path::PathBuf;
 pub enum PanelSide {
     Left,
     Right,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JumpTarget {
+    Start,
+    End,
 }
 
 pub struct AppState {
@@ -23,6 +29,7 @@ pub struct AppState {
     pub left_all_entries: Vec<FileEntry>,
     pub right_all_entries: Vec<FileEntry>,
     pub selection_state: SelectionState,
+    pub preview_state: Option<PreviewState>,
 }
 
 #[derive(Debug, Clone)]
@@ -41,6 +48,32 @@ pub enum DialogState {
     Error {
         message: String,
     },
+}
+
+#[derive(Debug, Clone)]
+pub enum PreviewState {
+    Text {
+        content: String,
+        scroll_offset: usize,
+        total_lines: usize,
+        file_path: PathBuf,
+        file_size: u64,
+        warning: Option<String>,
+    },
+}
+
+impl PreviewState {
+    pub fn scroll_offset(&self) -> usize {
+        match self {
+            PreviewState::Text { scroll_offset, .. } => *scroll_offset,
+        }
+    }
+
+    pub fn total_lines(&self) -> usize {
+        match self {
+            PreviewState::Text { total_lines, .. } => *total_lines,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -68,6 +101,7 @@ impl AppState {
             left_all_entries: Vec::new(),
             right_all_entries: Vec::new(),
             selection_state: SelectionState::new(),
+            preview_state: None,
         })
     }
 
@@ -183,6 +217,87 @@ impl AppState {
         self.dialog_state.is_some()
     }
 
+    // T612-T615: Preview management methods
+    pub async fn open_text_preview(&mut self) -> anyhow::Result<()> {
+        let panel = self.active_panel();
+        if let Some(entry) = panel.entries.get(panel.cursor) {
+            let path = &entry.path;
+
+            // Check if it's a text file
+            if !crate::preview::is_text_file(path) {
+                self.show_error("Cannot preview: not a text file".to_string());
+                return Ok(());
+            }
+
+            // Check if it's a file (not a directory)
+            if entry.entry_type == EntryType::Dir {
+                self.show_error("Cannot preview a directory".to_string());
+                return Ok(());
+            }
+
+            // Load the file
+            match crate::preview::load_text_file(path).await {
+                Ok((content, warning)) => {
+                    let total_lines = content.lines().count();
+                    let file_size = entry.size;
+
+                    self.preview_state = Some(PreviewState::Text {
+                        content,
+                        scroll_offset: 0,
+                        total_lines,
+                        file_path: path.clone(),
+                        file_size,
+                        warning,
+                    });
+                }
+                Err(e) => {
+                    self.show_error(format!("Failed to load file: {}", e));
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn close_preview(&mut self) {
+        self.preview_state = None;
+    }
+
+    pub fn scroll_preview(&mut self, direction: i32) {
+        if let Some(PreviewState::Text {
+            scroll_offset,
+            total_lines,
+            ..
+        }) = &mut self.preview_state
+        {
+            if direction > 0 {
+                // Scroll down
+                *scroll_offset = (*scroll_offset + direction as usize).min(*total_lines - 1);
+            } else if direction < 0 {
+                // Scroll up
+                *scroll_offset = scroll_offset.saturating_sub((-direction) as usize);
+            }
+        }
+    }
+
+    pub fn jump_preview(&mut self, target: JumpTarget) {
+        if let Some(PreviewState::Text {
+            scroll_offset,
+            total_lines,
+            ..
+        }) = &mut self.preview_state
+        {
+            match target {
+                JumpTarget::Start => *scroll_offset = 0,
+                JumpTarget::End => *scroll_offset = total_lines.saturating_sub(1),
+            }
+        }
+    }
+
+    pub fn has_preview(&self) -> bool {
+        self.preview_state.is_some()
+    }
+
     // T411: Activate search mode
     pub fn activate_search(&mut self) {
         self.search_mode = true;
@@ -273,6 +388,7 @@ impl Default for AppState {
                 left_all_entries: Vec::new(),
                 right_all_entries: Vec::new(),
                 selection_state: SelectionState::new(),
+                preview_state: None,
             }
         })
     }

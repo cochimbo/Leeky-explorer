@@ -18,6 +18,14 @@ pub enum Action {
     ToggleSelection,  // T562: Space to mark/unmark
     SelectAll,        // T563: Ctrl+A to select all
     ClearSelection,   // T564: Esc to clear selection (when marks exist)
+    OpenPreview,      // T625: F4 to open preview
+    ClosePreview,     // T628: Esc/Q to close preview
+    ScrollPreviewUp,
+    ScrollPreviewDown,
+    PagePreviewUp,
+    PagePreviewDown,
+    JumpPreviewStart,
+    JumpPreviewEnd,
     ConfirmYes,
     ConfirmNo,
     ConfirmInput,
@@ -48,8 +56,9 @@ pub fn map_key_to_action(key: KeyEvent) -> Action {
         (KeyCode::F(6), _) => Action::Move,
         (KeyCode::F(7), _) => Action::CreateFolder,
         (KeyCode::F(8), _) => Action::Delete,
-        // F3 for search (standard in file explorers)
+        // F3 for search, F4 for preview (T626)
         (KeyCode::F(3), _) => Action::Search,
+        (KeyCode::F(4), _) => Action::OpenPreview,
         // T565-T566: Selection keybindings
         (KeyCode::Char(' '), KeyModifiers::NONE) => Action::ToggleSelection,
         (KeyCode::Char('a'), KeyModifiers::CONTROL) => Action::SelectAll,
@@ -75,6 +84,25 @@ pub fn map_key_to_input_action(key: KeyEvent) -> Action {
         KeyCode::Backspace => Action::InputBackspace,
         KeyCode::Esc => Action::Cancel,
         KeyCode::Char(c) => Action::InputChar(c),
+        _ => Action::None,
+    }
+}
+
+// T627-T630: Preview mode key handling
+pub fn map_key_to_preview_action(key: KeyEvent) -> Action {
+    if key.kind != KeyEventKind::Press {
+        return Action::None;
+    }
+
+    match key.code {
+        KeyCode::Up | KeyCode::Char('k') => Action::ScrollPreviewUp,
+        KeyCode::Down | KeyCode::Char('j') => Action::ScrollPreviewDown,
+        KeyCode::PageUp => Action::PagePreviewUp,
+        KeyCode::PageDown => Action::PagePreviewDown,
+        KeyCode::Home => Action::JumpPreviewStart,
+        KeyCode::End => Action::JumpPreviewEnd,
+        KeyCode::Esc => Action::ClosePreview,
+        KeyCode::Char('q') | KeyCode::Char('Q') => Action::ClosePreview,
         _ => Action::None,
     }
 }

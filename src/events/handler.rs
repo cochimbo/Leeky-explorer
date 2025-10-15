@@ -6,6 +6,11 @@ use anyhow::Result;
 use crossterm::event::KeyEvent;
 
 pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
+    // T627: Special handling for preview mode
+    if app.has_preview() {
+        return handle_preview_mode(app, key);
+    }
+    
     // Special handling for search mode
     if app.search_mode {
         return handle_search_mode(app, key);
@@ -79,6 +84,11 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
             app.activate_search();
             // T580: Clear marks when entering search mode to avoid confusion
             app.selection_state.clear(app.active_panel);
+        }
+        Action::OpenPreview => {
+            // T625-T626: Open preview for current file
+            // This needs to be async, so we'll handle it in main.rs
+            return Ok(action);
         }
         Action::ToggleSelection => {
             // T568: Toggle mark on current item and advance cursor
@@ -483,6 +493,58 @@ fn handle_search_mode(app: &mut AppState, key: KeyEvent) -> Result<Action> {
         crossterm::event::KeyCode::Char(c) => {
             // T412-T413: Append character and apply filter in real-time
             app.search_append(c);
+            Ok(Action::None)
+        }
+        _ => Ok(Action::None),
+    }
+}
+
+// T627-T630: Handle preview mode key events
+fn handle_preview_mode(app: &mut AppState, key: KeyEvent) -> Result<Action> {
+    use crate::events::keybindings::map_key_to_preview_action;
+    
+    if key.kind != crossterm::event::KeyEventKind::Press {
+        return Ok(Action::None);
+    }
+
+    let action = map_key_to_preview_action(key);
+
+    match action {
+        Action::ClosePreview => {
+            // T628: Close preview with Esc or Q
+            app.close_preview();
+            Ok(Action::None)
+        }
+        Action::ScrollPreviewUp => {
+            // Scroll up by 1 line
+            app.scroll_preview(-1);
+            Ok(Action::None)
+        }
+        Action::ScrollPreviewDown => {
+            // Scroll down by 1 line
+            app.scroll_preview(1);
+            Ok(Action::None)
+        }
+        Action::PagePreviewUp => {
+            // T630: Scroll up by page (20 lines)
+            app.scroll_preview(-20);
+            Ok(Action::None)
+        }
+        Action::PagePreviewDown => {
+            // T630: Scroll down by page (20 lines)
+            app.scroll_preview(20);
+            Ok(Action::None)
+        }
+        Action::JumpPreviewStart => {
+            // T629: Jump to start of file
+            use crate::app::JumpTarget;
+            app.jump_preview(JumpTarget::Start);
+            Ok(Action::None)
+        }
+        Action::JumpPreviewEnd => {
+            // T629: Jump to end of file
+            use crate::app::JumpTarget;
+            app.jump_preview(JumpTarget::End);
             Ok(Action::None)
         }
         _ => Ok(Action::None),

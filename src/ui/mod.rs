@@ -3,6 +3,7 @@ pub mod layout;
 pub mod panel_widget;
 pub mod dialog;
 pub mod theme;
+pub mod preview_modal;
 
 use crate::app::AppState;
 use ratatui::{
@@ -44,6 +45,7 @@ pub fn render_footer(frame: &mut Frame, area: Rect) {
     
     let line2_bindings = vec![
         ("F3", "Search", Color::Cyan),
+        ("F4", "Preview", Color::Cyan),
         ("F5", "Copy", Color::Green),
         ("F6", "Move", Color::Green),
         ("F7", "NewDir", Color::Yellow),

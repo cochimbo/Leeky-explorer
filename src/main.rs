@@ -5,6 +5,7 @@ pub mod fs;
 pub mod events;
 pub mod config;
 pub mod app;
+pub mod preview;
 
 use anyhow::Result;
 use app::{AppState, DialogState, PanelSide};
@@ -196,6 +197,11 @@ async fn run_app<B: ratatui::backend::Backend>(
                     }
                 }
             }
+
+            // Render preview modal if present (T617-T624)
+            if let Some(preview) = &app.preview_state {
+                ui::preview_modal::render_preview_modal(f, preview);
+            }
         })?;
 
         // Handle input with shorter timeout for better progress updates
@@ -209,6 +215,9 @@ async fn run_app<B: ratatui::backend::Backend>(
                             task.abort();
                         }
                         break;
+                    } else if action == Action::OpenPreview {
+                        // T625: Handle async preview opening
+                        app.open_text_preview().await?;
                     }
                 }
                 Event::Resize(_, _) => {
