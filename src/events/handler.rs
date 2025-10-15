@@ -90,6 +90,11 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
             // This needs to be async, so we'll handle it in main.rs
             return Ok(action);
         }
+        Action::ExtractArchive => {
+            // T838-T839: Extract archive
+            // This needs to be async, so we'll handle it in main.rs
+            return Ok(action);
+        }
         Action::ToggleSelection => {
             // T568: Toggle mark on current item and advance cursor
             app.toggle_selection();
@@ -181,6 +186,33 @@ fn handle_move_request(app: &mut AppState) -> Result<()> {
 }
 
 fn handle_dialog_action(app: &mut AppState, action: Action) -> Result<Action> {
+    // Handle ExtractOptions dialog separately
+    if let Some(DialogState::ExtractOptions { selected: _, .. }) = &app.dialog_state {
+        match action {
+            Action::MoveUp | Action::MoveDown => {
+                // Toggle between options
+                if let Some(DialogState::ExtractOptions { selected, .. }) = &mut app.dialog_state {
+                    *selected = if *selected == 0 { 1 } else { 0 };
+                }
+                return Ok(Action::None);
+            }
+            Action::ConfirmYes | Action::EnterDirectory => {
+                // Return to main.rs for async extraction
+                return Ok(Action::ConfirmYes);
+            }
+            Action::ConfirmNo | Action::Cancel => {
+                app.close_dialog();
+                return Ok(Action::None);
+            }
+            Action::Quit => {
+                return Ok(action);
+            }
+            _ => {
+                return Ok(Action::None);
+            }
+        }
+    }
+    
     match action {
         Action::ConfirmYes => {
             if let Some(DialogState::Confirm { confirm_action, .. }) = &app.dialog_state {
@@ -196,6 +228,10 @@ fn handle_dialog_action(app: &mut AppState, action: Action) -> Result<Action> {
                     ConfirmAction::Delete => {
                         start_delete_operation(app)?;
                         // Don't close dialog - start_delete_operation sets progress dialog
+                    }
+                    ConfirmAction::ExtractArchive { .. } => {
+                        // Return action to main.rs for async extraction
+                        return Ok(Action::ConfirmYes);
                     }
                 }
             }

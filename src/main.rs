@@ -6,9 +6,10 @@ pub mod events;
 pub mod config;
 pub mod app;
 pub mod preview;
+pub mod archive;
 
 use anyhow::Result;
-use app::{AppState, DialogState, PanelSide};
+use app::{AppState, DialogState, PanelSide, ConfirmAction};
 use crossterm::{
     event::{self, Event},
     execute,
@@ -218,6 +219,68 @@ async fn run_app<B: ratatui::backend::Backend>(
                     } else if action == Action::OpenPreview {
                         // T625: Handle async preview opening
                         app.open_text_preview().await?;
+                    } else if action == Action::ExtractArchive {
+                        // T838-T839: Handle archive extraction
+                        app.start_extract_archive()?;
+                    } else if action == Action::ConfirmYes {
+                        // Check if confirming an extraction
+                        if let Some(dialog_state) = &app.dialog_state {
+                            if let DialogState::ExtractOptions { source, dest, format, archive_name, selected } = dialog_state {
+                                let source = source.clone();
+                                let mut dest = dest.clone();
+                                let format = format.clone();
+                                let create_folder = *selected == 1;
+                                
+                                // If option 1 selected, create a folder with archive name
+                                if create_folder {
+                                    dest = dest.join(archive_name);
+                                }
+                                
+                                app.close_dialog();
+                                
+                                // TODO: Show progress dialog during extraction (T835-T837)
+                                // Create a dummy progress channel for now
+                                let (progress_tx, _progress_rx) = tokio::sync::mpsc::channel(100);
+                                
+                                // Extract archive
+                                let _ = crate::archive::extractor::extract_archive(
+                                    &source,
+                                    &dest,
+                                    format,
+                                    None,
+                                    progress_tx,
+                                ).await;
+                                
+                                // Refresh both panels
+                                app.left_panel.refresh_entries()?;
+                                app.right_panel.refresh_entries()?;
+                            } else if let DialogState::Confirm { confirm_action, .. } = dialog_state {
+                                if let ConfirmAction::ExtractArchive { source, dest, format } = confirm_action {
+                                    let source = source.clone();
+                                    let dest = dest.clone();
+                                    let format = format.clone();
+                                    
+                                    app.close_dialog();
+                                    
+                                    // TODO: Show progress dialog during extraction (T835-T837)
+                                    // Create a dummy progress channel for now
+                                    let (progress_tx, _progress_rx) = tokio::sync::mpsc::channel(100);
+                                    
+                                    // Extract archive
+                                    let _ = crate::archive::extractor::extract_archive(
+                                        &source,
+                                        &dest,
+                                        format,
+                                        None,
+                                        progress_tx,
+                                    ).await;
+                                    
+                                    // Refresh both panels
+                                    app.left_panel.refresh_entries()?;
+                                    app.right_panel.refresh_entries()?;
+                                }
+                            }
+                        }
                     }
                 }
                 Event::Resize(_, _) => {

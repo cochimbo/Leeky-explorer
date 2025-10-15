@@ -48,6 +48,13 @@ pub enum DialogState {
     Error {
         message: String,
     },
+    ExtractOptions {
+        source: PathBuf,
+        dest: PathBuf,
+        format: crate::archive::formats::ArchiveFormat,
+        archive_name: String,
+        selected: usize, // 0 = extract here, 1 = create folder
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -84,11 +91,16 @@ impl PreviewState {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConfirmAction {
     Copy,
     Move,
     Delete,
+    ExtractArchive {
+        source: PathBuf,
+        dest: PathBuf,
+        format: crate::archive::formats::ArchiveFormat,
+    },
 }
 
 impl AppState {
@@ -441,6 +453,64 @@ impl AppState {
             PanelSide::Left => self.left_all_entries = entries,
             PanelSide::Right => self.right_all_entries = entries,
         }
+    }
+
+    // T838-T844: Archive extraction
+    pub fn start_extract_archive(&mut self) -> anyhow::Result<()> {
+        let panel = self.active_panel();
+        
+        // Get selected file
+        if let Some(entry) = panel.entries.get(panel.cursor) {
+            let path = entry.path.clone();
+            
+            // Check if it's a file (not a directory)
+            if entry.entry_type == EntryType::Dir {
+                self.show_error("Cannot extract a directory".to_string());
+                return Ok(());
+            }
+            
+            // T854: Detect archive format
+            match crate::archive::detect_format(&path) {
+                Ok(format) => {
+                    if format == crate::archive::formats::ArchiveFormat::UNKNOWN {
+                        self.show_error("Not a recognized archive format".to_string());
+                        return Ok(());
+                    }
+                    
+                    // T842: Show extraction destination dialog
+                    // Extract to the active panel's directory (where the archive is)
+                    let dest_path = match self.active_panel {
+                        PanelSide::Left => self.left_panel.current_path.clone(),
+                        PanelSide::Right => self.right_panel.current_path.clone(),
+                    };
+                    
+                    let filename = path.file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("archive")
+                        .to_string();
+                    
+                    // Remove extension to get archive name for folder
+                    let archive_name = if let Some(stem) = path.file_stem() {
+                        stem.to_string_lossy().to_string()
+                    } else {
+                        filename.clone()
+                    };
+                    
+                    self.dialog_state = Some(DialogState::ExtractOptions {
+                        source: path,
+                        dest: dest_path,
+                        format,
+                        archive_name,
+                        selected: 0, // Default to "extract here"
+                    });
+                }
+                Err(e) => {
+                    self.show_error(format!("Failed to detect archive format: {}", e));
+                }
+            }
+        }
+        
+        Ok(())
     }
 }
 

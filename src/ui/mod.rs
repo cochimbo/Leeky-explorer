@@ -50,6 +50,7 @@ pub fn render_footer(frame: &mut Frame, area: Rect) {
         ("F6", "Move", Color::Green),
         ("F7", "NewDir", Color::Yellow),
         ("F8", "Delete", Color::Red),
+        ("F9", "Extract", Color::Cyan),
         ("Q", "Quit", Color::Gray),
     ];
 

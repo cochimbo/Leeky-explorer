@@ -319,58 +319,58 @@
 
 ### Selection State Management
 
-- [ ] **T551** [P] [US5] Create `src/models/selection.rs` with `SelectionState` struct (left_marked: HashSet<PathBuf>, right_marked: HashSet<PathBuf>)
-- [ ] **T552** [US5] Implement `SelectionState::toggle_mark(panel: PanelSide, path: PathBuf)` to mark/unmark items
-- [ ] **T553** [US5] Implement `SelectionState::mark_all(panel: PanelSide, paths: Vec<PathBuf>)` for Ctrl+A
-- [ ] **T554** [US5] Implement `SelectionState::clear(panel: PanelSide)` to remove all marks
-- [ ] **T555** [US5] Implement `SelectionState::get_marked(panel: PanelSide) -> Vec<PathBuf>` to retrieve selection
-- [ ] **T556** [US5] Implement `SelectionState::is_marked(panel: PanelSide, path: &Path) -> bool` for visual check
-- [ ] **T557** [US5] Add `selection_state: SelectionState` field to `AppState` in `src/app.rs`
+- [X] **T551** [P] [US5] Create `src/models/selection.rs` with `SelectionState` struct (left_marked: HashSet<PathBuf>, right_marked: HashSet<PathBuf>)
+- [X] **T552** [US5] Implement `SelectionState::toggle_mark(panel: PanelSide, path: PathBuf)` to mark/unmark items
+- [X] **T553** [US5] Implement `SelectionState::mark_all(panel: PanelSide, paths: Vec<PathBuf>)` for Ctrl+A
+- [X] **T554** [US5] Implement `SelectionState::clear(panel: PanelSide)` to remove all marks
+- [X] **T555** [US5] Implement `SelectionState::get_marked(panel: PanelSide) -> Vec<PathBuf>` to retrieve selection
+- [X] **T556** [US5] Implement `SelectionState::is_marked(panel: PanelSide, path: &Path) -> bool` for visual check
+- [X] **T557** [US5] Add `selection_state: SelectionState` field to `AppState` in `src/app.rs`
 
 ### UI Indicators
 
-- [ ] **T558** [US5] Update `render_panel()` in `src/ui/panel_widget.rs` to show "*" prefix for marked items
-- [ ] **T559** [US5] Add alternativebackground color for marked items in `src/ui/theme.rs` (e.g., DarkGray)
-- [ ] **T560** [US5] Add selection counter in panel header: "3 items seleccionados" when marks exist
-- [ ] **T561** [US5] Update footer to show: "Space: Select | Ctrl+A: All | Esc: Clear"
+- [X] **T558** [US5] Update `render_panel()` in `src/ui/panel_widget.rs` to show "*" prefix for marked items
+- [X] **T559** [US5] Add alternativebackground color for marked items in `src/ui/theme.rs` (e.g., DarkGray)
+- [X] **T560** [US5] Add selection counter in panel header: "3 items seleccionados" when marks exist
+- [X] **T561** [US5] Update footer to show: "Space: Select | Ctrl+A: All | Esc: Clear"
 
 ### Keyboard Handling
 
-- [ ] **T562** [P] [US5] Add `Action::ToggleSelection` to `src/events/handler.rs`
-- [ ] **T563** [P] [US5] Add `Action::SelectAll` to `src/events/handler.rs`
-- [ ] **T564** [P] [US5] Add `Action::ClearSelection` to `src/events/handler.rs`
-- [ ] **T565** [US5] Map Space key to `Action::ToggleSelection` in `src/events/keybindings.rs`
-- [ ] **T566** [US5] Map Ctrl+A to `Action::SelectAll` in `src/events/keybindings.rs`
-- [ ] **T567** [US5] Map Esc to `Action::ClearSelection` when marks exist (without closing app)
-- [ ] **T568** [US5] Implement toggle logic: mark item, advance cursor to next item
-- [ ] **T569** [US5] Implement select all: toggle all visible items in active panel
+- [X] **T562** [P] [US5] Add `Action::ToggleSelection` to `src/events/handler.rs`
+- [X] **T563** [P] [US5] Add `Action::SelectAll` to `src/events/handler.rs`
+- [X] **T564** [P] [US5] Add `Action::ClearSelection` to `src/events/handler.rs`
+- [X] **T565** [US5] Map Space key to `Action::ToggleSelection` in `src/events/keybindings.rs`
+- [X] **T566** [US5] Map Ctrl+A to `Action::SelectAll` in `src/events/keybindings.rs`
+- [X] **T567** [US5] Map Esc to `Action::ClearSelection` when marks exist (without closing app)
+- [X] **T568** [US5] Implement toggle logic: mark item, advance cursor to next item
+- [X] **T569** [US5] Implement select all: toggle all visible items in active panel
 
 ### Batch Operations Integration
 
-- [ ] **T570** [US5] Update `start_copy()` in `src/app.rs` to check for marked items first
-- [ ] **T571** [US5] Update `start_move()` in `src/app.rs` to check for marked items first
-- [ ] **T572** [US5] Update `start_delete()` in `src/app.rs` to check for marked items first
-- [ ] **T573** [US5] Modify confirmation dialogs to show "Copiar 3 items..." when multiple selected
-- [ ] **T574** [US5] Implement batch progress tracking: "Copiando 2/3: archivo.txt (45%)"
-- [ ] **T575** [US5] Clear marks automatically after successful batch operation
-- [ ] **T576** [US5] Handle errors during batch: show "(C)ontinuar / (R)eintentar / (A)bortar" dialog
-- [ ] **T577** [US5] Keep track of failed items to show summary: "3 copiados, 1 fallido"
+- [X] **T570** [US5] Update `start_copy()` in `src/app.rs` to check for marked items first
+- [X] **T571** [US5] Update `start_move()` in `src/app.rs` to check for marked items first
+- [X] **T572** [US5] Update `start_delete()` in `src/app.rs` to check for marked items first
+- [X] **T573** [US5] Modify confirmation dialogs to show "Copiar 3 items..." when multiple selected
+- [X] **T574** [US5] Implement batch progress tracking: "Copiando 2/3: archivo.txt (45%)"
+- [X] **T575** [US5] Clear marks automatically after successful batch operation
+- [X] **T576** [US5] Handle errors during batch: show "(C)ontinuar / (R)eintentar / (A)bortar" dialog
+- [X] **T577** [US5] Keep track of failed items to show summary: "3 copiados, 1 fallido"
 
 ### Navigation & Filtering Integration
 
-- [ ] **T578** [US5] Clear marks when navigating to different directory (Enter/Backspace)
-- [ ] **T579** [US5] Preserve marks when switching panels (Tab)
-- [ ] **T580** [US5] Update filter logic: marks on filtered-out items should be removed
+- [X] **T578** [US5] Clear marks when navigating to different directory (Enter/Backspace)
+- [X] **T579** [US5] Preserve marks when switching panels (Tab)
+- [X] **T580** [US5] Update filter logic: marks on filtered-out items should be removed
 
 ### Testing
 
-- [ ] **T581** [P] [US5] Create `tests/unit/selection_tests.rs`
-- [ ] **T582** [US5] Test `toggle_mark()`: mark, unmark, mark again same item
-- [ ] **T583** [US5] Test `mark_all()`: select all, then toggle all to deselect
-- [ ] **T584** [US5] Test batch operations: mark 3 files, copy, verify all copied
-- [ ] **T585** [US5] Test marks cleared on directory change
-- [ ] **T586** [US5] Test marks preserved when switching panels
-- [ ] **T587** [US5] Test error handling: batch operation with one permission error
+- [X] **T581** [P] [US5] Create `tests/unit/selection_tests.rs`
+- [X] **T582** [US5] Test `toggle_mark()`: mark, unmark, mark again same item
+- [X] **T583** [US5] Test `mark_all()`: select all, then toggle all to deselect
+- [X] **T584** [US5] Test batch operations: mark 3 files, copy, verify all copied
+- [X] **T585** [US5] Test marks cleared on directory change
+- [X] **T586** [US5] Test marks preserved when switching panels
+- [X] **T587** [US5] Test error handling: batch operation with one permission error
 
 ---
 
@@ -380,64 +380,64 @@
 
 ### Preview Module Setup
 
-- [ ] **T601** [P] [US6] Create `src/preview/` directory
-- [ ] **T602** [P] [US6] Create `src/preview/mod.rs` and declare text_viewer, encoding submodules
-- [ ] **T603** [P] [US6] Add `encoding_rs` dependency to `Cargo.toml` for charset detection
+- [X] **T601** [P] [US6] Create `src/preview/` directory
+- [X] **T602** [P] [US6] Create `src/preview/mod.rs` and declare text_viewer, encoding submodules
+- [X] **T603** [P] [US6] Add `encoding_rs` dependency to `Cargo.toml` for charset detection
 
 ### Text Loading & Encoding
 
-- [ ] **T604** [P] [US6] Create `src/preview/encoding.rs`
-- [ ] **T605** [US6] Implement `detect_encoding(bytes: &[u8]) -> &'static Encoding` using encoding_rs
-- [ ] **T606** [US6] Implement `load_text_file(path: &Path) -> Result<String>` with encoding detection
-- [ ] **T607** [US6] Add UTF-8 validation and fallback to Latin-1 if detection fails
-- [ ] **T608** [US6] Handle binary file detection: return error if >10% non-printable chars
-- [ ] **T609** [US6] Add file size limit: show warning for files >5MB, error for >10MB
+- [X] **T604** [P] [US6] Create `src/preview/encoding.rs`
+- [X] **T605** [US6] Implement `detect_encoding(bytes: &[u8]) -> &'static Encoding` using encoding_rs
+- [X] **T606** [US6] Implement `load_text_file(path: &Path) -> Result<String>` with encoding detection
+- [X] **T607** [US6] Add UTF-8 validation and fallback to Latin-1 if detection fails
+- [X] **T608** [US6] Handle binary file detection: return error if >10% non-printable chars
+- [X] **T609** [US6] Add file size limit: show warning for files >5MB, error for >10MB
 
 ### Preview State Management
 
-- [ ] **T610** [P] [US6] Create `PreviewState` enum in `src/app.rs`: Text{content, scroll_offset, total_lines}
-- [ ] **T611** [US6] Add `preview_state: Option<PreviewState>` field to `AppState`
-- [ ] **T612** [US6] Implement `AppState::open_text_preview(path: PathBuf)` async
-- [ ] **T613** [US6] Implement `AppState::close_preview()` to clear preview_state
-- [ ] **T614** [US6] Implement `AppState::scroll_preview(direction: i32)` for up/down
-- [ ] **T615** [US6] Implement `AppState::jump_preview(target: JumpTarget)` for Home/End
+- [X] **T610** [P] [US6] Create `PreviewState` enum in `src/app.rs`: Text{content, scroll_offset, total_lines}
+- [X] **T611** [US6] Add `preview_state: Option<PreviewState>` field to `AppState`
+- [X] **T612** [US6] Implement `AppState::open_text_preview(path: PathBuf)` async
+- [X] **T613** [US6] Implement `AppState::close_preview()` to clear preview_state
+- [X] **T614** [US6] Implement `AppState::scroll_preview(direction: i32)` for up/down
+- [X] **T615** [US6] Implement `AppState::jump_preview(target: JumpTarget)` for Home/End
 
 ### UI Modal Rendering
 
-- [ ] **T616** [P] [US6] Create `src/ui/preview_modal.rs`
-- [ ] **T617** [US6] Implement `render_text_preview(f: &mut Frame, state: &PreviewState, area: Rect)`
-- [ ] **T618** [US6] Calculate modal size: 80% width, 80% height, centered
-- [ ] **T619** [US6] Draw modal border with Clear background (to cover panels)
-- [ ] **T620** [US6] Render title bar: "filename.txt (2.5 KB)"
-- [ ] **T621** [US6] Render text content with line numbers in left margin (4 chars wide)
-- [ ] **T622** [US6] Implement viewport scrolling: show only visible lines within modal height
-- [ ] **T623** [US6] Add footer hints: "↑↓: Scroll | Home/End: Inicio/Fin | Esc/Q: Cerrar"
-- [ ] **T624** [US6] Show position indicator: "Línea 150/523 (28%)" in bottom right
+- [X] **T616** [P] [US6] Create `src/ui/preview_modal.rs`
+- [X] **T617** [US6] Implement `render_text_preview(f: &mut Frame, state: &PreviewState, area: Rect)`
+- [X] **T618** [US6] Calculate modal size: 80% width, 80% height, centered
+- [X] **T619** [US6] Draw modal border with Clear background (to cover panels)
+- [X] **T620** [US6] Render title bar: "filename.txt (2.5 KB)"
+- [X] **T621** [US6] Render text content with line numbers in left margin (4 chars wide)
+- [X] **T622** [US6] Implement viewport scrolling: show only visible lines within modal height
+- [X] **T623** [US6] Add footer hints: "↑↓: Scroll | Home/End: Inicio/Fin | Esc/Q: Cerrar"
+- [X] **T624** [US6] Show position indicator: "Línea 150/523 (28%)" in bottom right
 
 ### Keyboard Handling
 
-- [ ] **T625** [P] [US6] Add `Action::OpenPreview` to `src/events/handler.rs`
-- [ ] **T626** [US6] Map F4 key to `Action::OpenPreview` in `src/events/keybindings.rs`
-- [ ] **T627** [US6] Add preview mode check in `handle_key()`: route arrows to scroll_preview() when active
-- [ ] **T628** [US6] Map Esc/Q to close_preview() when preview is active
-- [ ] **T629** [US6] Map Home/End to jump to start/end of file
-- [ ] **T630** [US6] Map PageUp/PageDown to scroll by viewport height
+- [X] **T625** [P] [US6] Add `Action::OpenPreview` to `src/events/handler.rs`
+- [X] **T626** [US6] Map F4 key to `Action::OpenPreview` in `src/events/keybindings.rs`
+- [X] **T627** [US6] Add preview mode check in `handle_key()`: route arrows to scroll_preview() when active
+- [X] **T628** [US6] Map Esc/Q to close_preview() when preview is active
+- [X] **T629** [US6] Map Home/End to jump to start/end of file
+- [X] **T630** [US6] Map PageUp/PageDown to scroll by viewport height
 
 ### File Type Detection
 
-- [ ] **T631** [P] [US6] Create helper `is_text_file(path: &Path) -> bool` checking extensions
-- [ ] **T632** [US6] Add text extensions: .txt, .md, .rs, .py, .js, .json, .xml, .log, .conf, .ini, .toml, .yaml
-- [ ] **T633** [US6] Show error dialog "No se puede previsualizar: archivo binario" for non-text
+- [X] **T631** [P] [US6] Create helper `is_text_file(path: &Path) -> bool` checking extensions
+- [X] **T632** [US6] Add text extensions: .txt, .md, .rs, .py, .js, .json, .xml, .log, .conf, .ini, .toml, .yaml
+- [X] **T633** [US6] Show error dialog "No se puede previsualizar: archivo binario" for non-text
 
 ### Testing
 
-- [ ] **T634** [P] [US6] Create `tests/unit/preview_tests.rs`
-- [ ] **T635** [US6] Test `load_text_file()` with UTF-8 file
-- [ ] **T636** [US6] Test encoding detection with Latin-1 file
-- [ ] **T637** [US6] Test binary file rejection (e.g., .png)
-- [ ] **T638** [US6] Test scroll: load 100-line file, scroll down, verify offset
-- [ ] **T639** [US6] Test Home/End jumps
-- [ ] **T640** [US6] Test Esc closes preview and returns to navigation
+- [X] **T634** [P] [US6] Create `tests/unit/preview_tests.rs`
+- [X] **T635** [US6] Test `load_text_file()` with UTF-8 file
+- [X] **T636** [US6] Test encoding detection with Latin-1 file
+- [X] **T637** [US6] Test binary file rejection (e.g., .png)
+- [X] **T638** [US6] Test scroll: load 100-line file, scroll down, verify offset
+- [X] **T639** [US6] Test Home/End jumps
+- [X] **T640** [US6] Test Esc closes preview and returns to navigation
 
 ---
 
@@ -447,57 +447,57 @@
 
 ### Image Processing Setup
 
-- [ ] **T701** [P] [US7] Add `image` dependency to `Cargo.toml` (version 0.24+)
-- [ ] **T702** [P] [US7] Add `artem` or `viuer` dependency for ASCII/Unicode conversion
-- [ ] **T703** [P] [US7] Create `src/preview/image_viewer.rs`
+- [X] **T701** [P] [US7] Add `image` dependency to `Cargo.toml` (version 0.24+)
+- [X] **T702** [P] [US7] Add `artem` or `viuer` dependency for ASCII/Unicode conversion
+- [X] **T703** [P] [US7] Create `src/preview/image_viewer.rs`
 
 ### Image Loading & Conversion
 
-- [ ] **T704** [US7] Implement `load_image(path: &Path) -> Result<DynamicImage>` using image crate
-- [ ] **T705** [US7] Implement `get_image_metadata(path: &Path) -> Result<ImageMeta>` (width, height, format)
-- [ ] **T706** [US7] Implement `image_to_ascii(img: DynamicImage, max_width: u16, max_height: u16) -> Result<String>`
-- [ ] **T707** [US7] Add automatic scaling: calculate aspect ratio, resize to fit modal
-- [ ] **T708** [US7] Detect terminal color capability using crossterm: truecolor, 256, 16, mono
-- [ ] **T709** [US7] Use Unicode blocks (▀▄█) for better vertical resolution when supported
-- [ ] **T710** [US7] Fallback to ASCII characters (.:;+=*%@#) for limited terminals
-- [ ] **T711** [US7] Handle image decoding errors: corrupt file, unsupported format
+- [X] **T704** [US7] Implement `load_image(path: &Path) -> Result<DynamicImage>` using image crate
+- [X] **T705** [US7] Implement `get_image_metadata(path: &Path) -> Result<ImageMeta>` (width, height, format)
+- [X] **T706** [US7] Implement `image_to_ascii(img: DynamicImage, max_width: u16, max_height: u16) -> Result<String>`
+- [X] **T707** [US7] Add automatic scaling: calculate aspect ratio, resize to fit modal
+- [X] **T708** [US7] Detect terminal color capability using crossterm: truecolor, 256, 16, mono
+- [X] **T709** [US7] Use Unicode blocks (▀▄█) for better vertical resolution when supported
+- [X] **T710** [US7] Fallback to ASCII characters (.:;+=*%@#) for limited terminals
+- [X] **T711** [US7] Handle image decoding errors: corrupt file, unsupported format
 
 ### Preview State Extension
 
-- [ ] **T712** [US7] Extend `PreviewState` enum: add Image{ascii_art, metadata, original_size}
-- [ ] **T713** [US7] Implement `AppState::open_image_preview(path: PathBuf)` async
-- [ ] **T714** [US7] Add file size check: confirm dialog for images >10MB before loading
-- [ ] **T715** [US7] Show "Cargando imagen..." dialog during processing
+- [X] **T712** [US7] Extend `PreviewState` enum: add Image{ascii_art, metadata, original_size}
+- [X] **T713** [US7] Implement `AppState::open_image_preview(path: PathBuf)` async
+- [X] **T714** [US7] Add file size check: confirm dialog for images >10MB before loading
+- [X] **T715** [US7] Show "Cargando imagen..." dialog during processing
 
 ### UI Modal Rendering
 
-- [ ] **T716** [US7] Extend `render_preview_modal()` to handle Image variant
-- [ ] **T717** [US7] Calculate modal size: 90% width, 90% height (larger for images)
-- [ ] **T718** [US7] Render title: "imagen.png (1920x1080, 2.5 MB, PNG)"
-- [ ] **T719** [US7] Center ASCII art within modal area
-- [ ] **T720** [US7] Add footer hint: "Esc/Q: Cerrar"
-- [ ] **T721** [US7] Handle animated GIFs: show only first frame with note "(GIF animado - frame 1)"
+- [X] **T716** [US7] Extend `render_preview_modal()` to handle Image variant
+- [X] **T717** [US7] Calculate modal size: 90% width, 90% height (larger for images)
+- [X] **T718** [US7] Render title: "imagen.png (1920x1080, 2.5 MB, PNG)"
+- [X] **T719** [US7] Center ASCII art within modal area
+- [X] **T720** [US7] Add footer hint: "Esc/Q: Cerrar"
+- [X] **T721** [US7] Handle animated GIFs: show only first frame with note "(GIF animado - frame 1)"
 
 ### File Type Detection
 
-- [ ] **T722** [P] [US7] Create helper `is_image_file(path: &Path) -> bool`
-- [ ] **T723** [US7] Add image extensions: .png, .jpg, .jpeg, .gif, .bmp, .webp
-- [ ] **T724** [US7] Detect format by extension first, then by magic bytes if extension ambiguous
+- [X] **T722** [P] [US7] Create helper `is_image_file(path: &Path) -> bool`
+- [X] **T723** [US7] Add image extensions: .png, .jpg, .jpeg, .gif, .bmp, .webp
+- [X] **T724** [US7] Detect format by extension first, then by magic bytes if extension ambiguous
 
 ### Keyboard Handling
 
-- [ ] **T725** [US7] Reuse F4 key for both text and image preview (auto-detect file type)
-- [ ] **T726** [US7] Map Esc/Q to close image preview
-- [ ] **T727** [US7] No scroll needed for images (always fit to screen)
+- [X] **T725** [US7] Reuse F4 key for both text and image preview (auto-detect file type)
+- [X] **T726** [US7] Map Esc/Q to close image preview
+- [X] **T727** [US7] No scroll needed for images (always fit to screen)
 
 ### Testing
 
-- [ ] **T728** [P] [US7] Create test fixtures: small PNG (100x100), large JPEG (4K), GIF
-- [ ] **T729** [US7] Test `load_image()` with valid PNG
-- [ ] **T730** [US7] Test corrupt image handling
-- [ ] **T731** [US7] Test aspect ratio preservation on resize
-- [ ] **T732** [US7] Test ASCII conversion produces non-empty output
-- [ ] **T733** [US7] Test GIF shows first frame
+- [X] **T728** [P] [US7] Create test fixtures: small PNG (100x100), large JPEG (4K), GIF
+- [X] **T729** [US7] Test `load_image()` with valid PNG
+- [X] **T730** [US7] Test corrupt image handling
+- [X] **T731** [US7] Test aspect ratio preservation on resize
+- [X] **T732** [US7] Test ASCII conversion produces non-empty output
+- [X] **T733** [US7] Test GIF shows first frame
 - [ ] **T734** [US7] Test file size confirmation for large images
 
 ---
@@ -563,11 +563,12 @@
 
 ### UI Integration
 
-- [ ] **T838** [P] [US8] Add `Action::ExtractArchive` to `src/events/handler.rs`
-- [ ] **T839** [US8] Map F9 key to `Action::ExtractArchive` in `src/events/keybindings.rs`
-- [ ] **T840** [US8] Implement archive preview modal: show list of files with scroll
-- [ ] **T841** [US8] Show archive metadata in title: "archivo.zip (23 files, 15 MB → 42 MB, ratio 64%)"
-- [ ] **T842** [US8] Add extraction destination dialog: pre-fill with opposite panel path
+- [x] **T838** [P] [US8] Add `Action::ExtractArchive` to `src/events/handler.rs`
+- [x] **T839** [US8] Map F9 key to `Action::ExtractArchive` in `src/events/keybindings.rs`
+- [x] **T839b** [US8] Update footer to show F9 key hint: "F9:Extract" in main navigation view
+- [x] **T840** [US8] Implement archive preview modal: show list of files with scroll
+- [x] **T841** [US8] Show archive metadata in title: "archivo.zip (23 files, 15 MB → 42 MB, ratio 64%)"
+- [x] **T842** [US8] Add extraction destination dialog: pre-fill with opposite panel path
 - [ ] **T843** [US8] Show password input dialog for encrypted archives
 - [ ] **T844** [US8] Handle collisions: prompt "(S)obreescribir / (T)odos / (R)enombrar / (O)mitir / (C)ancelar"
 

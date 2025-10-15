@@ -1,0 +1,293 @@
+// T823-T833: Archive extraction logic
+use anyhow::{Result, Context, bail};
+use std::path::{Path, PathBuf};
+use std::fs::{self, File};
+use std::io::Read;
+use tokio::sync::mpsc::Sender;
+use crate::models::operation::Progress;
+
+/// T834: Extraction progress information
+#[derive(Debug, Clone)]
+pub struct ExtractionProgress {
+    pub current_file: String,
+    pub file_index: usize,
+    pub total_files: usize,
+    pub bytes_extracted: u64,
+}
+
+enum CompressionType {
+    Gzip,
+    Bzip2,
+    Xz,
+}
+
+use super::formats::ArchiveFormat;
+
+/// T824: Main extraction function
+pub async fn extract_archive(
+    archive_path: &Path,
+    dest_path: &Path,
+    format: ArchiveFormat,
+    password: Option<String>,
+    progress_tx: Sender<Progress>,
+) -> Result<()> {
+    // Create destination directory if it doesn't exist
+    fs::create_dir_all(dest_path).context("Failed to create destination directory")?;
+    
+    match format {
+        ArchiveFormat::ZIP => extract_zip(archive_path, dest_path, password, progress_tx).await,
+        ArchiveFormat::TAR => extract_tar(archive_path, dest_path, None, progress_tx).await,
+        ArchiveFormat::TAR_GZ => extract_tar(archive_path, dest_path, Some(CompressionType::Gzip), progress_tx).await,
+        ArchiveFormat::TAR_BZ2 => extract_tar(archive_path, dest_path, Some(CompressionType::Bzip2), progress_tx).await,
+        ArchiveFormat::TAR_XZ => extract_tar(archive_path, dest_path, Some(CompressionType::Xz), progress_tx).await,
+        ArchiveFormat::SEVENZ => extract_7z(archive_path, dest_path, password, progress_tx).await,
+        ArchiveFormat::RAR => extract_rar(archive_path, dest_path, password, progress_tx).await,
+        ArchiveFormat::UNKNOWN => bail!("Unknown archive format"),
+    }
+}
+
+/// T825: Extract ZIP archive
+async fn extract_zip(
+    archive_path: &Path,
+    dest_path: &Path,
+    _password: Option<String>,
+    progress_tx: Sender<Progress>,
+) -> Result<()> {
+    let file = File::open(archive_path).context("Failed to open ZIP file")?;
+    let mut archive = zip::ZipArchive::new(file).context("Failed to read ZIP archive")?;
+    
+    let total_files = archive.len();
+    let mut bytes_extracted = 0u64;
+    let total_bytes = total_files as u64 * 1024; // Approximation
+    
+    for i in 0..total_files {
+        let mut file = archive.by_index(i)?;
+        let file_name = file.name().to_string();
+        
+        // T832: Sanitize path (convert absolute to relative)
+        let sanitized_path = sanitize_path(&file_name);
+        let out_path = dest_path.join(&sanitized_path);
+        
+        // T835: Send progress update
+        let _ = progress_tx.send(Progress {
+            bytes_done: bytes_extracted,
+            bytes_total: total_bytes,
+            files_done: i,
+            files_total: total_files,
+        }).await;
+        
+        if file.is_dir() {
+            // T829: Create directory
+            fs::create_dir_all(&out_path)?;
+        } else {
+            // T829: Create parent directories
+            if let Some(parent) = out_path.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            
+            // Extract file
+            let mut out_file = File::create(&out_path)?;
+            std::io::copy(&mut file, &mut out_file)?;
+            
+            bytes_extracted += file.size();
+            
+            // T830: Preserve file permissions (Unix only)
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                if let Some(mode) = file.unix_mode() {
+                    let permissions = std::fs::Permissions::from_mode(mode);
+                    fs::set_permissions(&out_path, permissions)?;
+                }
+            }
+        }
+    }
+    
+    // Send final progress
+    let _ = progress_tx.send(Progress {
+        bytes_done: bytes_extracted,
+        bytes_total: bytes_extracted,
+        files_done: total_files,
+        files_total: total_files,
+    }).await;
+    
+    Ok(())
+}
+
+/// T826: Extract TAR archive (with optional compression)
+async fn extract_tar(
+    archive_path: &Path,
+    dest_path: &Path,
+    compression: Option<CompressionType>,
+    progress_tx: Sender<Progress>,
+) -> Result<()> {
+    let file = File::open(archive_path).context("Failed to open TAR file")?;
+    
+    let mut archive: tar::Archive<Box<dyn Read + Send>> = match compression {
+        None => {
+            tar::Archive::new(Box::new(file))
+        }
+        Some(CompressionType::Gzip) => {
+            let decoder = flate2::read::GzDecoder::new(file);
+            tar::Archive::new(Box::new(decoder))
+        }
+        Some(CompressionType::Bzip2) => {
+            let decoder = bzip2::read::BzDecoder::new(file);
+            tar::Archive::new(Box::new(decoder))
+        }
+        Some(CompressionType::Xz) => {
+            let decoder = xz2::read::XzDecoder::new(file);
+            tar::Archive::new(Box::new(decoder))
+        }
+    };
+    
+    // Count total entries
+    let entries_vec: Vec<_> = archive.entries()?.collect();
+    let total_files = entries_vec.len();
+    let mut bytes_extracted = 0u64;
+    
+    // Re-open archive for extraction
+    let file = File::open(archive_path)?;
+    let mut archive: tar::Archive<Box<dyn Read + Send>> = match compression {
+        None => tar::Archive::new(Box::new(file)),
+        Some(CompressionType::Gzip) => {
+            let decoder = flate2::read::GzDecoder::new(file);
+            tar::Archive::new(Box::new(decoder))
+        }
+        Some(CompressionType::Bzip2) => {
+            let decoder = bzip2::read::BzDecoder::new(file);
+            tar::Archive::new(Box::new(decoder))
+        }
+        Some(CompressionType::Xz) => {
+            let decoder = xz2::read::XzDecoder::new(file);
+            tar::Archive::new(Box::new(decoder))
+        }
+    };
+    
+    for (i, entry_result) in archive.entries()?.enumerate() {
+        let mut entry = entry_result?;
+        let path = entry.path()?.to_path_buf();
+        let file_name = path.to_string_lossy().to_string();
+        
+        // T832: Sanitize path
+        let sanitized_path = sanitize_path(&file_name);
+        let out_path = dest_path.join(&sanitized_path);
+        
+        // T835: Send progress
+        let _ = progress_tx.send(Progress {
+            bytes_done: bytes_extracted,
+            bytes_total: total_files as u64 * 1024,
+            files_done: i,
+            files_total: total_files,
+        }).await;
+        
+        // T831: Handle symlinks (Unix only)
+        #[cfg(unix)]
+        {
+            if entry.header().entry_type().is_symlink() {
+                // Extract symlink
+                entry.unpack(&out_path)?;
+                continue;
+            }
+        }
+        
+        // T829: Extract with directory creation
+        entry.unpack(&out_path)?;
+        bytes_extracted += entry.size();
+    }
+    
+    Ok(())
+}
+
+/// T827: Extract 7Z archive
+async fn extract_7z(
+    archive_path: &Path,
+    dest_path: &Path,
+    password: Option<String>,
+    _progress_tx: Sender<Progress>,
+) -> Result<()> {
+    let file = File::open(archive_path).context("Failed to open 7Z file")?;
+    let len = file.metadata()?.len();
+    
+    // Convert password to the required format for sevenz-rust
+    let password_bytes: sevenz_rust::Password = password
+        .as_deref()
+        .unwrap_or("")
+        .into();
+    
+    let mut archive = sevenz_rust::SevenZReader::new(file, len, password_bytes)
+        .context("Failed to read 7Z archive (wrong password?)")?;
+    
+    let _total_files = archive.archive().files.len();
+    let mut _bytes_extracted = 0u64;
+    
+    // Extract all files
+    archive.for_each_entries(|entry, reader| {
+        let file_name = entry.name().to_string();
+        
+        // T832: Sanitize path
+        let sanitized_path = sanitize_path(&file_name);
+        let out_path = dest_path.join(&sanitized_path);
+        
+        if entry.is_directory() {
+            fs::create_dir_all(&out_path)?;
+        } else {
+            // Create parent directories
+            if let Some(parent) = out_path.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            
+            // Extract file
+            let mut out_file = File::create(&out_path)?;
+            std::io::copy(reader, &mut out_file)?;
+            _bytes_extracted += entry.size();
+        }
+        
+        Ok(true) // Continue extraction
+    })?;
+    
+    Ok(())
+}
+
+/// T828: Extract RAR archive (placeholder)
+async fn extract_rar(
+    _archive_path: &Path,
+    _dest_path: &Path,
+    _password: Option<String>,
+    _progress_tx: Sender<Progress>,
+) -> Result<()> {
+    bail!("RAR extraction is not yet supported. Please install libunrar.")
+}
+
+/// T832: Sanitize path to prevent directory traversal attacks
+fn sanitize_path(path_str: &str) -> PathBuf {
+    let path = Path::new(path_str);
+    
+    // Remove any absolute path components and ".." references
+    path.components()
+        .filter(|c| matches!(c, std::path::Component::Normal(_)))
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn test_sanitize_path() {
+        assert_eq!(
+            sanitize_path("/etc/passwd"),
+            PathBuf::from("etc/passwd")
+        );
+        
+        assert_eq!(
+            sanitize_path("../../../etc/passwd"),
+            PathBuf::from("etc/passwd")
+        );
+        
+        assert_eq!(
+            sanitize_path("normal/path/file.txt"),
+            PathBuf::from("normal/path/file.txt")
+        );
+    }
+}

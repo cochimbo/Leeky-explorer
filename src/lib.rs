@@ -6,3 +6,4 @@ pub mod events;
 pub mod config;
 pub mod app;
 pub mod preview;
+pub mod archive;

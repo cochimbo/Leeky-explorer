@@ -23,7 +23,89 @@ pub fn render_dialog(frame: &mut Frame, dialog: &DialogState, area: Rect) {
         DialogState::Error { message } => {
             render_error_dialog(frame, message, area);
         }
+        DialogState::ExtractOptions { archive_name, dest, selected, .. } => {
+            render_extract_options_dialog(frame, archive_name, dest, *selected, area);
+        }
     }
+}
+
+pub fn render_extract_options_dialog(frame: &mut Frame, archive_name: &str, dest: &std::path::Path, selected: usize, area: Rect) {
+    let dialog_area = centered_rect(70, 35, area);
+    
+    frame.render_widget(Clear, dialog_area);
+    
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(" Extract Archive ")
+        .style(Style::default().bg(Color::Black).fg(Color::Cyan));
+    
+    let inner = block.inner(dialog_area);
+    frame.render_widget(block, dialog_area);
+    
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(2),  // Title
+            Constraint::Length(3),  // Option 1
+            Constraint::Length(3),  // Option 2
+            Constraint::Length(2),  // Help
+        ])
+        .split(inner);
+    
+    // Title
+    let title = Paragraph::new(format!("Extract '{}' to:", archive_name))
+        .alignment(Alignment::Left)
+        .style(Style::default().fg(Color::White));
+    frame.render_widget(title, chunks[0]);
+    
+    // Option 1: Extract here
+    let option1_style = if selected == 0 {
+        Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::Gray)
+    };
+    let option1 = Paragraph::new(vec![
+        Line::from(vec![
+            Span::raw(if selected == 0 { "▶ " } else { "  " }),
+            Span::styled("Extract files here", option1_style),
+        ]),
+        Line::from(vec![
+            Span::raw("  "),
+            Span::styled(format!("→ {}", dest.display()), Style::default().fg(Color::DarkGray)),
+        ]),
+    ]);
+    frame.render_widget(option1, chunks[1]);
+    
+    // Option 2: Create folder
+    let option2_style = if selected == 1 {
+        Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::Gray)
+    };
+    let dest_with_folder = dest.join(archive_name);
+    let option2 = Paragraph::new(vec![
+        Line::from(vec![
+            Span::raw(if selected == 1 { "▶ " } else { "  " }),
+            Span::styled("Create folder and extract", option2_style),
+        ]),
+        Line::from(vec![
+            Span::raw("  "),
+            Span::styled(format!("→ {}", dest_with_folder.display()), Style::default().fg(Color::DarkGray)),
+        ]),
+    ]);
+    frame.render_widget(option2, chunks[2]);
+    
+    // Help
+    let help_text = Paragraph::new(Line::from(vec![
+        Span::styled("↑↓", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        Span::raw(": Select | "),
+        Span::styled("Enter", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+        Span::raw(": Confirm | "),
+        Span::styled("Esc", Style::default().fg(Color::Gray).add_modifier(Modifier::BOLD)),
+        Span::raw(": Cancel"),
+    ]))
+    .alignment(Alignment::Center);
+    frame.render_widget(help_text, chunks[3]);
 }
 
 pub fn render_confirm_dialog(frame: &mut Frame, message: &str, area: Rect) {

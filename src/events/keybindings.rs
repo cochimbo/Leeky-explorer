@@ -20,6 +20,7 @@ pub enum Action {
     ClearSelection,   // T564: Esc to clear selection (when marks exist)
     OpenPreview,      // T625: F4 to open preview
     ClosePreview,     // T628: Esc/Q to close preview
+    ExtractArchive,   // T838: F9 to extract archive
     ScrollPreviewUp,
     ScrollPreviewDown,
     PagePreviewUp,
@@ -56,9 +57,10 @@ pub fn map_key_to_action(key: KeyEvent) -> Action {
         (KeyCode::F(6), _) => Action::Move,
         (KeyCode::F(7), _) => Action::CreateFolder,
         (KeyCode::F(8), _) => Action::Delete,
-        // F3 for search, F4 for preview (T626)
+        // F3 for search, F4 for preview (T626), F9 for extract (T839)
         (KeyCode::F(3), _) => Action::Search,
         (KeyCode::F(4), _) => Action::OpenPreview,
+        (KeyCode::F(9), _) => Action::ExtractArchive,
         // T565-T566: Selection keybindings
         (KeyCode::Char(' '), KeyModifiers::NONE) => Action::ToggleSelection,
         (KeyCode::Char('a'), KeyModifiers::CONTROL) => Action::SelectAll,

@@ -19,6 +19,13 @@ encoding_rs = "0.8"
 log = "0.4"
 image = "0.25"
 viuer = "0.7"
+# T801-T803: Archive extraction dependencies
+zip = "0.6"
+tar = "0.4"
+flate2 = "1.0"
+xz2 = "0.1"
+bzip2 = "0.4"
+sevenz-rust = "0.5"
 
 [dev-dependencies]
 tempfile = "3.8"
