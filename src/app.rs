@@ -60,18 +60,26 @@ pub enum PreviewState {
         file_size: u64,
         warning: Option<String>,
     },
+    Image {
+        ascii_art: String,
+        metadata: crate::preview::ImageMetadata,
+        file_path: PathBuf,
+        file_size: u64,
+    },
 }
 
 impl PreviewState {
     pub fn scroll_offset(&self) -> usize {
         match self {
             PreviewState::Text { scroll_offset, .. } => *scroll_offset,
+            PreviewState::Image { .. } => 0, // Images don't scroll
         }
     }
 
     pub fn total_lines(&self) -> usize {
         match self {
             PreviewState::Text { total_lines, .. } => *total_lines,
+            PreviewState::Image { ascii_art, .. } => ascii_art.lines().count(),
         }
     }
 }
@@ -217,42 +225,105 @@ impl AppState {
         self.dialog_state.is_some()
     }
 
-    // T612-T615: Preview management methods
+    // T612-T615, T712-T715: Preview management methods (text and image)
     pub async fn open_text_preview(&mut self) -> anyhow::Result<()> {
         let panel = self.active_panel();
         if let Some(entry) = panel.entries.get(panel.cursor) {
-            let path = &entry.path;
-
-            // Check if it's a text file
-            if !crate::preview::is_text_file(path) {
-                self.show_error("Cannot preview: not a text file".to_string());
-                return Ok(());
-            }
+            let path = entry.path.clone();
+            let file_size = entry.size;
+            let entry_type = entry.entry_type.clone();
 
             // Check if it's a file (not a directory)
-            if entry.entry_type == EntryType::Dir {
+            if entry_type == EntryType::Dir {
                 self.show_error("Cannot preview a directory".to_string());
                 return Ok(());
             }
 
-            // Load the file
-            match crate::preview::load_text_file(path).await {
-                Ok((content, warning)) => {
-                    let total_lines = content.lines().count();
-                    let file_size = entry.size;
+            // T725: Auto-detect file type - try image first, then text
+            if crate::preview::is_image_file(&path) {
+                // Load image preview
+                self.open_image_preview_internal(&path, file_size).await?;
+            } else if crate::preview::is_text_file(&path) {
+                // Load text preview
+                self.open_text_preview_internal(&path, file_size).await?;
+            } else {
+                self.show_error("Cannot preview: unsupported file type".to_string());
+            }
+        }
 
-                    self.preview_state = Some(PreviewState::Text {
-                        content,
-                        scroll_offset: 0,
-                        total_lines,
-                        file_path: path.clone(),
-                        file_size,
-                        warning,
-                    });
+        Ok(())
+    }
+
+    // Internal method for text preview
+    async fn open_text_preview_internal(&mut self, path: &PathBuf, file_size: u64) -> anyhow::Result<()> {
+        match crate::preview::load_text_file(path).await {
+            Ok((content, warning)) => {
+                let total_lines = content.lines().count();
+
+                self.preview_state = Some(PreviewState::Text {
+                    content,
+                    scroll_offset: 0,
+                    total_lines,
+                    file_path: path.clone(),
+                    file_size,
+                    warning,
+                });
+            }
+            Err(e) => {
+                self.show_error(format!("Failed to load file: {}", e));
+            }
+        }
+        Ok(())
+    }
+
+    // T712-T715: Internal method for image preview
+    async fn open_image_preview_internal(&mut self, path: &PathBuf, file_size: u64) -> anyhow::Result<()> {
+        // T714: Check file size - warn for images >10MB
+        const MAX_IMAGE_SIZE: u64 = 10 * 1024 * 1024;
+        if file_size > MAX_IMAGE_SIZE {
+            self.show_error(format!(
+                "Image too large: {} MB (max: 10 MB)",
+                file_size / (1024 * 1024)
+            ));
+            return Ok(());
+        }
+
+        // T715: Always show loading message - image conversion takes time
+        self.dialog_state = Some(DialogState::Progress {
+            message: "Loading and converting image to ASCII...".to_string(),
+        });
+
+        match crate::preview::load_image(path).await {
+            Ok(img) => {
+                let metadata = crate::preview::get_image_metadata(&img, path);
+
+                // Get actual terminal size for better image rendering
+                let (term_width, term_height) = crossterm::terminal::size().unwrap_or((120, 50));
+                
+                // Use almost all terminal space for image (leave room for borders)
+                // Modal is 95% of terminal, content area is modal minus borders (2) and title/footer (4)
+                let max_width = ((term_width as f32 * 0.95) as u32).saturating_sub(2);
+                let max_height = ((term_height as f32 * 0.95) as u32).saturating_sub(4);
+
+                match crate::preview::image_to_ascii(&img, max_width, max_height) {
+                    Ok(ascii_art) => {
+                        self.dialog_state = None; // Clear loading message
+                        self.preview_state = Some(PreviewState::Image {
+                            ascii_art,
+                            metadata,
+                            file_path: path.clone(),
+                            file_size,
+                        });
+                    }
+                    Err(e) => {
+                        self.dialog_state = None;
+                        self.show_error(format!("Failed to convert image: {}", e));
+                    }
                 }
-                Err(e) => {
-                    self.show_error(format!("Failed to load file: {}", e));
-                }
+            }
+            Err(e) => {
+                self.dialog_state = None;
+                self.show_error(format!("Failed to load image: {}", e));
             }
         }
 

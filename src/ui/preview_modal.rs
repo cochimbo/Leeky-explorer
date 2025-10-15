@@ -9,6 +9,72 @@ use ratatui::{
     Frame,
 };
 
+/// Parse ANSI escape codes and convert to Ratatui Spans
+fn parse_ansi_line(line: &str) -> Line<'static> {
+    let mut spans = Vec::new();
+    let mut current_text = String::new();
+    let mut chars = line.chars().peekable();
+    let mut current_color: Option<Color> = None;
+    
+    while let Some(ch) = chars.next() {
+        if ch == '\x1b' && chars.peek() == Some(&'[') {
+            // Found ANSI escape sequence
+            // Save current text if any
+            if !current_text.is_empty() {
+                let style = if let Some(color) = current_color {
+                    Style::default().fg(color)
+                } else {
+                    Style::default()
+                };
+                spans.push(Span::styled(current_text.clone(), style));
+                current_text.clear();
+            }
+            
+            // Parse escape sequence
+            chars.next(); // consume '['
+            let mut code = String::new();
+            while let Some(&ch) = chars.peek() {
+                if ch == 'm' {
+                    chars.next(); // consume 'm'
+                    break;
+                }
+                code.push(chars.next().unwrap());
+            }
+            
+            // Parse RGB color code (38;2;R;G;B)
+            if code.starts_with("38;2;") {
+                let parts: Vec<&str> = code.split(';').collect();
+                if parts.len() >= 5 {
+                    if let (Ok(r), Ok(g), Ok(b)) = (
+                        parts[2].parse::<u8>(),
+                        parts[3].parse::<u8>(),
+                        parts[4].parse::<u8>(),
+                    ) {
+                        current_color = Some(Color::Rgb(r, g, b));
+                    }
+                }
+            } else if code == "0" {
+                // Reset
+                current_color = None;
+            }
+        } else {
+            current_text.push(ch);
+        }
+    }
+    
+    // Add remaining text
+    if !current_text.is_empty() {
+        let style = if let Some(color) = current_color {
+            Style::default().fg(color)
+        } else {
+            Style::default()
+        };
+        spans.push(Span::styled(current_text, style));
+    }
+    
+    Line::from(spans)
+}
+
 /// Render the text preview modal
 pub fn render_preview_modal(f: &mut Frame, preview_state: &PreviewState) {
     match preview_state {
@@ -122,6 +188,104 @@ pub fn render_preview_modal(f: &mut Frame, preview_state: &PreviewState) {
                     start_line + 1,
                     total_lines,
                     progress_percent
+                )),
+            ];
+
+            let footer = Paragraph::new(Line::from(footer_text))
+                .style(Style::default().bg(Color::Black).fg(Color::Gray))
+                .alignment(Alignment::Left);
+
+            f.render_widget(footer, footer_area);
+        }
+        // T716-T721: Image preview rendering
+        PreviewState::Image {
+            ascii_art,
+            metadata,
+            file_path,
+            file_size,
+        } => {
+            // T717: Calculate modal size: 95% of screen (maximize space for images)
+            let area = f.size();
+            let modal_width = (area.width as f32 * 0.95) as u16;
+            let modal_height = (area.height as f32 * 0.95) as u16;
+
+            // Center the modal
+            let modal_area = Rect {
+                x: (area.width.saturating_sub(modal_width)) / 2,
+                y: (area.height.saturating_sub(modal_height)) / 2,
+                width: modal_width,
+                height: modal_height,
+            };
+
+            // Clear background behind modal
+            f.render_widget(Clear, modal_area);
+
+            // T718: Create title with filename, dimensions, size, and format
+            let filename = file_path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("Unknown");
+            let size_str = format_size(*file_size, DECIMAL);
+            
+            // T721: Check if it's a GIF (might be animated)
+            let gif_note = if metadata.format == "GIF" {
+                " (GIF - frame 1)"
+            } else {
+                ""
+            };
+            
+            let title = format!(
+                "{} ({}x{}, {}, {}){}",
+                filename,
+                metadata.width,
+                metadata.height,
+                size_str,
+                metadata.format,
+                gif_note
+            );
+
+            // Create block with border and title
+            let block = Block::default()
+                .borders(Borders::ALL)
+                .title(title)
+                .style(Style::default().bg(Color::Black).fg(Color::White));
+
+            // Calculate content area (inside border)
+            let inner_area = block.inner(modal_area);
+
+            // Render block first
+            f.render_widget(block, modal_area);
+
+            // Split inner area: content + footer
+            let chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Min(3),      // Content
+                    Constraint::Length(1),   // Footer
+                ])
+                .split(inner_area);
+
+            let content_area = chunks[0];
+            let footer_area = chunks[1];
+
+            // T719: Parse ASCII art with ANSI color codes and center within modal area
+            let art_lines: Vec<Line> = ascii_art
+                .lines()
+                .map(|line| parse_ansi_line(line))
+                .collect();
+
+            let content_widget = Paragraph::new(art_lines)
+                .style(Style::default().bg(Color::Black))
+                .alignment(Alignment::Center);
+
+            f.render_widget(content_widget, content_area);
+
+            // T720: Render footer with hints
+            let footer_text = vec![
+                Span::styled("Esc/Q: Cerrar", Style::default().add_modifier(Modifier::BOLD)),
+                Span::raw(format!(
+                    "  |  Original: {}x{} pixels",
+                    metadata.width, metadata.height
                 )),
             ];
 
