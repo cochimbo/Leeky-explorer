@@ -55,6 +55,14 @@ pub enum DialogState {
         archive_name: String,
         selected: usize, // 0 = extract here, 1 = create folder
     },
+    PasswordInput {
+        prompt: String,
+        value: String,
+        show_password: bool,
+        archive_path: PathBuf,
+        dest_path: PathBuf,
+        format: crate::archive::formats::ArchiveFormat,
+    },
 }
 
 #[derive(Debug, Clone)]

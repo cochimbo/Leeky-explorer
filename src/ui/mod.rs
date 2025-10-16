@@ -4,6 +4,7 @@ pub mod panel_widget;
 pub mod dialog;
 pub mod theme;
 pub mod preview_modal;
+pub mod file_icons;
 
 use crate::app::AppState;
 use ratatui::{

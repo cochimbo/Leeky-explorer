@@ -3,6 +3,7 @@ use crate::models::panel::Panel;
 use crate::models::selection::SelectionState;
 use crate::app::PanelSide;
 use crate::ui::theme;
+use crate::ui::file_icons;
 use ratatui::{
     layout::Rect,
     style::{Modifier, Style},
@@ -62,7 +63,9 @@ pub fn render_panel(
                     style = style.bg(theme::MARKED_BG);
                 }
                 
-                let content = format!("{}{}", prefix, entry);
+                // T872-T873: Add emoji icon before filename
+                let icon = file_icons::get_icon_for_entry(entry);
+                let content = format!("{}{} {}", prefix, icon, entry);
                 ListItem::new(Line::from(Span::styled(content, style)))
             })
             .collect()

@@ -219,6 +219,63 @@ Como usuario, quiero descomprimir archivos comprimidos (ZIP, TAR.GZ, TAR.BZ2, 7Z
 
 ---
 
+### User Story 9 - Compresión de Archivos y Directorios (Priority: P9)
+
+Como usuario, quiero comprimir archivos y/o directorios seleccionados (incluyendo múltiples elementos marcados) presionando Shift+F9, eligiendo el formato de compresión (ZIP, TAR.GZ, TAR.BZ2, 7Z) y opcionalmente estableciendo una contraseña, para crear archivos comprimidos sin salir del explorador.
+
+**Why this priority**: Complemento natural de la descompresión (US8). Permite completar el ciclo de gestión de archivos comprimidos: crear backups, compartir múltiples archivos agrupados, reducir tamaño para almacenamiento. Es útil pero no crítico para el MVP.
+
+**Independent Test**: Puede probarse independientemente marcando varios archivos/carpetas con Insert (US5), presionando Shift+F9, verificando que aparece diálogo modal con opciones de formato (ZIP/TAR.GZ/7Z), campo opcional de contraseña, campo de nombre de archivo destino, y barra de progreso durante compresión. La operación debe funcionar tanto con un solo archivo como con múltiples seleccionados.
+
+**Acceptance Scenarios**:
+
+1. **Given** tengo un archivo seleccionado en el panel activo, **When** presiono Shift+F9, **Then** aparece diálogo modal "Comprimir" con campo de nombre pre-rellenado "[nombre_archivo].zip" y selector de formato
+2. **Given** tengo múltiples archivos marcados (3 archivos, 2 carpetas), **When** presiono Shift+F9, **Then** el diálogo muestra "Comprimir 5 elementos" y nombre pre-rellenado "archive_[fecha].zip"
+3. **Given** el diálogo de compresión está abierto, **When** navego con flechas, **Then** puedo seleccionar formato: ZIP (rápido), TAR.GZ (compatible), TAR.BZ2 (mejor compresión), 7Z (máxima compresión)
+4. **Given** selecciono formato ZIP o 7Z, **When** veo opciones adicionales, **Then** aparece checkbox "Proteger con contraseña" y campo de entrada de contraseña (deshabilitado por defecto)
+5. **Given** activo "Proteger con contraseña", **When** ingreso contraseña, **Then** aparece segundo campo "Confirmar contraseña:" para validar
+6. **Given** las contraseñas no coinciden, **When** intento continuar, **Then** se muestra error "Las contraseñas no coinciden" y se mantiene en diálogo
+7. **Given** confirmo opciones de compresión válidas, **When** presiono Enter, **Then** se muestra barra de progreso "Comprimiendo 2/5: carpeta/documento.pdf (40%)" con progreso por archivo
+8. **Given** estoy comprimiendo una carpeta grande, **When** la operación está en progreso, **Then** el progreso muestra bytes procesados/totales y velocidad estimada (MB/s)
+9. **Given** la compresión finaliza exitosamente, **When** termina, **Then** el archivo comprimido aparece en el panel activo y se selecciona automáticamente
+10. **Given** ya existe archivo con el mismo nombre en destino, **When** intento comprimir, **Then** aparece diálogo "¿Sobreescribir archivo.zip existente? (S/N)" antes de comenzar
+11. **Given** hay archivo en uso o sin permisos de lectura durante compresión, **When** se intenta comprimir, **Then** se muestra warning "(O)mitir archivo / (R)eintentar / (C)ancelar" y se continúa con siguiente
+12. **Given** estoy comprimiendo archivos grandes (varios GB), **When** presiono Esc durante compresión, **Then** aparece confirmación "¿Cancelar compresión? Archivo parcial se eliminará (S/N)"
+13. **Given** selecciono formato TAR.GZ o TAR.BZ2, **When** comprimo, **Then** se preservan permisos de archivo Unix (chmod) y timestamps en el TAR resultante
+14. **Given** selecciono múltiples carpetas anidadas, **When** comprimo, **Then** se preserva la estructura completa de directorios dentro del archivo comprimido
+15. **Given** no hay espacio suficiente en destino, **When** intento comprimir, **Then** se detecta antes de comenzar y se muestra error "Espacio insuficiente: se necesitan ~1.2 GB (estimado)"
+16. **Given** selecciono archivo simbólico, **When** comprimo, **Then** se almacena el symlink en TAR, o se sigue y comprime el contenido en ZIP/7Z
+17. **Given** comprimo carpeta que contiene archivos ocultos (.gitignore, .env), **When** comprimo, **Then** los archivos ocultos se incluyen sin filtrar
+18. **Given** tengo items marcados en ambos paneles, **When** presiono Shift+F9, **Then** solo se comprimen los items marcados en el panel activo (no ambos paneles)
+
+**Modal Design Requirements**:
+- Modal DEBE mostrar campo de nombre editable con extensión según formato seleccionado
+- Modal DEBE mostrar selector de formato con descripción: "ZIP (compatible, rápido)", "TAR.GZ (Linux, bueno)", "TAR.BZ2 (mejor compresión)", "7Z (máxima compresión)"
+- Modal DEBE mostrar nivel de compresión: "Rápido / Normal / Máximo" (excepto TAR sin comprimir)
+- Campo de contraseña DEBE tener checkbox "Mostrar contraseña" para toggle visibilidad
+- Durante compresión, progreso DEBE mostrar: archivo actual (X/total), tamaño original vs comprimido acumulado, ratio actual
+- Modal DEBE mostrar hints: "Enter: Comprimir | Tab: Siguiente campo | Esc: Cancelar"
+- Footer DEBE actualizar con "Shift+F9:Compress" junto a "F9:Extract"
+
+**Formato Support Requirements**:
+- Sistema DEBE soportar escritura: ZIP, TAR, TAR.GZ, TAR.BZ2, TAR.XZ, 7Z
+- Sistema DEBE usar nivel de compresión configurable (0-9 para gzip/bzip2, 0-9 para 7z, 0-9 para deflate)
+- Sistema DEBE preservar timestamps (mtime) en todos los formatos
+- Sistema DEBE preservar permisos Unix en TAR (modo chmod)
+- Sistema DEBE manejar paths largos (>255 chars) usando extensiones ZIP64 o PAX para TAR
+- Sistema DEBE aplicar contraseña AES-256 para ZIP y 7Z cuando se especifique
+- Sistema DEBE estimar tamaño final basado en tipo de archivos (texto ~60% compresión, multimedia ~95%, ya comprimidos ~100%)
+- Sistema DEBE limitar compresión a 100,000 archivos o 50 GB por operación para evitar congelamiento
+
+**Key Bindings**:
+- **Shift+F9**: Abrir diálogo de compresión para item(s) seleccionado(s)
+- **Flechas**: Navegar entre campos y opciones de formato
+- **Espacio**: Toggle checkbox (contraseña, nivel compresión)
+- **Enter**: Iniciar compresión
+- **Esc**: Cancelar/cerrar diálogo o cancelar compresión en progreso
+
+---
+
 ### Edge Cases
 
 - **¿Qué pasa cuando se intenta copiar un archivo a sí mismo?**: Mostrar error "Origen y destino son iguales"
@@ -243,6 +300,14 @@ Como usuario, quiero descomprimir archivos comprimidos (ZIP, TAR.GZ, TAR.BZ2, 7Z
 - **¿Qué pasa con archivos comprimidos que contienen rutas absolutas?**: Convertir a rutas relativas por seguridad, mostrar warning
 - **¿Cómo maneja archivos comprimidos con nombres de archivo duplicados internamente?**: Mantener solo el último encontrado, registrar warning
 - **¿Qué pasa si el archivo comprimido contiene bombas ZIP (archivos diseñados para expandirse enormemente)?**: Limitar extracción a 10GB descomprimido, mostrar error si excede
+- **¿Qué pasa si presiono Shift+F9 sin tener nada seleccionado?**: Mostrar mensaje "Seleccione archivos/carpetas para comprimir (use Insert para marcar)"
+- **¿Puedo comprimir archivos que ya están comprimidos (archive.zip dentro de otro.zip)?**: Sí, pero se avisa que "archivo ya comprimido, ratio de compresión será bajo"
+- **¿Qué pasa si intento comprimir a formato que no soporta contraseñas (TAR)?**: La opción de contraseña aparece deshabilitada/grisada con nota "No soportado por TAR"
+- **¿Cómo maneja el sistema la compresión de archivos muy grandes (>4GB) en ZIP?**: Automáticamente usa ZIP64 extension para soportar archivos grandes
+- **¿Qué pasa si intento comprimir 100,000 archivos pequeños?**: Mostrar warning "Operación larga: 100K archivos. ¿Continuar? (S/N)" y estimar tiempo
+- **¿Puedo cambiar el nombre del archivo de salida mientras se comprime?**: No, el nombre debe confirmarse antes de iniciar compresión
+- **¿Qué pasa si la batería/sistema se apaga durante compresión?**: Al reiniciar, archivo parcial queda en disco; usuario debe limpiarlo manualmente (no hay resume)
+- **¿Cómo se manejan caracteres especiales en nombres de archivo dentro del comprimido?**: Se preservan usando UTF-8 en ZIP/7Z, UTF-8 PAX headers en TAR
 
 ## Requirements *(mandatory)*
 
@@ -251,9 +316,10 @@ Como usuario, quiero descomprimir archivos comprimidos (ZIP, TAR.GZ, TAR.BZ2, 7Z
 - **FR-001**: Sistema DEBE mostrar dos paneles verticales lado a lado ocupando cada uno ~50% del ancho terminal
 - **FR-002**: Sistema DEBE soportar navegación completa con teclado sin requerir mouse
 - **FR-003**: Sistema DEBE mostrar para cada archivo: nombre, tamaño (formato humano: KB/MB/GB), fecha modificación, permisos
+- **FR-003b**: Sistema DEBE mostrar emoji representativo según tipo de archivo antes del nombre (📁 carpetas, 📄 documentos, 🖼️ imágenes, 🎵 audio, 🎬 video, 📦 archivos, 💻 código, ⚙️ config, etc.)
 - **FR-004**: Sistema DEBE distinguir visualmente entre archivos regulares, carpetas, enlaces simbólicos, y ejecutables
 - **FR-005**: Sistema DEBE mostrar el directorio actual (pwd) en la parte superior de cada panel
-- **FR-006**: Sistema DEBE implementar barra de estado global inferior mostrando: teclas disponibles (F5:Copiar F6:Mover F7:Mkdir F8:Del)
+- **FR-006**: Sistema DEBE implementar barra de estado global inferior mostrando: teclas disponibles (F5:Copiar F6:Mover F7:Mkdir F8:Del F9:Extract Shift+F9:Compress)
 - **FR-007**: Sistema DEBE manejar resize del terminal redibujando correctamente los paneles
 - **FR-008**: Sistema DEBE implementar operaciones de archivos de forma asíncrona (no bloquear UI)
 - **FR-009**: Sistema DEBE mostrar feedback visual inmediato (<100ms) para toda interacción de usuario
@@ -266,8 +332,9 @@ Como usuario, quiero descomprimir archivos comprimidos (ZIP, TAR.GZ, TAR.BZ2, 7Z
 - **FR-016**: Sistema DEBE previsualizar archivos de texto con F4 mostrando contenido en modal con scroll
 - **FR-017**: Sistema DEBE previsualizar imágenes con F4 mostrando representación ASCII/Unicode art en modal
 - **FR-018**: Sistema DEBE descomprimir archivos ZIP/TAR/7Z/RAR con F9, incluyendo soporte para contraseñas
-- **FR-019**: Sistema DEBE mostrar items marcados con indicador visual claro (ej. asterisco o background color)
-- **FR-020**: Sistema DEBE aplicar operaciones (copiar/mover/eliminar) a todos los items marcados cuando hay selección múltiple
+- **FR-019**: Sistema DEBE comprimir archivos/carpetas con Shift+F9 soportando formatos ZIP/TAR.GZ/TAR.BZ2/7Z con opción de contraseña
+- **FR-020**: Sistema DEBE mostrar items marcados con indicador visual claro (ej. asterisco o background color)
+- **FR-021**: Sistema DEBE aplicar operaciones (copiar/mover/eliminar/comprimir) a todos los items marcados cuando hay selección múltiple
 - **FR-021**: Sistema DEBE detectar encoding de archivos de texto (UTF-8, Latin-1, CP1252) automáticamente
 - **FR-022**: Sistema DEBE adaptar preview de imágenes a capacidad del terminal (truecolor > 256 colors > 16 colors)
 - **FR-023**: Sistema DEBE detectar formato de archivos comprimidos por magic bytes, no solo por extensión

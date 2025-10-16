@@ -26,6 +26,9 @@ pub fn render_dialog(frame: &mut Frame, dialog: &DialogState, area: Rect) {
         DialogState::ExtractOptions { archive_name, dest, selected, .. } => {
             render_extract_options_dialog(frame, archive_name, dest, *selected, area);
         }
+        DialogState::PasswordInput { prompt, value, show_password, .. } => {
+            render_password_input_dialog(frame, prompt, value, *show_password, area);
+        }
     }
 }
 
@@ -326,6 +329,73 @@ pub fn render_double_confirm_dialog(frame: &mut Frame, message: &str, area: Rect
     ]))
     .alignment(Alignment::Center);
     frame.render_widget(confirm_text, chunks[1]);
+}
+
+// T843: Password input dialog for encrypted archives
+pub fn render_password_input_dialog(frame: &mut Frame, prompt: &str, value: &str, show_password: bool, area: Rect) {
+    let dialog_area = centered_rect(60, 30, area);
+    
+    frame.render_widget(Clear, dialog_area);
+    
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(" 🔒 Password Required ")
+        .style(Style::default().bg(Color::Black).fg(Color::Yellow));
+    
+    let inner = block.inner(dialog_area);
+    frame.render_widget(block, dialog_area);
+    
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(3),  // Prompt
+            Constraint::Length(3),  // Input field
+            Constraint::Length(2),  // Show password toggle
+            Constraint::Length(1),  // Spacer
+            Constraint::Length(2),  // Instructions
+        ])
+        .split(inner);
+    
+    // Prompt
+    let prompt_text = Paragraph::new(prompt)
+        .alignment(Alignment::Center)
+        .style(Style::default().fg(Color::White));
+    frame.render_widget(prompt_text, chunks[0]);
+    
+    // Input field (show asterisks if password hidden)
+    let display_value = if show_password {
+        value.to_string()
+    } else {
+        "*".repeat(value.len())
+    };
+    
+    let input_text = Paragraph::new(format!(" {} ", display_value))
+        .block(Block::default().borders(Borders::ALL))
+        .style(Style::default().fg(Color::Cyan));
+    frame.render_widget(input_text, chunks[1]);
+    
+    // Show password toggle
+    let toggle_text = if show_password {
+        "[ ] Show password (press Tab to toggle)"
+    } else {
+        "[✓] Hide password (press Tab to toggle)"
+    };
+    let toggle_para = Paragraph::new(toggle_text)
+        .alignment(Alignment::Center)
+        .style(Style::default().fg(Color::Gray));
+    frame.render_widget(toggle_para, chunks[2]);
+    
+    // Instructions
+    let instructions = Paragraph::new(Line::from(vec![
+        Span::styled("Enter", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+        Span::raw(": Confirm | "),
+        Span::styled("Tab", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+        Span::raw(": Toggle visibility | "),
+        Span::styled("Esc", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+        Span::raw(": Cancel"),
+    ]))
+    .alignment(Alignment::Center);
+    frame.render_widget(instructions, chunks[4]);
 }
 
 fn centered_rect(percent_x: u16, percent_y: u16, area: Rect) -> Rect {

@@ -6,6 +6,7 @@ pub enum OperationType {
     Copy,
     Move,
     Delete,
+    Extract,
 }
 
 #[derive(Debug, Clone)]
@@ -46,6 +47,7 @@ pub struct Operation {
     pub progress: Progress,
     pub batch_items: Option<Vec<(PathBuf, PathBuf, String)>>, // (source, dest, name) for batch ops
     pub current_item_index: usize, // Track which item in batch we're processing
+    pub archive_format: Option<crate::archive::formats::ArchiveFormat>, // For extract operations
 }
 
 impl Operation {
@@ -57,6 +59,7 @@ impl Operation {
             progress: Progress::new(total_bytes, total_files),
             batch_items: None,
             current_item_index: 0,
+            archive_format: None,
         }
     }
 
@@ -68,6 +71,7 @@ impl Operation {
             progress: Progress::new(total_bytes, total_files),
             batch_items: None,
             current_item_index: 0,
+            archive_format: None,
         }
     }
 
@@ -79,6 +83,25 @@ impl Operation {
             progress: Progress::new(total_bytes, total_files),
             batch_items: None,
             current_item_index: 0,
+            archive_format: None,
+        }
+    }
+
+    pub fn extract(
+        source: PathBuf,
+        destination: PathBuf,
+        total_bytes: u64,
+        total_files: usize,
+        format: crate::archive::formats::ArchiveFormat,
+    ) -> Self {
+        Self {
+            operation_type: OperationType::Extract,
+            source,
+            destination,
+            progress: Progress::new(total_bytes, total_files),
+            batch_items: None,
+            current_item_index: 0,
+            archive_format: Some(format),
         }
     }
 
@@ -94,6 +117,7 @@ impl Operation {
             progress: Progress::new(total_bytes, total_files),
             batch_items: Some(items),
             current_item_index: 0,
+            archive_format: None,
         }
     }
 
@@ -108,6 +132,7 @@ impl Operation {
             progress: Progress::new(total_bytes, total_files),
             batch_items: Some(items),
             current_item_index: 0,
+            archive_format: None,
         }
     }
 
@@ -122,6 +147,7 @@ impl Operation {
             progress: Progress::new(total_bytes, total_files),
             batch_items: Some(items),
             current_item_index: 0,
+            archive_format: None,
         }
     }
 

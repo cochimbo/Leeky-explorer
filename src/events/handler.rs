@@ -21,6 +21,11 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
         return handle_input_dialog(app, key);
     }
     
+    // T843: Special handling for password input dialogs
+    if let Some(DialogState::PasswordInput { .. }) = &app.dialog_state {
+        return handle_password_input_dialog(app, key);
+    }
+    
     let action = map_key_to_action(key);
 
     // Handle other dialog-specific actions
@@ -415,6 +420,43 @@ fn handle_input_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
         }
         Action::Quit => {
             return Ok(Action::Quit);
+        }
+        _ => {}
+    }
+    
+    Ok(Action::None)
+}
+
+// T843: Handle password input dialog
+fn handle_password_input_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
+    use crossterm::event::{KeyCode, KeyModifiers};
+    
+    match (key.code, key.modifiers) {
+        // Enter: confirm password
+        (KeyCode::Enter, _) => {
+            return Ok(Action::ConfirmYes);
+        }
+        // Tab: toggle password visibility
+        (KeyCode::Tab, _) | (KeyCode::BackTab, _) => {
+            if let Some(DialogState::PasswordInput { show_password, .. }) = &mut app.dialog_state {
+                *show_password = !*show_password;
+            }
+        }
+        // Backspace: delete character
+        (KeyCode::Backspace, _) => {
+            if let Some(DialogState::PasswordInput { value, .. }) = &mut app.dialog_state {
+                value.pop();
+            }
+        }
+        // Char: append to password
+        (KeyCode::Char(c), KeyModifiers::NONE) | (KeyCode::Char(c), KeyModifiers::SHIFT) => {
+            if let Some(DialogState::PasswordInput { value, .. }) = &mut app.dialog_state {
+                value.push(c);
+            }
+        }
+        // Escape: cancel
+        (KeyCode::Esc, _) => {
+            app.close_dialog();
         }
         _ => {}
     }

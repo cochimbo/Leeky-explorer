@@ -546,7 +546,9 @@
 - [x] **T824** [US8] Implement `extract_archive(path: &Path, dest: &Path, password: Option<String>, tx: Sender<Progress>) -> Result<()>`
 - [x] **T825** [US8] Implement ZIP extraction with password support using zip crate
 - [x] **T826** [US8] Implement TAR extraction (plain, GZ, BZ2, XZ) using tar + flate2/xz2
+- [x] **T826b** [BUG] [US8] **FIX TAR EXTRACTION**: Currently using stub implementation (returns Ok() without extracting). Need to implement full TAR extraction logic in `extract_tar_sync()` and `extract_tar_unbounded()` functions with compression support (GZ, BZ2, XZ)
 - [x] **T827** [US8] Implement 7Z extraction with password using sevenz-rust
+- [x] **T827b** [BUG] [US8] **FIX 7Z EXTRACTION**: Currently using stub implementation (returns Ok() without extracting). Need to implement full 7Z extraction logic in `extract_7z_sync()` and `extract_7z_unbounded()` functions
 - [ ] **T828** [US8] Implement RAR extraction with password using unrar
 - [x] **T829** [US8] Preserve directory structure: create parent dirs as needed
 - [x] **T830** [US8] Preserve file permissions and timestamps where supported
@@ -560,6 +562,7 @@
 - [ ] **T835** [US8] Send progress updates via channel every 100ms or per-file
 - [ ] **T836** [US8] Show progress modal: "Extrayendo 5/23: documento.pdf (22%)"
 - [ ] **T837** [US8] Update UI with current filename and percentage
+- [ ] **T837b** [BUG] [US8] **FIX PROGRESS BAR**: Progress updates not visible in UI during extraction. Architecture implemented (unbounded_channel) but messages not reaching UI. Need to debug: 1) Add logging to verify message flow, 2) Check forwarding task timing, 3) Verify main loop polling frequency, 4) Test with explicit channel flush/sync
 
 ### UI Integration
 
@@ -569,7 +572,7 @@
 - [x] **T840** [US8] Implement archive preview modal: show list of files with scroll
 - [x] **T841** [US8] Show archive metadata in title: "archivo.zip (23 files, 15 MB → 42 MB, ratio 64%)"
 - [x] **T842** [US8] Add extraction destination dialog: pre-fill with opposite panel path
-- [ ] **T843** [US8] Show password input dialog for encrypted archives
+- [x] **T843** [US8] Show password input dialog for encrypted archives
 - [ ] **T844** [US8] Handle collisions: prompt "(S)obreescribir / (T)odos / (R)enombrar / (O)mitir / (C)ancelar"
 
 ### Error Handling & Safety
@@ -595,6 +598,135 @@
 - [ ] **T860** [US8] Test 7Z extraction
 - [ ] **T861** [US8] Test cancellation: Esc during extraction cleans up partial files
 - [ ] **T862** [US8] Test corrupt archive: should error gracefully
+
+---
+
+## Phase 5.8b: File Type Icons with Emojis (FR-003b)
+
+**Goal**: Add emoji icons to file/folder entries based on file type for better visual identification
+
+### Icon Mapping Module
+
+- [x] **T863** [P] [FR-003b] Create `src/ui/file_icons.rs` module
+- [x] **T864** [FR-003b] Implement `get_icon_for_entry(entry: &FileEntry) -> &'static str` function
+- [x] **T865** [FR-003b] Add folder icons: 📁 for regular dirs, 📂 for open/selected dir, 🔗 for symlink dirs
+- [x] **T866** [FR-003b] Add document icons: 📄 .txt/.md, 📝 .doc/.docx/.odt, 📊 .xls/.xlsx/.csv, 📈 .ppt/.pptx
+- [x] **T867** [FR-003b] Add code file icons: 💻 .rs/.py/.js/.ts, ⚙️ .json/.yaml/.toml/.xml/.ini, 🔧 .sh/.bash/.zsh
+- [x] **T868** [FR-003b] Add media icons: 🖼️ .png/.jpg/.jpeg/.gif/.bmp/.webp, 🎵 .mp3/.wav/.flac/.ogg, 🎬 .mp4/.avi/.mkv/.mov
+- [x] **T869** [FR-003b] Add archive icons: 📦 .zip/.tar/.gz/.7z/.rar
+- [x] **T870** [FR-003b] Add executable icons: ⚡ .exe/.app/.bin, 🔒 files with execute permission (Unix)
+- [x] **T871** [FR-003b] Add default icon: 📄 for unknown file types
+
+### UI Integration
+
+- [x] **T872** [P] [FR-003b] Modify `render_file_list()` in `src/ui/panel.rs` to include icon before filename
+- [x] **T873** [FR-003b] Add proper spacing: "📁 folder_name" (icon + space + name)
+- [x] **T874** [FR-003b] Ensure icons don't break alignment of file size/date columns
+- [ ] **T875** [FR-003b] Test with various file types to ensure correct icon mapping
+
+### Testing
+
+- [ ] **T876** [FR-003b] Create test directory with mixed file types
+- [ ] **T877** [FR-003b] Verify all icon categories display correctly
+- [ ] **T878** [FR-003b] Test that terminal handles emoji rendering (fallback if needed)
+
+---
+
+## Phase 5.9: User Story 9 - Compresión (P9)
+
+**Goal**: Implement archive compression with format selection and password support
+
+### Compression Module Setup
+
+- [ ] **T901** [P] [US9] Create `src/archive/compressor.rs`
+- [ ] **T902** [P] [US9] Export compressor module in `src/archive/mod.rs`
+- [ ] **T903** [US9] Add `CompressionLevel` enum: Fast (1), Normal (6), Maximum (9)
+- [ ] **T904** [US9] Add `CompressionOptions` struct: format, level, password, output_path
+
+### Format Writers
+
+- [ ] **T905** [P] [US9] Implement `compress_zip(sources: &[PathBuf], dest: &Path, opts: CompressionOptions, tx: Sender<Progress>) -> Result<()>`
+- [ ] **T906** [US9] Use `zip::ZipWriter` with configurable compression level (0-9)
+- [ ] **T907** [US9] Support ZIP64 extension for files >4GB automatically
+- [ ] **T908** [US9] Apply AES-256 encryption when password provided using `zip::write::FileOptions::with_aes_encryption()`
+- [ ] **T909** [US9] Preserve file timestamps (mtime) in ZIP entries
+- [ ] **T910** [US9] Add files recursively: iterate directories, add each file with relative path
+
+- [ ] **T911** [P] [US9] Implement `compress_tar(sources: &[PathBuf], dest: &Path, compression: CompressionType, tx: Sender<Progress>) -> Result<()>`
+- [ ] **T912** [US9] Create TAR builder with `tar::Builder<Box<dyn Write>>`
+- [ ] **T913** [US9] Wrap writer with compression: `GzEncoder` for TAR.GZ, `BzEncoder` for TAR.BZ2, `XzEncoder` for TAR.XZ
+- [ ] **T914** [US9] Preserve Unix permissions (chmod) in TAR entries
+- [ ] **T915** [US9] Preserve symlinks in TAR (append_link)
+- [ ] **T916** [US9] Use PAX headers for UTF-8 filenames and long paths
+
+- [ ] **T917** [P] [US9] Implement `compress_7z(sources: &[PathBuf], dest: &Path, opts: CompressionOptions, tx: Sender<Progress>) -> Result<()>`
+- [ ] **T918** [US9] Use `sevenz_rust::SevenZWriter` with password support
+- [ ] **T919** [US9] Configure compression level (0-9)
+- [ ] **T920** [US9] Apply encryption with `Password::from()` when password provided
+
+### Progress & Estimation
+
+- [ ] **T921** [US9] Implement `estimate_compressed_size(sources: &[PathBuf]) -> u64`
+- [ ] **T922** [US9] Use heuristics: text files ~60%, images ~95%, already compressed ~100%
+- [ ] **T923** [US9] Send progress updates: current file, files done/total, bytes processed
+- [ ] **T924** [US9] Calculate compression ratio: original_size / compressed_size
+
+### UI Dialog
+
+- [ ] **T925** [P] [US9] Add `DialogState::CompressOptions` variant to `src/app.rs`
+- [ ] **T926** [US9] Fields: sources (Vec<PathBuf>), output_name (String), format (ArchiveFormat), level (CompressionLevel), password (Option<String>), confirm_password (Option<String>), selected_field (usize)
+- [ ] **T927** [US9] Implement `start_compress_archive()` in `src/app.rs`
+- [ ] **T928** [US9] Pre-fill output name: single file → "[name].zip", multiple → "archive_[YYYY-MM-DD].zip"
+- [ ] **T929** [US9] Show count: "Comprimir X elementos" if multiple selected
+- [ ] **T930** [US9] Render `render_compress_options_dialog()` in `src/ui/dialog.rs`
+- [ ] **T931** [US9] Show format selector with descriptions: "ZIP (rápido, compatible)", "TAR.GZ (Linux, bueno)", "TAR.BZ2 (mejor)", "7Z (máxima)"
+- [ ] **T932** [US9] Show compression level selector: "Rápido / Normal / Máximo"
+- [ ] **T933** [US9] Show password checkbox (disabled for TAR formats)
+- [ ] **T934** [US9] Show password input fields (two for confirmation) when checkbox active
+- [ ] **T935** [US9] Show estimated size: "~1.2 MB estimado (ratio 45%)"
+- [ ] **T936** [US9] Validate: passwords match, output name not empty, no file exists (or confirm overwrite)
+
+### Key Bindings
+
+- [ ] **T937** [P] [US9] Add `Action::CompressArchive` to `src/events/keybindings.rs`
+- [ ] **T938** [US9] Map Shift+F9 to `Action::CompressArchive`
+- [ ] **T939** [US9] Update footer hint: add "Shift+F9:Compress" to line2_bindings
+- [ ] **T940** [US9] Handle dialog navigation: Tab/Shift+Tab between fields, arrows for selectors
+- [ ] **T941** [US9] Handle Space to toggle checkboxes (password, level)
+- [ ] **T942** [US9] Handle Enter to confirm and start compression
+
+### Compression Execution
+
+- [ ] **T943** [P] [US9] Handle `ConfirmYes` for CompressOptions dialog in `src/main.rs`
+- [ ] **T944** [US9] Extract options from dialog, validate passwords match
+- [ ] **T945** [US9] Check disk space: estimated size < available space
+- [ ] **T946** [US9] Check output file doesn't exist, or show overwrite confirmation
+- [ ] **T947** [US9] Create progress channel and show progress dialog
+- [ ] **T948** [US9] Call appropriate compress function based on format
+- [ ] **T949** [US9] Refresh active panel after compression completes
+- [ ] **T950** [US9] Select newly created archive file automatically
+
+### Error Handling
+
+- [ ] **T951** [US9] Handle file not found during compression: skip with warning or abort
+- [ ] **T952** [US9] Handle permission denied: show error, offer skip/retry/cancel
+- [ ] **T953** [US9] Handle insufficient disk space: detect before starting, error gracefully
+- [ ] **T954** [US9] Handle output file already exists: confirm overwrite before starting
+- [ ] **T955** [US9] Handle cancellation: Esc shows confirmation, deletes partial archive
+- [ ] **T956** [US9] Limit to 100K files or 50GB: show warning "Operación muy larga, ¿continuar?"
+
+### Testing
+
+- [ ] **T957** [P] [US9] Create `tests/unit/compressor_tests.rs`
+- [ ] **T958** [US9] Test compress single file to ZIP
+- [ ] **T959** [US9] Test compress multiple files to ZIP
+- [ ] **T960** [US9] Test compress directory recursively to TAR.GZ
+- [ ] **T961** [US9] Test compress with password (ZIP and 7Z)
+- [ ] **T962** [US9] Test compression level affects output size
+- [ ] **T963** [US9] Test ZIP64 for files >4GB
+- [ ] **T964** [US9] Test TAR preserves Unix permissions
+- [ ] **T965** [US9] Test estimate_compressed_size() approximation
+- [ ] **T966** [US9] Test cancellation deletes partial archive
 
 ---
 

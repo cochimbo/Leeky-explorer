@@ -236,24 +236,67 @@ async fn run_app<B: ratatui::backend::Backend>(
                                     dest = dest.join(archive_name);
                                 }
                                 
-                                app.close_dialog();
+                                // T843: Check if archive is password-protected
+                                let is_encrypted = crate::archive::password::is_password_protected(&source)
+                                    .unwrap_or(false);
                                 
-                                // TODO: Show progress dialog during extraction (T835-T837)
-                                // Create a dummy progress channel for now
-                                let (progress_tx, _progress_rx) = tokio::sync::mpsc::channel(100);
+                                if is_encrypted {
+                                    // Show password input dialog
+                                    app.dialog_state = Some(DialogState::PasswordInput {
+                                        prompt: format!("Enter password for {}:", archive_name),
+                                        value: String::new(),
+                                        show_password: false,
+                                        archive_path: source,
+                                        dest_path: dest,
+                                        format,
+                                    });
+                                } else {
+                                    // No password needed, start extraction immediately
+                                    // T835-T837: Get archive size for progress
+                                    let archive_size = std::fs::metadata(&source)
+                                        .map(|m| m.len())
+                                        .unwrap_or(0);
+                                    
+                                    // T835: Create extract operation with progress
+                                    app.current_operation = Some(Operation::extract(
+                                        source,
+                                        dest,
+                                        archive_size,
+                                        1, // We'll update this when we know file count
+                                        format,
+                                    ));
+                                    
+                                    // Show progress dialog
+                                    app.dialog_state = Some(DialogState::Progress {
+                                        message: "Extrayendo archivo...".to_string(),
+                                    });
+                                }
+                            } else if let DialogState::PasswordInput { archive_path, dest_path, format, value, .. } = dialog_state {
+                                // T843: Password was entered, start extraction with password
+                                let source = archive_path.clone();
+                                let dest = dest_path.clone();
+                                let format = format.clone();
+                                let password = Some(value.clone());
                                 
-                                // Extract archive
-                                let _ = crate::archive::extractor::extract_archive(
-                                    &source,
-                                    &dest,
+                                // T835-T837: Get archive size for progress
+                                let archive_size = std::fs::metadata(&source)
+                                    .map(|m| m.len())
+                                    .unwrap_or(0);
+                                
+                                // T835: Create extract operation with progress (password will be passed separately)
+                                app.current_operation = Some(Operation::extract(
+                                    source,
+                                    dest,
+                                    archive_size,
+                                    1,
                                     format,
-                                    None,
-                                    progress_tx,
-                                ).await;
+                                ));
                                 
-                                // Refresh both panels
-                                app.left_panel.refresh_entries()?;
-                                app.right_panel.refresh_entries()?;
+                                // TODO: Pass password to extractor
+                                // For now, we just show progress dialog
+                                app.dialog_state = Some(DialogState::Progress {
+                                    message: "Extrayendo archivo con contraseña...".to_string(),
+                                });
                             } else if let DialogState::Confirm { confirm_action, .. } = dialog_state {
                                 if let ConfirmAction::ExtractArchive { source, dest, format } = confirm_action {
                                     let source = source.clone();
@@ -360,6 +403,10 @@ async fn execute_operation(
                         }
                         bytes_done += file_size;
                     }
+                    OperationType::Extract => {
+                        // Batch extraction not supported
+                        return Err(anyhow::anyhow!("Batch extraction not supported"));
+                    }
                 }
                 
                 files_done += 1;
@@ -421,6 +468,39 @@ async fn execute_operation(
                         files_done: 1,
                         files_total: 1,
                     }).await;
+                }
+            }
+            OperationType::Extract => {
+                // T835-T837: Extract archive with progress
+                if let Some(format) = operation.archive_format {
+                    let source = operation.source.clone();
+                    let destination = operation.destination.clone();
+                    let tx = progress_tx.clone();
+                    
+                    // Create an unbounded channel for progress from blocking context
+                    let (progress_sender, mut progress_receiver) = tokio::sync::mpsc::unbounded_channel::<Progress>();
+                    
+                    // Spawn forwarding task
+                    let forward_handle = tokio::spawn(async move {
+                        while let Some(progress) = progress_receiver.recv().await {
+                            let _ = tx.send(progress).await;
+                        }
+                    });
+                    
+                    // Extract in blocking task
+                    let extract_handle = tokio::task::spawn_blocking(move || {
+                        crate::archive::extractor::extract_archive_unbounded(&source, &destination, format, None, progress_sender)
+                    });
+                    
+                    // Wait for extraction to complete
+                    let extract_result = extract_handle.await?;
+                    
+                    // Wait for all progress messages to be forwarded
+                    let _ = forward_handle.await;
+                    
+                    extract_result?;
+                } else {
+                    return Err(anyhow::anyhow!("Extract operation missing archive format"));
                 }
             }
         }
