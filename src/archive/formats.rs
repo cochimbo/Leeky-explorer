@@ -9,9 +9,9 @@ use std::io::Read;
 pub enum ArchiveFormat {
     ZIP,
     TAR,
-    TAR_GZ,
-    TAR_BZ2,
-    TAR_XZ,
+    TarGz,
+    TarBz2,
+    TarXz,
     SEVENZ,
     RAR,
     UNKNOWN,
@@ -55,17 +55,17 @@ pub fn detect_format(path: &Path) -> Result<ArchiveFormat> {
         
         // GZIP (for TAR.GZ): \x1F\x8B
         if magic[0..2] == [0x1F, 0x8B] {
-            return Ok(ArchiveFormat::TAR_GZ);
+            return Ok(ArchiveFormat::TarGz);
         }
         
         // BZ2 (for TAR.BZ2): BZ
         if magic[0..2] == [0x42, 0x5A] {
-            return Ok(ArchiveFormat::TAR_BZ2);
+            return Ok(ArchiveFormat::TarBz2);
         }
         
         // XZ (for TAR.XZ): \xFD7zXZ\x00
         if bytes_read >= 6 && magic[0..6] == [0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00] {
-            return Ok(ArchiveFormat::TAR_XZ);
+            return Ok(ArchiveFormat::TarXz);
         }
         
         // TAR: check for "ustar" at offset 257
@@ -89,16 +89,16 @@ pub fn detect_format(path: &Path) -> Result<ArchiveFormat> {
                 // Check if it's .tar.gz
                 if let Some(stem) = path.file_stem() {
                     if stem.to_string_lossy().ends_with(".tar") {
-                        ArchiveFormat::TAR_GZ
+                        ArchiveFormat::TarGz
                     } else {
                         ArchiveFormat::UNKNOWN
                     }
                 } else {
-                    ArchiveFormat::TAR_GZ
+                    ArchiveFormat::TarGz
                 }
             }
-            "bz2" | "tbz" | "tbz2" => ArchiveFormat::TAR_BZ2,
-            "xz" | "txz" => ArchiveFormat::TAR_XZ,
+            "bz2" | "tbz" | "tbz2" => ArchiveFormat::TarBz2,
+            "xz" | "txz" => ArchiveFormat::TarXz,
             "7z" => ArchiveFormat::SEVENZ,
             "rar" => ArchiveFormat::RAR,
             _ => ArchiveFormat::UNKNOWN,
@@ -115,9 +115,9 @@ pub fn list_archive_contents(path: &Path, format: ArchiveFormat) -> Result<Vec<A
     let result = match format {
         ArchiveFormat::ZIP => list_zip_contents(path),
         ArchiveFormat::TAR => list_tar_contents(path, None),
-        ArchiveFormat::TAR_GZ => list_tar_contents(path, Some(CompressionType::Gzip)),
-        ArchiveFormat::TAR_BZ2 => list_tar_contents(path, Some(CompressionType::Bzip2)),
-        ArchiveFormat::TAR_XZ => list_tar_contents(path, Some(CompressionType::Xz)),
+        ArchiveFormat::TarGz => list_tar_contents(path, Some(CompressionType::Gzip)),
+        ArchiveFormat::TarBz2 => list_tar_contents(path, Some(CompressionType::Bzip2)),
+        ArchiveFormat::TarXz => list_tar_contents(path, Some(CompressionType::Xz)),
         ArchiveFormat::SEVENZ => list_7z_contents(path),
         ArchiveFormat::RAR => list_rar_contents(path),
         ArchiveFormat::UNKNOWN => bail!("Unknown archive format"),
@@ -251,7 +251,7 @@ mod tests {
         );
         assert_eq!(
             detect_format(Path::new("test.tar.gz")).unwrap(),
-            ArchiveFormat::TAR_GZ
+            ArchiveFormat::TarGz
         );
         assert_eq!(
             detect_format(Path::new("test.7z")).unwrap(),
