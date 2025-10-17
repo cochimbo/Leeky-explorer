@@ -587,15 +587,21 @@ async fn extract_zip(
     _password: Option<String>,
     progress_tx: Sender<Progress>,
 ) -> Result<()> {
-    let file = File::open(archive_path).context("Failed to open ZIP file")?;
-    let mut archive = zip::ZipArchive::new(file).context("Failed to read ZIP archive")?;
+    // T846: Better error handling for corrupt archives
+    let file = File::open(archive_path)
+        .context("Failed to open ZIP file - file may be locked or inaccessible")?;
+    
+    let mut archive = zip::ZipArchive::new(file)
+        .context("Failed to read ZIP archive - file may be corrupt or not a valid ZIP")?;
     
     let total_files = archive.len();
     let mut bytes_extracted = 0u64;
     let total_bytes = total_files as u64 * 1024; // Approximation
     
     for i in 0..total_files {
-        let mut file = archive.by_index(i)?;
+        // T846: Handle individual file extraction errors
+        let mut file = archive.by_index(i)
+            .with_context(|| format!("Failed to access file #{} in archive - archive may be corrupt", i))?;
         let file_name = file.name().to_string();
         
         // T832: Sanitize path (convert absolute to relative)
@@ -619,9 +625,12 @@ async fn extract_zip(
                 fs::create_dir_all(parent)?;
             }
             
-            // Extract file
-            let mut out_file = File::create(&out_path)?;
-            std::io::copy(&mut file, &mut out_file)?;
+            // T846: Extract file with better error handling
+            let mut out_file = File::create(&out_path)
+                .with_context(|| format!("Failed to create output file: {}", out_path.display()))?;
+            
+            std::io::copy(&mut file, &mut out_file)
+                .with_context(|| format!("Failed to extract '{}' - archive may be corrupt", sanitized_path.display()))?;
             
             bytes_extracted += file.size();
             
@@ -655,7 +664,9 @@ async fn extract_tar(
     compression: Option<CompressionType>,
     progress_tx: Sender<Progress>,
 ) -> Result<()> {
-    let file = File::open(archive_path).context("Failed to open TAR file")?;
+    // T846: Better error handling for corrupt archives
+    let file = File::open(archive_path)
+        .context("Failed to open TAR file - file may be locked or inaccessible")?;
     
     let mut archive: tar::Archive<Box<dyn Read + Send>> = match compression {
         None => {
