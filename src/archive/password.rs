@@ -4,7 +4,7 @@ use std::path::Path;
 use std::fs::File;
 
 /// T819: Password dialog state
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct PasswordDialog {
     pub input: String,
     pub cursor_pos: usize,
@@ -12,10 +12,7 @@ pub struct PasswordDialog {
 
 impl PasswordDialog {
     pub fn new() -> Self {
-        Self {
-            input: String::new(),
-            cursor_pos: 0,
-        }
+        Self::default()
     }
     
     pub fn push_char(&mut self, c: char) {
@@ -49,9 +46,6 @@ pub fn prompt_password() -> Option<String> {
 
 /// T821: Detect if archive is password-protected
 pub fn is_password_protected(path: &Path) -> Result<bool> {
-    use std::fs::File;
-    use std::io::Read;
-    
     // Check file extension first
     let ext = path.extension()
         .and_then(|e| e.to_str())

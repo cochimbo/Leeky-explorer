@@ -28,6 +28,8 @@ pub struct ArchiveEntry {
 
 /// T808-T810: Detect archive format using magic bytes and extension
 pub fn detect_format(path: &Path) -> Result<ArchiveFormat> {
+    log::debug!("Detecting archive format for: {:?}", path);
+    
     // Try magic bytes first
     let mut file = File::open(path).context("Failed to open archive")?;
     let mut magic = [0u8; 8];
@@ -108,7 +110,9 @@ pub fn detect_format(path: &Path) -> Result<ArchiveFormat> {
 
 /// T812-T817: List contents of an archive
 pub fn list_archive_contents(path: &Path, format: ArchiveFormat) -> Result<Vec<ArchiveEntry>> {
-    match format {
+    log::debug!("Listing archive contents: {:?} (format: {:?})", path, format);
+    
+    let result = match format {
         ArchiveFormat::ZIP => list_zip_contents(path),
         ArchiveFormat::TAR => list_tar_contents(path, None),
         ArchiveFormat::TAR_GZ => list_tar_contents(path, Some(CompressionType::Gzip)),
@@ -117,7 +121,14 @@ pub fn list_archive_contents(path: &Path, format: ArchiveFormat) -> Result<Vec<A
         ArchiveFormat::SEVENZ => list_7z_contents(path),
         ArchiveFormat::RAR => list_rar_contents(path),
         ArchiveFormat::UNKNOWN => bail!("Unknown archive format"),
+    };
+    
+    match &result {
+        Ok(entries) => log::debug!("Found {} entries in archive", entries.len()),
+        Err(e) => log::error!("Failed to list archive contents: {}", e),
     }
+    
+    result
 }
 
 enum CompressionType {

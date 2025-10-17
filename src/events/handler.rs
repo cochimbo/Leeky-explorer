@@ -786,13 +786,22 @@ fn create_folder(app: &mut AppState, folder_name: &str) -> Result<()> {
     let panel = app.active_panel();
     let new_path = panel.current_path.join(folder_name);
     
+    // T851d: Log folder creation
+    log::info!("Creating folder: {:?}", new_path);
+    
     // Use blocking task for simplicity (create_dir is fast)
-    std::fs::create_dir(&new_path)?;
-    
-    // Refresh panel and store entries
-    refresh_and_store(app)?;
-    
-    Ok(())
+    match std::fs::create_dir(&new_path) {
+        Ok(_) => {
+            log::info!("Folder created successfully: {:?}", new_path);
+            // Refresh panel and store entries
+            refresh_and_store(app)?;
+            Ok(())
+        }
+        Err(e) => {
+            log::error!("Failed to create folder {:?}: {}", new_path, e);
+            Err(e.into())
+        }
+    }
 }
 
 fn start_delete_operation(app: &mut AppState) -> Result<()> {

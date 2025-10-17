@@ -21,7 +21,9 @@ fn test_load_valid_state() -> Result<()> {
     fs::write(&state_file, json)?;
     
     // Temporarily override config dir
-    env::set_var("HOME", temp_dir.path());
+    unsafe {
+        env::set_var("HOME", temp_dir.path());
+    }
     
     // This test verifies the structure can be deserialized
     let state: PersistedState = serde_json::from_str(json)?;

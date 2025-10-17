@@ -87,7 +87,7 @@ pub fn render_preview_modal(f: &mut Frame, preview_state: &PreviewState) {
             warning,
         } => {
             // Calculate modal size: 80% of screen
-            let area = f.size();
+            let area = f.area();
             let modal_width = (area.width as f32 * 0.8) as u16;
             let modal_height = (area.height as f32 * 0.8) as u16;
 
@@ -205,7 +205,7 @@ pub fn render_preview_modal(f: &mut Frame, preview_state: &PreviewState) {
             file_size,
         } => {
             // T717: Calculate modal size: 95% of screen (maximize space for images)
-            let area = f.size();
+            let area = f.area();
             let modal_width = (area.width as f32 * 0.95) as u16;
             let modal_height = (area.height as f32 * 0.95) as u16;
 

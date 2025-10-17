@@ -99,10 +99,12 @@ async fn run_app<B: ratatui::backend::Backend>(
                                 app.right_all_entries = app.right_panel.entries.clone();
                             }
                             Ok(Err(e)) => {
+                                log::error!("Operation failed: {}", e);
                                 app.show_error(format!("Operation failed: {}", e));
                                 app.current_operation = None;
                             }
                             Err(e) => {
+                                log::error!("Task join error: {}", e);
                                 app.show_error(format!("Task error: {}", e));
                                 app.current_operation = None;
                             }
@@ -127,10 +129,12 @@ async fn run_app<B: ratatui::backend::Backend>(
                             let _ = app.right_panel.refresh_entries();
                         }
                         Ok(Err(e)) => {
+                            log::error!("Operation completed with error: {}", e);
                             app.show_error(format!("Operation failed: {}", e));
                             app.current_operation = None;
                         }
                         Err(e) => {
+                            log::error!("Task join error during completion check: {}", e);
                             app.show_error(format!("Task error: {}", e));
                             app.current_operation = None;
                         }
@@ -151,7 +155,7 @@ async fn run_app<B: ratatui::backend::Backend>(
         
         // Draw UI
         terminal.draw(|f| {
-            let layout = ui::layout::create_layout(f.size());
+            let layout = ui::layout::create_layout(f.area());
 
             // Render header
             ui::render_header(f, app, layout.header);
@@ -191,14 +195,14 @@ async fn run_app<B: ratatui::backend::Backend>(
                                 f,
                                 message,
                                 &op.progress,
-                                f.size()
+                                f.area()
                             );
                         } else {
-                            ui::dialog::render_dialog(f, dialog, f.size());
+                            ui::dialog::render_dialog(f, dialog, f.area());
                         }
                     }
                     _ => {
-                        ui::dialog::render_dialog(f, dialog, f.size());
+                        ui::dialog::render_dialog(f, dialog, f.area());
                     }
                 }
             }
@@ -280,7 +284,7 @@ async fn run_app<B: ratatui::backend::Backend>(
                                 let source = archive_path.clone();
                                 let dest = dest_path.clone();
                                 let format = format.clone();
-                                let password = Some(value.clone());
+                                let _password = Some(value.clone());  // TODO: T843 - Pass to extraction
                                 
                                 // T835-T837: Get archive size for progress
                                 let archive_size = std::fs::metadata(&source)
