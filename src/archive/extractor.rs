@@ -64,30 +64,56 @@ pub fn extract_archive_sync(
     }
 }
 
-/// T825: Extract ZIP archive (unbounded version)
+/// T825: Extract ZIP archive (unbounded version with real-time progress)
 fn extract_zip_unbounded(
     archive_path: &Path,
     dest_path: &Path,
     _password: Option<String>,
-    progress_tx: tokio::sync::mpsc::UnboundedSender<Progress>,
+    tokio_tx: tokio::sync::mpsc::UnboundedSender<Progress>,
 ) -> Result<()> {
+    log::info!("extract_zip_unbounded: Starting extraction from {:?} to {:?}", archive_path, dest_path);
+    
+    // Create a std::sync::mpsc channel for thread-safe progress updates
+    let (std_tx, std_rx) = std::sync::mpsc::channel::<Progress>();
+    
+    // Spawn a bridge thread to forward from std::sync::mpsc to tokio::sync::mpsc
+    std::thread::spawn(move || {
+        while let Ok(progress) = std_rx.recv() {
+            if tokio_tx.send(progress).is_err() {
+                log::warn!("Progress bridge: tokio channel closed");
+                break;
+            }
+        }
+        log::debug!("Progress bridge thread finished");
+    });
+    
     let file = File::open(archive_path).context("Failed to open ZIP file")?;
     let mut archive = zip::ZipArchive::new(file).context("Failed to read ZIP archive")?;
     
     let total_files = archive.len();
     let mut bytes_extracted = 0u64;
-    let total_bytes = total_files as u64 * 1024; // Approximation
+    
+    // Calculate real total bytes by iterating files
+    let mut total_bytes = 0u64;
+    for i in 0..total_files {
+        if let Ok(file) = archive.by_index(i) {
+            total_bytes += file.size();
+        }
+    }
+    
+    log::info!("ZIP archive has {} files, {} total bytes", total_files, total_bytes);
     
     for i in 0..total_files {
-        let mut file = archive.by_index(i)?;
+        let file = archive.by_index(i)?;
         let file_name = file.name().to_string();
         
         // T832: Sanitize path (convert absolute to relative)
         let sanitized_path = sanitize_path(&file_name);
         let out_path = dest_path.join(&sanitized_path);
         
-        // T835: Send progress update
-        let _ = progress_tx.send(Progress {
+        // Send progress update before processing file
+        log::debug!("Processing file {}/{}: {}", i, total_files, file_name);
+        let _ = std_tx.send(Progress {
             bytes_done: bytes_extracted,
             bytes_total: total_bytes,
             files_done: i,
@@ -103,11 +129,26 @@ fn extract_zip_unbounded(
                 fs::create_dir_all(parent)?;
             }
             
-            // Extract file
-            let mut out_file = File::create(&out_path)?;
-            std::io::copy(&mut file, &mut out_file)?;
+            // Get file size before wrapping in ProgressReader
+            let file_size = file.size();
             
-            bytes_extracted += file.size();
+            // Extract file with real-time progress updates
+            let mut out_file = File::create(&out_path)?;
+            
+            // Wrap reader with progress tracking
+            let mut progress_reader = super::progress_reader::ProgressReader::new(
+                file,
+                std_tx.clone(),
+                i,
+                total_files,
+                bytes_extracted,
+                total_bytes,
+            );
+            
+            let bytes_copied = std::io::copy(&mut progress_reader, &mut out_file)?;
+            log::debug!("ZIP: File {} extracted ({} bytes)", file_name, bytes_copied);
+            
+            bytes_extracted += file_size;
             
             // T830: Preserve file permissions (Unix only)
             #[cfg(unix)]
@@ -122,12 +163,14 @@ fn extract_zip_unbounded(
     }
     
     // Send final progress
-    let _ = progress_tx.send(Progress {
+    let _ = std_tx.send(Progress {
         bytes_done: bytes_extracted,
-        bytes_total: bytes_extracted,
+        bytes_total: total_bytes,
         files_done: total_files,
         files_total: total_files,
     });
+    
+    log::info!("ZIP extraction completed: {} bytes extracted", bytes_extracted);
     
     Ok(())
 }
@@ -204,8 +247,24 @@ fn extract_tar_unbounded(
     archive_path: &Path,
     dest_path: &Path,
     compression: Option<CompressionType>,
-    progress_tx: tokio::sync::mpsc::UnboundedSender<Progress>,
+    tokio_tx: tokio::sync::mpsc::UnboundedSender<Progress>,
 ) -> Result<()> {
+    log::info!("extract_tar_unbounded: Starting extraction from {:?} to {:?}", archive_path, dest_path);
+    
+    // Create a std::sync::mpsc channel for thread-safe progress updates
+    let (std_tx, std_rx) = std::sync::mpsc::channel::<Progress>();
+    
+    // Spawn a bridge thread to forward from std::sync::mpsc to tokio::sync::mpsc
+    std::thread::spawn(move || {
+        while let Ok(progress) = std_rx.recv() {
+            if tokio_tx.send(progress).is_err() {
+                log::warn!("TAR progress bridge: tokio channel closed");
+                break;
+            }
+        }
+        log::debug!("TAR progress bridge thread finished");
+    });
+    
     let file = File::open(archive_path).context("Failed to open TAR file")?;
     
     // Create archive with appropriate decompressor
@@ -227,9 +286,16 @@ fn extract_tar_unbounded(
         }
     };
     
-    // Count total entries first
+    // Count total entries and calculate total bytes
     let entries_vec: Vec<_> = archive.entries()?.collect();
     let total_files = entries_vec.len();
+    let total_bytes: u64 = entries_vec.iter()
+        .filter_map(|e| e.as_ref().ok())
+        .map(|e| e.header().size().unwrap_or(0))
+        .sum();
+    
+    log::info!("TAR archive has {} files, {} total bytes", total_files, total_bytes);
+    
     let mut bytes_extracted = 0u64;
     
     // Re-open archive for extraction
@@ -260,10 +326,11 @@ fn extract_tar_unbounded(
         let sanitized_path = sanitize_path(&file_name);
         let out_path = dest_path.join(&sanitized_path);
         
-        // T835: Send progress update
-        let _ = progress_tx.send(Progress {
+        // Send progress update before processing file
+        log::debug!("TAR: Processing file {}/{}: {}", i, total_files, file_name);
+        let _ = std_tx.send(Progress {
             bytes_done: bytes_extracted,
-            bytes_total: total_files as u64 * 1024,
+            bytes_total: total_bytes,
             files_done: i,
             files_total: total_files,
         });
@@ -274,6 +341,7 @@ fn extract_tar_unbounded(
             if entry.header().entry_type().is_symlink() {
                 // Extract symlink
                 entry.unpack(&out_path)?;
+                bytes_extracted += entry_size;
                 continue;
             }
         }
@@ -284,7 +352,7 @@ fn extract_tar_unbounded(
     }
     
     // Send final progress
-    let _ = progress_tx.send(Progress {
+    let _ = std_tx.send(Progress {
         bytes_done: bytes_extracted,
         bytes_total: bytes_extracted,
         files_done: total_files,
@@ -392,8 +460,24 @@ fn extract_7z_unbounded(
     archive_path: &Path,
     dest_path: &Path,
     password: Option<String>,
-    progress_tx: tokio::sync::mpsc::UnboundedSender<Progress>,
+    tokio_tx: tokio::sync::mpsc::UnboundedSender<Progress>,
 ) -> Result<()> {
+    log::info!("extract_7z_unbounded: Starting extraction from {:?} to {:?}", archive_path, dest_path);
+    
+    // Create a std::sync::mpsc channel for thread-safe progress updates
+    let (std_tx, std_rx) = std::sync::mpsc::channel::<Progress>();
+    
+    // Spawn a bridge thread to forward from std::sync::mpsc to tokio::sync::mpsc
+    std::thread::spawn(move || {
+        while let Ok(progress) = std_rx.recv() {
+            if tokio_tx.send(progress).is_err() {
+                log::warn!("7Z progress bridge: tokio channel closed");
+                break;
+            }
+        }
+        log::debug!("7Z progress bridge thread finished");
+    });
+    
     let file = File::open(archive_path).context("Failed to open 7Z file")?;
     let len = file.metadata()?.len();
     
@@ -407,8 +491,16 @@ fn extract_7z_unbounded(
         .context("Failed to read 7Z archive (wrong password?)")?;
     
     let total_files = archive.archive().files.len();
+    
+    // Calculate real total bytes
+    let total_bytes: u64 = archive.archive().files.iter()
+        .map(|f| f.size())
+        .sum();
+    
     let mut bytes_extracted = 0u64;
     let mut file_index = 0;
+    
+    log::info!("7Z archive has {} files, {} total bytes", total_files, total_bytes);
     
     // Extract all files
     archive.for_each_entries(|entry, reader| {
@@ -418,10 +510,11 @@ fn extract_7z_unbounded(
         let sanitized_path = sanitize_path(&file_name);
         let out_path = dest_path.join(&sanitized_path);
         
-        // T835: Send progress update
-        let _ = progress_tx.send(Progress {
+        // Send progress update before processing file
+        log::debug!("7Z: Processing file {}/{}: {}", file_index, total_files, file_name);
+        let _ = std_tx.send(Progress {
             bytes_done: bytes_extracted,
-            bytes_total: total_files as u64 * 1024,
+            bytes_total: total_bytes,
             files_done: file_index,
             files_total: total_files,
         });
@@ -434,9 +527,22 @@ fn extract_7z_unbounded(
                 fs::create_dir_all(parent)?;
             }
             
-            // Extract file
+            // Extract file with progress tracking
             let mut out_file = File::create(&out_path)?;
-            std::io::copy(reader, &mut out_file)?;
+            
+            // Wrap reader with progress tracking
+            let mut progress_reader = super::progress_reader::ProgressReader::new(
+                reader,
+                std_tx.clone(),
+                file_index,
+                total_files,
+                bytes_extracted,
+                total_bytes,
+            );
+            
+            let bytes_copied = std::io::copy(&mut progress_reader, &mut out_file)?;
+            log::debug!("7Z: File {} extracted ({} bytes)", file_name, bytes_copied);
+            
             bytes_extracted += entry.size();
         }
         
@@ -445,12 +551,14 @@ fn extract_7z_unbounded(
     })?;
     
     // Send final progress
-    let _ = progress_tx.send(Progress {
+    let _ = std_tx.send(Progress {
         bytes_done: bytes_extracted,
-        bytes_total: bytes_extracted,
+        bytes_total: total_bytes,
         files_done: total_files,
         files_total: total_files,
     });
+    
+    log::info!("7Z extraction completed: {} bytes extracted", bytes_extracted);
     
     Ok(())
 }

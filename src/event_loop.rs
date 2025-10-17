@@ -9,6 +9,7 @@ use crossterm::event::{self, Event};
 use ratatui::Terminal;
 use std::time::Duration;
 use tokio::sync::mpsc;
+use tokio::task::JoinHandle;
 
 /// Main event loop for the application
 pub async fn run<B: ratatui::backend::Backend>(
@@ -53,16 +54,27 @@ pub async fn run<B: ratatui::backend::Backend>(
 async fn process_progress_updates(
     app: &mut AppState,
     progress_rx: &mut mpsc::Receiver<Progress>,
-    operation_task: &mut Option<tokio::task::JoinHandle<Result<()>>>,
+    operation_task: &mut Option<JoinHandle<Result<()>>>,
 ) {
+    let mut count = 0;
     loop {
         match progress_rx.try_recv() {
             Ok(progress) => {
-                if let Some(ref mut op) = app.current_operation {
+                count += 1;
+                log::debug!("Event loop: Received progress update #{}: files {}/{}, bytes {}/{}",
+                    count, progress.files_done, progress.files_total,
+                    progress.bytes_done, progress.bytes_total);
+                    
+                if let Some(op) = &mut app.current_operation {
                     op.progress = progress;
                 }
             }
-            Err(mpsc::error::TryRecvError::Empty) => break,
+            Err(mpsc::error::TryRecvError::Empty) => {
+                if count > 0 {
+                    log::debug!("Event loop: Processed {} progress updates this cycle", count);
+                }
+                break;
+            }
             Err(mpsc::error::TryRecvError::Disconnected) => {
                 handle_channel_closed(app, operation_task).await;
                 break;
@@ -554,14 +566,27 @@ async fn execute_extract_operation(
     // Create an unbounded channel for progress from blocking context
     let (progress_sender, mut progress_receiver) = tokio::sync::mpsc::unbounded_channel::<Progress>();
     
+    log::info!("Created unbounded channel for extraction progress forwarding");
+    
     // Spawn forwarding task
     let forward_handle = tokio::spawn(async move {
+        log::info!("Forwarding task started");
+        let mut count = 0;
         while let Some(progress) = progress_receiver.recv().await {
-            let _ = tx.send(progress).await;
+            count += 1;
+            log::debug!("Forwarding progress update #{}: files {}/{}", 
+                count, progress.files_done, progress.files_total);
+            
+            match tx.send(progress).await {
+                Ok(_) => log::debug!("Progress #{} forwarded successfully", count),
+                Err(e) => log::error!("Failed to forward progress #{}: {}", count, e),
+            }
         }
+        log::info!("Forwarding task completed after {} messages", count);
     });
     
     // Extract in blocking task
+    log::info!("Spawning blocking extraction task");
     let extract_handle = tokio::task::spawn_blocking(move || {
         crate::archive::extractor::extract_archive_unbounded(&source, &destination, format, None, progress_sender)
     });

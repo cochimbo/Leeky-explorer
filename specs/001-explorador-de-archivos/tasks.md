@@ -520,7 +520,7 @@
 
 - [x] **T801** [P] [US8] Add dependencies to `Cargo.toml`: zip (0.6+), tar (0.4+), flate2 (1.0+), xz2 (0.1+)
 - [x] **T802** [P] [US8] Add `sevenz-rust` (0.5+) for 7Z support
-- [x] **T803** [P] [US8] Add `unrar` (0.5+) for RAR support (note: requires libunrar)
+- [~] **T803** [P] [US8] ~~Add `unrar` (0.5+) for RAR support~~ (CANCELLED: requires libunrar, not supported)
 - [x] **T804** [P] [US8] Create `src/archive/` directory
 - [x] **T805** [P] [US8] Create `src/archive/mod.rs` and declare formats, extractor, password submodules
 
@@ -539,7 +539,7 @@
 - [x] **T813** [US8] Implement ZIP listing using zip crate
 - [x] **T814** [US8] Implement TAR listing using tar crate
 - [x] **T815** [US8] Implement 7Z listing using sevenz-rust
-- [ ] **T816** [US8] Implement RAR listing using unrar
+- [~] **T816** [US8] ~~Implement RAR listing using unrar~~ (CANCELLED: not supported)
 - [x] **T817** [US8] Calculate compression ratio: (1 - compressed/uncompressed) * 100
 
 ### Password Handling
@@ -559,20 +559,20 @@
 - [x] **T826b** [BUG] [US8] **FIX TAR EXTRACTION**: Currently using stub implementation (returns Ok() without extracting). Need to implement full TAR extraction logic in `extract_tar_sync()` and `extract_tar_unbounded()` functions with compression support (GZ, BZ2, XZ)
 - [x] **T827** [US8] Implement 7Z extraction with password using sevenz-rust
 - [x] **T827b** [BUG] [US8] **FIX 7Z EXTRACTION**: Currently using stub implementation (returns Ok() without extracting). Need to implement full 7Z extraction logic in `extract_7z_sync()` and `extract_7z_unbounded()` functions
-- [ ] **T828** [US8] Implement RAR extraction with password using unrar
+- [~] **T828** [US8] ~~Implement RAR extraction with password using unrar~~ (CANCELLED: not supported)
 - [x] **T829** [US8] Preserve directory structure: create parent dirs as needed
 - [x] **T830** [US8] Preserve file permissions and timestamps where supported
 - [x] **T831** [US8] Handle symlinks in TAR: preserve on Unix, skip on Windows
 - [x] **T832** [US8] Sanitize paths: convert absolute paths to relative for security
-- [ ] **T833** [US8] Detect multi-part RAR archives: find .part1.rar, .part2.rar automatically
+- [~] **T833** [US8] ~~Detect multi-part RAR archives~~ (CANCELLED: RAR not supported)
 
 ### Progress Tracking
 
 - [x] **T834** [US8] Define `ExtractionProgress` struct: current_file, file_index, total_files, bytes_extracted
-- [ ] **T835** [US8] Send progress updates via channel every 100ms or per-file
-- [ ] **T836** [US8] Show progress modal: "Extrayendo 5/23: documento.pdf (22%)"
-- [ ] **T837** [US8] Update UI with current filename and percentage
-- [ ] **T837b** [BUG] [US8] **FIX PROGRESS BAR**: Progress updates not visible in UI during extraction. Architecture implemented (unbounded_channel) but messages not reaching UI. Need to debug: 1) Add logging to verify message flow, 2) Check forwarding task timing, 3) Verify main loop polling frequency, 4) Test with explicit channel flush/sync
+- [x] **T835** [US8] Send progress updates via channel every 100ms or per-file (✅ Implemented: ProgressReader sends every 1MB)
+- [x] **T836** [US8] Show progress modal: "Extrayendo 5/23: documento.pdf (22%)" (✅ Progress dialog shows during extraction)
+- [x] **T837** [US8] Update UI with current filename and percentage (✅ Real-time updates via unbounded_channel + bridge thread)
+- [x] **T837b** [BUG] [US8] **FIX PROGRESS BAR**: Progress updates not visible in UI during extraction (✅ FIXED: Used std::sync::mpsc + bridge thread to avoid Tokio deadlock)
 
 ### UI Integration
 
@@ -775,11 +775,80 @@
 
 **Current Status**: 
 - ✅ **Phases 0-5 Complete**: Setup, Navigation, File Operations, Search, Config Persistence (121/121 tasks)
-- ⏳ **Phase 5.5-5.8 Pending**: Multi-select, Preview (Text/Image), Archive Extraction (170 new tasks)
-- ⏳ **Phase 6 Pending**: Polish, Documentation, Performance (17 tasks)
+- ✅ **Phase 5.5 Complete**: Multi-select functionality (37/37 tasks)
+- ✅ **Phase 5.6 Complete**: Text Preview (40/40 tasks)
+- ✅ **Phase 5.7 Complete**: Image Preview (33/34 tasks) - 1 test pending
+- ✅ **Phase 5.8 In Progress**: Archive Extraction (53/62 tasks) - Core extraction working with real-time progress
+  - ✅ ZIP extraction with password support and progress tracking
+  - ✅ TAR/TAR.GZ/TAR.BZ2/TAR.XZ extraction with progress tracking
+  - ✅ 7Z extraction with password support and progress tracking
+  - ❌ RAR support cancelled (requires libunrar)
+  - ⏳ Testing suite pending (9 tasks)
+- ✅ **Phase 5.8b Complete**: File Type Icons (11/14 tasks) - 3 tests pending
+- ✅ **Phase 6.5 In Progress**: Code Refactoring (5/24 tasks) - Event loop extracted
+- ⏳ **Phase 5.9 Pending**: Archive Compression (0/62 tasks)
+- ⏳ **Phase 6 Pending**: Polish, Documentation, Performance (0/17 tasks)
 
-**New Features Added**:
-1. **Multi-select**: Space to mark, Ctrl+A for all, batch operations on marked items
-2. **Text Preview**: F4 on text files, modal with scroll, line numbers, encoding detection
-3. **Image Preview**: F4 on images, ASCII/Unicode art representation, color adaptation
-4. **Archive Extraction**: F9 to extract ZIP/TAR/7Z/RAR, password support, progress tracking
+**New Features Implemented**:
+1. ✅ **Multi-select**: Space to mark, Ctrl+A for all, batch operations on marked items
+2. ✅ **Text Preview**: F4 on text files, modal with scroll, line numbers, encoding detection
+3. ✅ **Image Preview**: F4 on images, ASCII/Unicode art representation, color adaptation
+4. ✅ **Archive Extraction**: F9 to extract ZIP/TAR/7Z with password support and **real-time progress tracking**
+5. ✅ **File Icons**: Emoji icons for different file types (📁📦💻🖼️🎵 etc.)
+6. ✅ **Progress Tracking**: ProgressReader with std::sync::mpsc bridge for smooth extraction feedback
+
+---
+
+## Phase 6.5: Code Refactoring & Quality (REFACTOR)
+
+**Goal**: Improve code organization, maintainability, and documentation
+
+### Event Loop Refactoring
+
+- [X] **T967** [REFACTOR] Extract event loop logic from main.rs into separate module
+- [X] **T968** [REFACTOR] Create `src/event_loop.rs` with main event handling logic (~571 lines)
+- [X] **T969** [REFACTOR] Simplify main.rs to only handle initialization and cleanup (reduce from 576 to ~114 lines)
+- [X] **T970** [REFACTOR] Add UI helper functions: `render_panels()` and `render_dialog_if_present()` to `src/ui/mod.rs`
+- [X] **T971** [REFACTOR] Fix borrow checker issues: clone dialog state before pattern matching
+- [ ] **T972** [REFACTOR] Consider splitting event_loop.rs further if it grows beyond 600 lines (handlers/, operations/)
+
+### Error Handling Improvements
+
+- [ ] **T973** [REFACTOR] Audit all `unwrap()` calls and replace with proper error handling
+- [ ] **T974** [REFACTOR] Audit all `expect()` calls and add context with `.context()` from anyhow
+- [ ] **T975** [REFACTOR] Ensure all errors are logged appropriately (debug, info, warn, error levels)
+- [ ] **T976** [REFACTOR] Review error propagation: ensure `?` operator is used correctly
+- [ ] **T977** [REFACTOR] Add custom error types where generic errors are insufficient
+
+### Documentation
+
+- [ ] **T978** [REFACTOR] Add module-level documentation (//!) to event_loop.rs explaining architecture
+- [ ] **T979** [REFACTOR] Add rustdoc comments (///) to all public functions in event_loop.rs
+- [ ] **T980** [REFACTOR] Document key data structures: AppState, DialogState, PreviewState, etc.
+- [ ] **T981** [REFACTOR] Add examples to complex functions (extraction, compression, batch operations)
+- [ ] **T982** [REFACTOR] Generate and review cargo docs: `cargo doc --no-deps --open`
+
+### Code Duplication
+
+- [ ] **T983** [REFACTOR] Review operation execution code for duplication (copy, move, delete patterns)
+- [ ] **T984** [REFACTOR] Extract common patterns into helper functions
+- [ ] **T985** [REFACTOR] Review dialog rendering code for shared patterns
+- [ ] **T986** [REFACTOR] Consider trait-based approach for operations (Operation trait)
+
+### Import Organization
+
+- [ ] **T987** [REFACTOR] Organize imports in all modules: std, external crates, internal modules
+- [ ] **T988** [REFACTOR] Remove unused imports (run clippy with pedantic)
+- [ ] **T989** [REFACTOR] Group related imports together
+- [ ] **T990** [REFACTOR] Use `use crate::` for internal imports consistently
+
+### Progress Bar Fixes
+
+- [x] **T991** [BUG] [US8] Debug progress bar not showing during extraction (✅ FIXED: Root cause was Tokio channel deadlock)
+- [x] **T992** [BUG] [US8] Add debug logging to track progress message flow (✅ DONE: Added logging to verify flow)
+- [x] **T993** [BUG] [US8] Verify unbounded_channel forwarding task timing (✅ FIXED: Implemented bridge thread pattern)
+- [x] **T994** [BUG] [US8] Check main event loop polling frequency for progress updates (✅ VERIFIED: Working correctly)
+- [x] **T995** [BUG] [US8] Test with explicit channel flush/sync if needed (✅ NOT NEEDED: std::sync::mpsc works synchronously)
+- [x] **T996** [BUG] [US8] Consider switching to bounded channel with explicit capacity (✅ RESOLVED: Using std::sync::mpsc unbounded channel with bridge to tokio)
+
+**Solution Summary**: Replaced tokio::sync::mpsc (which deadlocks from spawn_blocking) with std::sync::mpsc + bridge thread. ProgressReader sends updates every 1MB, bridge thread forwards to tokio channel for UI. User confirmed "funciona de lujo" with smooth progress on 1.8GB files.

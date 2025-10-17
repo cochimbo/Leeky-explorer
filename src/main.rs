@@ -94,7 +94,7 @@ fn init_logging() -> Result<()> {
     
     // Configure env_logger to write to both file and stderr
     env_logger::Builder::new()
-        .filter_level(log::LevelFilter::Info)
+        .filter_level(log::LevelFilter::Debug) // Changed from Info to Debug for progress debugging
         .format(|buf, record| {
             // T851b: Structured format with timestamp, level, module, message
             writeln!(
