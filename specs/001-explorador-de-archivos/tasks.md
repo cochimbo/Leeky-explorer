@@ -592,7 +592,7 @@
 - [x] **T847** [US8] Implement ZIP bomb protection: limit total extracted size to 10GB
 - [x] **T848** [US8] Handle permission errors during extraction: offer to skip or abort
 - [ ] **T849** [US8] Support cancellation: pressing Esc shows confirmation, cleans up partial files
-- [ ] **T850** [US8] Handle duplicate filenames within archive: keep last, log warning
+- [x] **T850** [US8] Handle duplicate filenames within archive: keep last, log warning
 
 ### Testing
 

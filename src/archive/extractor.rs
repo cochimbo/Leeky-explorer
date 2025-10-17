@@ -622,6 +622,11 @@ async fn extract_zip(
         let sanitized_path = sanitize_path(&file_name);
         let out_path = dest_path.join(&sanitized_path);
         
+        // T850: Handle duplicate filenames - overwrite with warning
+        if !file.is_dir() && out_path.exists() {
+            eprintln!("Warning: Overwriting existing file from archive: {}", out_path.display());
+        }
+        
         // T835: Send progress update
         let _ = progress_tx.blocking_send(Progress {
             bytes_done: bytes_extracted,
