@@ -532,6 +532,17 @@ use super::formats::ArchiveFormat;
 pub fn check_disk_space(dest_path: &Path, required_bytes: u64) -> Result<()> {
     use fs2::available_space;
     
+    // T847: ZIP bomb protection - limit to 10GB
+    const MAX_EXTRACTION_SIZE: u64 = 10 * 1024 * 1024 * 1024; // 10GB
+    
+    if required_bytes > MAX_EXTRACTION_SIZE {
+        let size_gb = required_bytes as f64 / (1024.0 * 1024.0 * 1024.0);
+        bail!(
+            "Archive too large: {:.2} GB exceeds safety limit of 10 GB. This may be a ZIP bomb.",
+            size_gb
+        );
+    }
+    
     let available = available_space(dest_path)
         .context("Failed to query available disk space")?;
     
@@ -598,6 +609,9 @@ async fn extract_zip(
     let mut bytes_extracted = 0u64;
     let total_bytes = total_files as u64 * 1024; // Approximation
     
+    // T847: ZIP bomb protection - track actual extracted size
+    const MAX_EXTRACTION_SIZE: u64 = 10 * 1024 * 1024 * 1024; // 10GB
+    
     for i in 0..total_files {
         // T846: Handle individual file extraction errors
         let mut file = archive.by_index(i)
@@ -633,6 +647,14 @@ async fn extract_zip(
                 .with_context(|| format!("Failed to extract '{}' - archive may be corrupt", sanitized_path.display()))?;
             
             bytes_extracted += file.size();
+            
+            // T847: ZIP bomb protection - check if we've exceeded limit
+            if bytes_extracted > MAX_EXTRACTION_SIZE {
+                bail!(
+                    "Extraction stopped: exceeded 10 GB safety limit ({:.2} GB extracted). This may be a ZIP bomb.",
+                    bytes_extracted as f64 / (1024.0 * 1024.0 * 1024.0)
+                );
+            }
             
             // T830: Preserve file permissions (Unix only)
             #[cfg(unix)]
