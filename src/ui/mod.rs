@@ -6,7 +6,7 @@ pub mod theme;
 pub mod preview_modal;
 pub mod file_icons;
 
-use crate::app::AppState;
+use crate::app::{AppState, PanelSide, DialogState};
 use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
@@ -14,6 +14,56 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph},
     Frame,
 };
+
+/// Render both panels side by side
+pub fn render_panels(frame: &mut Frame, app: &AppState, layout: &layout::AppLayout) {
+    let is_left_active = app.active_panel == PanelSide::Left;
+    
+    panel_widget::render_panel(
+        frame,
+        &app.left_panel,
+        layout.left_panel,
+        is_left_active,
+        app.search_mode && is_left_active,
+        &app.search_pattern,
+        &app.selection_state,
+        PanelSide::Left,
+    );
+    
+    panel_widget::render_panel(
+        frame,
+        &app.right_panel,
+        layout.right_panel,
+        !is_left_active,
+        app.search_mode && !is_left_active,
+        &app.search_pattern,
+        &app.selection_state,
+        PanelSide::Right,
+    );
+}
+
+/// Render dialog if present
+pub fn render_dialog_if_present(frame: &mut Frame, app: &AppState) {
+    if let Some(dialog) = &app.dialog_state {
+        match dialog {
+            DialogState::Progress { message } => {
+                if let Some(ref op) = app.current_operation {
+                    dialog::render_progress_with_bar(
+                        frame,
+                        message,
+                        &op.progress,
+                        frame.area()
+                    );
+                } else {
+                    dialog::render_dialog(frame, dialog, frame.area());
+                }
+            }
+            _ => {
+                dialog::render_dialog(frame, dialog, frame.area());
+            }
+        }
+    }
+}
 
 pub fn render_header(frame: &mut Frame, app: &AppState, area: Rect) {
     let left_path = format!(" Left: {} ", app.left_panel.current_path.display());
