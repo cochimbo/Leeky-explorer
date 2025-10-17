@@ -26,6 +26,8 @@ flate2 = "1.0"
 xz2 = "0.1"
 bzip2 = "0.4"
 sevenz-rust = "0.5"
+# T845: Disk space checking
+fs2 = "0.4"
 
 [dev-dependencies]
 tempfile = "3.8"

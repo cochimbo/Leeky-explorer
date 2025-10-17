@@ -528,6 +528,29 @@ enum CompressionType {
 
 use super::formats::ArchiveFormat;
 
+/// T845: Check if there's enough disk space for extraction
+pub fn check_disk_space(dest_path: &Path, required_bytes: u64) -> Result<()> {
+    use fs2::available_space;
+    
+    let available = available_space(dest_path)
+        .context("Failed to query available disk space")?;
+    
+    // Add 10% safety margin
+    let required_with_margin = required_bytes + (required_bytes / 10);
+    
+    if available < required_with_margin {
+        let available_mb = available / (1024 * 1024);
+        let required_mb = required_with_margin / (1024 * 1024);
+        bail!(
+            "Insufficient disk space: {} MB available, {} MB required (including 10% margin)",
+            available_mb,
+            required_mb
+        );
+    }
+    
+    Ok(())
+}
+
 /// T824: Main extraction function
 pub async fn extract_archive(
     archive_path: &Path,
@@ -535,7 +558,13 @@ pub async fn extract_archive(
     format: ArchiveFormat,
     password: Option<String>,
     progress_tx: Sender<Progress>,
+    uncompressed_size: Option<u64>,  // T845: For disk space check
 ) -> Result<()> {
+    // T845: Check disk space before extraction
+    if let Some(size) = uncompressed_size {
+        check_disk_space(dest_path, size)?;
+    }
+    
     // Create destination directory if it doesn't exist
     fs::create_dir_all(dest_path).context("Failed to create destination directory")?;
     

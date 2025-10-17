@@ -309,6 +309,9 @@ async fn run_app<B: ratatui::backend::Backend>(
                                     // Create a dummy progress channel for now
                                     let (progress_tx, _progress_rx) = tokio::sync::mpsc::channel(100);
                                     
+                                    // T845: Get uncompressed size for disk space check
+                                    let uncompressed_size = crate::archive::get_uncompressed_size(&source, format);
+                                    
                                     // Extract archive
                                     let _ = crate::archive::extractor::extract_archive(
                                         &source,
@@ -316,6 +319,7 @@ async fn run_app<B: ratatui::backend::Backend>(
                                         format,
                                         None,
                                         progress_tx,
+                                        uncompressed_size,  // T845: Disk space check
                                     ).await;
                                     
                                     // Refresh both panels
