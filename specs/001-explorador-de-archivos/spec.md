@@ -356,6 +356,31 @@ Como usuario, quiero comprimir archivos y/o directorios seleccionados (incluyend
 - **ArchiveEntry**: Representa archivo dentro de comprimido: nombre, tamaño comprimido/descomprimido, es_carpeta
 - **ArchiveOperation**: Operación de extracción: formato detectado, total archivos, progreso actual, contraseña opcional
 
+## General Requirements *(mandatory)*
+
+### Error Handling & Logging
+
+- **GR-001**: Todos los errores y warnings deben registrarse en un archivo de log persistente
+- **GR-002**: El sistema de logging debe usar una librería robusta (ej: `env_logger`, `tracing`, `log4rs`)
+- **GR-003**: Los logs deben incluir: timestamp, nivel (ERROR/WARN/INFO/DEBUG), módulo origen, y mensaje contextual
+- **GR-004**: El archivo de log debe rotar automáticamente al alcanzar cierto tamaño (ej: 10MB)
+- **GR-005**: Los logs deben persistir entre sesiones para debugging posterior
+- **GR-006**: Errores críticos deben loggearse antes de mostrar mensaje al usuario
+- **GR-007**: Warnings de operaciones (permisos, duplicados, etc.) deben aparecer en logs además de consola
+
+### Performance & Responsiveness
+
+- **GR-008**: La UI debe responder en <100ms para operaciones de navegación
+- **GR-009**: Operaciones de archivo deben ser asíncronas para no bloquear la UI
+- **GR-010**: El sistema debe manejar directorios con 10,000+ archivos sin lag perceptible
+
+### Security & Safety
+
+- **GR-011**: Todas las operaciones destructivas requieren confirmación explícita
+- **GR-012**: Validación de paths para prevenir path traversal attacks
+- **GR-013**: Protección contra ZIP bombs y archivos maliciosos
+- **GR-014**: Verificación de espacio en disco antes de operaciones grandes
+
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes

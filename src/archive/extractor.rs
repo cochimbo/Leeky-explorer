@@ -14,10 +14,14 @@ pub fn extract_archive_unbounded(
     password: Option<String>,
     progress_tx: tokio::sync::mpsc::UnboundedSender<Progress>,
 ) -> Result<()> {
+    // T851d: Log extraction start
+    log::info!("Starting extraction: {:?} -> {:?} (format: {:?})", 
+               archive_path, dest_path, format);
+    
     // Create destination directory if it doesn't exist
     fs::create_dir_all(dest_path).context("Failed to create destination directory")?;
     
-    match format {
+    let result = match format {
         super::formats::ArchiveFormat::ZIP => extract_zip_unbounded(archive_path, dest_path, password, progress_tx),
         super::formats::ArchiveFormat::TAR => extract_tar_unbounded(archive_path, dest_path, None, progress_tx),
         super::formats::ArchiveFormat::TAR_GZ => extract_tar_unbounded(archive_path, dest_path, Some(CompressionType::Gzip), progress_tx),
@@ -26,7 +30,15 @@ pub fn extract_archive_unbounded(
         super::formats::ArchiveFormat::SEVENZ => extract_7z_unbounded(archive_path, dest_path, password, progress_tx),
         super::formats::ArchiveFormat::RAR => Err(anyhow::anyhow!("RAR extraction not yet implemented")),
         super::formats::ArchiveFormat::UNKNOWN => bail!("Unknown archive format"),
+    };
+    
+    // T851d: Log extraction result
+    match &result {
+        Ok(_) => log::info!("Extraction completed successfully: {:?}", archive_path),
+        Err(e) => log::error!("Extraction failed for {:?}: {}", archive_path, e),
     }
+    
+    result
 }
 
 /// T824: Sync version of extract for use in blocking context
@@ -624,7 +636,7 @@ async fn extract_zip(
         
         // T850: Handle duplicate filenames - overwrite with warning
         if !file.is_dir() && out_path.exists() {
-            eprintln!("Warning: Overwriting existing file from archive: {}", out_path.display());
+            log::warn!("Overwriting existing file from archive: {}", out_path.display());
         }
         
         // T835: Send progress update
@@ -640,7 +652,7 @@ async fn extract_zip(
             // T848: Handle permission errors gracefully
             if let Err(e) = fs::create_dir_all(&out_path) {
                 if e.kind() == std::io::ErrorKind::PermissionDenied {
-                    eprintln!("Warning: Permission denied creating directory: {} - skipping", out_path.display());
+                    log::warn!("Permission denied creating directory: {} - skipping", out_path.display());
                     continue;
                 } else {
                     return Err(e).context(format!("Failed to create directory: {}", out_path.display()));
@@ -652,7 +664,7 @@ async fn extract_zip(
             if let Some(parent) = out_path.parent() {
                 if let Err(e) = fs::create_dir_all(parent) {
                     if e.kind() == std::io::ErrorKind::PermissionDenied {
-                        eprintln!("Warning: Permission denied creating parent directory: {} - skipping file", parent.display());
+                        log::warn!("Permission denied creating parent directory: {} - skipping file", parent.display());
                         continue;
                     } else {
                         return Err(e).context(format!("Failed to create parent directory: {}", parent.display()));
@@ -665,7 +677,7 @@ async fn extract_zip(
             let mut out_file = match File::create(&out_path) {
                 Ok(f) => f,
                 Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
-                    eprintln!("Warning: Permission denied creating file: {} - skipping", out_path.display());
+                    log::warn!("Permission denied creating file: {} - skipping", out_path.display());
                     continue;
                 }
                 Err(e) => return Err(e).with_context(|| format!("Failed to create output file: {}", out_path.display())),
@@ -674,7 +686,7 @@ async fn extract_zip(
             // T848: Handle permission errors during write
             if let Err(e) = std::io::copy(&mut file, &mut out_file) {
                 if e.kind() == std::io::ErrorKind::PermissionDenied {
-                    eprintln!("Warning: Permission denied writing file: {} - skipping", sanitized_path.display());
+                    log::warn!("Permission denied writing file: {} - skipping", sanitized_path.display());
                     continue;
                 } else {
                     return Err(e).with_context(|| format!("Failed to extract '{}' - archive may be corrupt", sanitized_path.display()));

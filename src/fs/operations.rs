@@ -40,6 +40,9 @@ pub async fn copy_file_with_progress(
     dst: &Path,
     tx: mpsc::Sender<Progress>,
 ) -> Result<()> {
+    // T851d: Log file copy start
+    log::info!("Copying file: {:?} -> {:?}", src, dst);
+    
     let metadata = fs::metadata(src).await?;
     let total_size = metadata.len();
     let mut bytes_copied = 0u64;
@@ -79,6 +82,9 @@ pub async fn copy_file_with_progress(
     writer.flush().await?;
     drop(writer);
     
+    // T851d: Log successful copy
+    log::info!("File copied successfully: {:?}", dst);
+    
     // Send final progress update
     let final_progress = Progress {
         bytes_done: total_size,
@@ -97,6 +103,9 @@ pub async fn copy_dir_recursive(
     tx: mpsc::Sender<Progress>,
     total_size: u64,
 ) -> Result<()> {
+    // T851d: Log directory copy start
+    log::info!("Copying directory recursively: {:?} -> {:?}", src, dst);
+    
     fs::create_dir_all(dst).await?;
     
     let mut bytes_copied = 0u64;
@@ -104,6 +113,9 @@ pub async fn copy_dir_recursive(
     let total_files = count_files(src).await?;
     
     copy_dir_recursive_impl(src, dst, &tx, &mut bytes_copied, &mut files_copied, total_size, total_files).await?;
+    
+    // T851d: Log successful directory copy
+    log::info!("Directory copied successfully: {:?}", dst);
     
     Ok(())
 }
@@ -157,9 +169,15 @@ pub async fn move_item(
     dst: &Path,
     tx: mpsc::Sender<Progress>,
 ) -> Result<()> {
+    // T851d: Log move start
+    log::info!("Moving item: {:?} -> {:?}", src, dst);
+    
     // Try simple rename first (fast if same filesystem)
     match fs::rename(src, dst).await {
         Ok(()) => {
+            // T851d: Log successful move
+            log::info!("Item moved successfully (rename): {:?}", dst);
+            
             // Renamed successfully, report completion
             let size = get_total_size(dst).await.unwrap_or(0);
             let _ = tx.send(Progress {
@@ -171,6 +189,9 @@ pub async fn move_item(
             Ok(())
         }
         Err(_) => {
+            // T851d: Log cross-device move
+            log::info!("Cross-device move detected, using copy+delete: {:?}", src);
+            
             // Cross-device move: copy then delete
             let total_size = get_total_size(src).await?;
             if src.is_dir() {
@@ -180,6 +201,10 @@ pub async fn move_item(
                 copy_file_with_progress(src, dst, tx.clone()).await?;
                 fs::remove_file(src).await?;
             }
+            
+            // T851d: Log successful cross-device move
+            log::info!("Item moved successfully (copy+delete): {:?}", dst);
+            
             Ok(())
         }
     }
@@ -237,8 +262,13 @@ async fn count_files(path: &Path) -> Result<usize> {
 
 // Delete operations
 pub async fn delete_file(path: &Path) -> Result<()> {
+    // T851d: Log file deletion
+    log::info!("Deleting file: {:?}", path);
+    
     fs::remove_file(path).await
         .with_context(|| format!("Failed to delete file: {}", path.display()))?;
+    
+    log::info!("File deleted successfully: {:?}", path);
     Ok(())
 }
 
@@ -246,10 +276,16 @@ pub async fn delete_dir_recursive(
     path: &Path,
     tx: mpsc::Sender<Progress>,
 ) -> Result<()> {
+    // T851d: Log directory deletion
+    log::info!("Deleting directory recursively: {:?}", path);
+    
     let total_files = count_files(path).await?;
     let mut files_deleted = 0usize;
     
     delete_dir_recursive_impl(path, &tx, &mut files_deleted, total_files).await?;
+    
+    // T851d: Log successful deletion
+    log::info!("Directory deleted successfully: {:?}", path);
     
     // Send final progress
     let final_progress = Progress {

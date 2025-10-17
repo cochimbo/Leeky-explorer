@@ -593,6 +593,10 @@
 - [x] **T848** [US8] Handle permission errors during extraction: offer to skip or abort
 - [ ] **T849** [US8] Support cancellation: pressing Esc shows confirmation, cleans up partial files
 - [x] **T850** [US8] Handle duplicate filenames within archive: keep last, log warning
+- [x] **T851** [GR-001-007] Implement persistent logging system with proper library (env_logger or tracing)
+- [x] **T851b** [GR-001-007] Configure log file rotation (10MB limit) and structured format
+- [x] **T851c** [GR-001-007] Replace all eprintln! with proper log::warn! or log::error! calls
+- [x] **T851d** [GR-001-007] Add logging to all critical operations (file ops, archive ops, errors)
 
 ### Testing
 
