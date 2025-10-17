@@ -632,19 +632,49 @@ async fn extract_zip(
         
         if file.is_dir() {
             // T829: Create directory
-            fs::create_dir_all(&out_path)?;
+            // T848: Handle permission errors gracefully
+            if let Err(e) = fs::create_dir_all(&out_path) {
+                if e.kind() == std::io::ErrorKind::PermissionDenied {
+                    eprintln!("Warning: Permission denied creating directory: {} - skipping", out_path.display());
+                    continue;
+                } else {
+                    return Err(e).context(format!("Failed to create directory: {}", out_path.display()));
+                }
+            }
         } else {
             // T829: Create parent directories
+            // T848: Handle permission errors gracefully
             if let Some(parent) = out_path.parent() {
-                fs::create_dir_all(parent)?;
+                if let Err(e) = fs::create_dir_all(parent) {
+                    if e.kind() == std::io::ErrorKind::PermissionDenied {
+                        eprintln!("Warning: Permission denied creating parent directory: {} - skipping file", parent.display());
+                        continue;
+                    } else {
+                        return Err(e).context(format!("Failed to create parent directory: {}", parent.display()));
+                    }
+                }
             }
             
             // T846: Extract file with better error handling
-            let mut out_file = File::create(&out_path)
-                .with_context(|| format!("Failed to create output file: {}", out_path.display()))?;
+            // T848: Handle permission errors during file creation
+            let mut out_file = match File::create(&out_path) {
+                Ok(f) => f,
+                Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
+                    eprintln!("Warning: Permission denied creating file: {} - skipping", out_path.display());
+                    continue;
+                }
+                Err(e) => return Err(e).with_context(|| format!("Failed to create output file: {}", out_path.display())),
+            };
             
-            std::io::copy(&mut file, &mut out_file)
-                .with_context(|| format!("Failed to extract '{}' - archive may be corrupt", sanitized_path.display()))?;
+            // T848: Handle permission errors during write
+            if let Err(e) = std::io::copy(&mut file, &mut out_file) {
+                if e.kind() == std::io::ErrorKind::PermissionDenied {
+                    eprintln!("Warning: Permission denied writing file: {} - skipping", sanitized_path.display());
+                    continue;
+                } else {
+                    return Err(e).with_context(|| format!("Failed to extract '{}' - archive may be corrupt", sanitized_path.display()));
+                }
+            }
             
             bytes_extracted += file.size();
             

@@ -590,7 +590,7 @@
 - [x] **T845** [US8] Check disk space before extraction: compare available vs uncompressed size
 - [x] **T846** [US8] Handle corrupt archives: catch decompression errors, show clear message
 - [x] **T847** [US8] Implement ZIP bomb protection: limit total extracted size to 10GB
-- [ ] **T848** [US8] Handle permission errors during extraction: offer to skip or abort
+- [x] **T848** [US8] Handle permission errors during extraction: offer to skip or abort
 - [ ] **T849** [US8] Support cancellation: pressing Esc shows confirmation, cleans up partial files
 - [ ] **T850** [US8] Handle duplicate filenames within archive: keep last, log warning
 
