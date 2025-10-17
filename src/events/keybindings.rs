@@ -33,6 +33,11 @@ pub enum Action {
     Cancel,
     InputChar(char),
     InputBackspace,
+    QuickJump(char),  // T128c: Jump to file starting with character
+    PageDown,         // T128f: Page Down - move 5 positions down
+    PageUp,           // T128g: Page Up - move 5 positions up
+    JumpToStart,      // T128h: Home key - jump to first entry
+    JumpToEnd,        // T128i: End key - jump to last entry
     None,
 }
 
@@ -43,7 +48,8 @@ pub fn map_key_to_action(key: KeyEvent) -> Action {
     }
 
     match (key.code, key.modifiers) {
-        (KeyCode::Char('q'), KeyModifiers::NONE) | (KeyCode::Char('Q'), KeyModifiers::NONE) => {
+        // T128b: Changed from 'q'/'Q' to Ctrl+Q to free up alphanumeric keys for navigation
+        (KeyCode::Char('q'), KeyModifiers::CONTROL) | (KeyCode::Char('Q'), KeyModifiers::CONTROL) => {
             Action::Quit
         }
         (KeyCode::Char('c'), KeyModifiers::CONTROL) => Action::Quit,
@@ -53,6 +59,11 @@ pub fn map_key_to_action(key: KeyEvent) -> Action {
         (KeyCode::Enter, _) => Action::EnterDirectory,
         (KeyCode::Backspace, _) => Action::GoUp,
         (KeyCode::Char('r'), KeyModifiers::NONE) => Action::Refresh,
+        // T128f-i: Page navigation keys
+        (KeyCode::PageDown, _) => Action::PageDown,
+        (KeyCode::PageUp, _) => Action::PageUp,
+        (KeyCode::Home, _) => Action::JumpToStart,
+        (KeyCode::End, _) => Action::JumpToEnd,
         (KeyCode::F(5), _) => Action::Copy,
         (KeyCode::F(6), _) => Action::Move,
         (KeyCode::F(7), _) => Action::CreateFolder,
@@ -71,6 +82,10 @@ pub fn map_key_to_action(key: KeyEvent) -> Action {
             Action::ConfirmNo
         }
         (KeyCode::Esc, _) => Action::Cancel,
+        // T128c: Alphanumeric quick navigation - jump to files starting with letter
+        (KeyCode::Char(c), KeyModifiers::NONE) if c.is_alphanumeric() => {
+            Action::QuickJump(c.to_ascii_lowercase())
+        }
         _ => Action::None,
     }
 }

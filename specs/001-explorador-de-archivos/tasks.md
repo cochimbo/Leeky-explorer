@@ -86,6 +86,7 @@
 - [X] **T110** [US1] Implement `read_dir(path: &Path) -> Result<Vec<FileEntry>>` to read directory contents
 - [X] **T111** [US1] Implement `Panel::enter_dir()` to navigate into selected directory
 - [X] **T112** [US1] Implement `Panel::go_up()` to navigate to parent directory
+- [X] **T112b** [US1] Implement cursor positioning on previous directory when navigating up with Backspace
 - [X] **T113** [US1] Add error handling for permission denied / invalid paths in navigator
 
 ### UI Components
@@ -108,6 +109,15 @@
 - [X] **T126** [US1] Implement Enter key handling to enter selected directory
 - [X] **T127** [US1] Implement Backspace key handling to go up one directory level
 - [X] **T128** [US1] Implement 'q' or 'Q' key handling to quit application
+- [X] **T128b** [US1] Change quit keybinding from 'Q' to Ctrl+Q to free up alphanumeric keys
+- [X] **T128c** [US1] Implement alphanumeric quick navigation: jump to first file starting with pressed letter
+- [X] **T128d** [US1] Implement cyclic navigation: pressing same letter multiple times cycles through matches
+- [X] **T128e** [US1] Update footer to show "Ctrl+Q:Quit" and indicate alphanumeric navigation is available
+- [X] **T128f** [US1] Implement Page Down key handling: move cursor 5 positions down
+- [X] **T128g** [US1] Implement Page Up key handling: move cursor 5 positions up
+- [X] **T128h** [US1] Implement Home key handling: move cursor to first entry
+- [X] **T128i** [US1] Implement End key handling: move cursor to last entry
+- [X] **T128j** [US1] Update footer to show PgUp/PgDn and Home/End navigation hints
 
 ### Main Loop & Terminal Setup
 
@@ -573,7 +583,7 @@
 - [x] **T841** [US8] Show archive metadata in title: "archivo.zip (23 files, 15 MB → 42 MB, ratio 64%)"
 - [x] **T842** [US8] Add extraction destination dialog: pre-fill with opposite panel path
 - [x] **T843** [US8] Show password input dialog for encrypted archives
-- [ ] **T844** [US8] Handle collisions: prompt "(S)obreescribir / (T)odos / (R)enombrar / (O)mitir / (C)ancelar"
+- [x] **T844** [US8] Handle collisions: prompt "(S)obreescribir / (T)odos / (R)enombrar / (O)mitir / (C)ancelar"
 
 ### Error Handling & Safety
 

@@ -37,11 +37,13 @@ pub fn render_footer(frame: &mut Frame, area: Rect) {
     // T561: Group keybindings in 2 lines for better space management
     let line1_bindings = vec![
         ("↑↓", "Nav", Color::Blue),
+        ("PgUp/Dn", "5×", Color::Blue),      // T128j: Page navigation
+        ("Home/End", "Start/End", Color::Blue), // T128j: Jump to edges
         ("Tab", "Switch", Color::Blue),
         ("Enter", "Open", Color::Green),
         ("Bksp", "Up", Color::Yellow),
         ("Space", "Select", Color::Magenta),
-        ("Ctrl+A", "All", Color::Magenta),
+        ("a-z", "Jump", Color::Blue),        // T128e: Alphanumeric navigation
     ];
     
     let line2_bindings = vec![
@@ -52,7 +54,8 @@ pub fn render_footer(frame: &mut Frame, area: Rect) {
         ("F7", "NewDir", Color::Yellow),
         ("F8", "Delete", Color::Red),
         ("F9", "Extract", Color::Cyan),
-        ("Q", "Quit", Color::Gray),
+        ("Ctrl+Q", "Quit", Color::Gray),     // T128b: Changed from Q to Ctrl+Q
+        ("Ctrl+A", "All", Color::Magenta),
     ];
 
     let create_line = |bindings: &[(&str, &str, Color)]| {

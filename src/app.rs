@@ -63,6 +63,18 @@ pub enum DialogState {
         dest_path: PathBuf,
         format: crate::archive::formats::ArchiveFormat,
     },
+    CollisionPrompt {
+        file_path: String,
+        selected: usize, // 0=Overwrite, 1=Overwrite All, 2=Rename, 3=Skip, 4=Cancel
+        operation: CollisionOperation,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub enum CollisionOperation {
+    Copy,
+    Move,
+    Extract,
 }
 
 #[derive(Debug, Clone)]

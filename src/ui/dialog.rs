@@ -29,6 +29,9 @@ pub fn render_dialog(frame: &mut Frame, dialog: &DialogState, area: Rect) {
         DialogState::PasswordInput { prompt, value, show_password, .. } => {
             render_password_input_dialog(frame, prompt, value, *show_password, area);
         }
+        DialogState::CollisionPrompt { file_path, selected, operation: _ } => {
+            render_collision_dialog(frame, file_path, *selected, area);
+        }
     }
 }
 
@@ -396,6 +399,80 @@ pub fn render_password_input_dialog(frame: &mut Frame, prompt: &str, value: &str
     ]))
     .alignment(Alignment::Center);
     frame.render_widget(instructions, chunks[4]);
+}
+
+// T844: Collision handling dialog
+pub fn render_collision_dialog(frame: &mut Frame, file_path: &str, selected: usize, area: Rect) {
+    let dialog_area = centered_rect(70, 40, area);
+    
+    frame.render_widget(Clear, dialog_area);
+    
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(" ⚠️  File Already Exists ")
+        .style(Style::default().bg(Color::Black).fg(Color::Yellow));
+    
+    let inner = block.inner(dialog_area);
+    frame.render_widget(block, dialog_area);
+    
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(3),  // Message
+            Constraint::Length(1),  // Spacer
+            Constraint::Length(2),  // Option 0: Overwrite
+            Constraint::Length(2),  // Option 1: Overwrite All
+            Constraint::Length(2),  // Option 2: Rename
+            Constraint::Length(2),  // Option 3: Skip
+            Constraint::Length(2),  // Option 4: Cancel
+            Constraint::Length(1),  // Spacer
+            Constraint::Length(2),  // Instructions
+        ])
+        .split(inner);
+    
+    // Message
+    let message = format!("File already exists:\n{}", file_path);
+    let message_text = Paragraph::new(message)
+        .alignment(Alignment::Center)
+        .style(Style::default().fg(Color::White));
+    frame.render_widget(message_text, chunks[0]);
+    
+    // Options
+    let options = [
+        ("S", "Sobreescribir este archivo"),
+        ("T", "Sobreescribir Todos"),
+        ("R", "Renombrar (agregar sufijo)"),
+        ("O", "Omitir este archivo"),
+        ("C", "Cancelar extracción"),
+    ];
+    
+    for (i, (key, text)) in options.iter().enumerate() {
+        let style = if i == selected {
+            Style::default().fg(Color::Black).bg(Color::Cyan).add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(Color::White)
+        };
+        
+        let option_text = Paragraph::new(Line::from(vec![
+            Span::styled(format!(" [{}] ", key), Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+            Span::styled(*text, style),
+        ]));
+        frame.render_widget(option_text, chunks[2 + i]);
+    }
+    
+    // Instructions
+    let instructions = Paragraph::new(Line::from(vec![
+        Span::styled("↑↓", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        Span::raw(": Navegar | "),
+        Span::styled("Enter", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+        Span::raw(" o "),
+        Span::styled("Letra", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+        Span::raw(": Seleccionar | "),
+        Span::styled("Esc", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+        Span::raw(": Cancelar"),
+    ]))
+    .alignment(Alignment::Center);
+    frame.render_widget(instructions, chunks[8]);
 }
 
 fn centered_rect(percent_x: u16, percent_y: u16, area: Rect) -> Rect {

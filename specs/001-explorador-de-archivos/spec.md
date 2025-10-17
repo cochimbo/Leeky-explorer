@@ -20,9 +20,15 @@ Como usuario del explorador, quiero navegar por el sistema de archivos usando do
 1. **Given** el explorador está abierto mostrando dos paneles, **When** presiono flecha arriba/abajo, **Then** el cursor se mueve entre archivos/carpetas en el panel activo
 2. **Given** estoy en el panel izquierdo, **When** presiono Tab, **Then** el foco cambia al panel derecho (indicado visualmente)
 3. **Given** el cursor está sobre una carpeta, **When** presiono Enter, **Then** el panel navega dentro de esa carpeta mostrando su contenido
-4. **Given** estoy dentro de una carpeta, **When** presiono Backspace, **Then** el panel sube un nivel al directorio padre
+4. **Given** estoy dentro de una carpeta, **When** presiono Backspace, **Then** el panel sube un nivel al directorio padre y el cursor se posiciona en el directorio del que vengo (no al principio de la lista)
 5. **Given** estoy en el panel derecho, **When** presiono Tab, **Then** el foco vuelve al panel izquierdo
 6. **Given** el explorador muestra archivos, **When** la lista es más larga que la pantalla, **Then** puedo hacer scroll con flechas y el scroll bar se muestra correctamente
+7. **Given** estoy navegando en un panel, **When** presiono una tecla alfanumérica (a-z, 0-9), **Then** el cursor se posiciona en el primer archivo/carpeta que comienza con esa letra
+8. **Given** el cursor está en un archivo que comienza con 'a' y presiono 'a' nuevamente, **When** hay más archivos que comienzan con 'a', **Then** el cursor avanza al siguiente archivo que comienza con 'a' (navegación cíclica)
+9. **Given** estoy navegando en un panel, **When** presiono Page Down, **Then** el cursor avanza 5 posiciones hacia abajo (o hasta el final si hay menos de 5 elementos)
+10. **Given** estoy navegando en un panel, **When** presiono Page Up, **Then** el cursor retrocede 5 posiciones hacia arriba (o hasta el inicio si hay menos de 5 elementos)
+11. **Given** estoy navegando en un panel, **When** presiono Home (Inicio), **Then** el cursor se posiciona en el primer elemento de la lista
+12. **Given** estoy navegando en un panel, **When** presiono End (Fin), **Then** el cursor se posiciona en el último elemento de la lista
 
 ---
 

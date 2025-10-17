@@ -26,6 +26,11 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
         return handle_password_input_dialog(app, key);
     }
     
+    // T844: Special handling for collision prompts
+    if let Some(DialogState::CollisionPrompt { .. }) = &app.dialog_state {
+        return handle_collision_dialog(app, key);
+    }
+    
     let action = map_key_to_action(key);
 
     // Handle other dialog-specific actions
@@ -41,6 +46,26 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
         Action::MoveDown => {
             app.active_panel_mut().move_cursor_down();
         }
+        Action::QuickJump(c) => {
+            // T128c-d: Quick jump to file starting with character
+            app.active_panel_mut().quick_jump(c);
+        }
+        Action::PageDown => {
+            // T128f: Move 5 positions down
+            app.active_panel_mut().page_down();
+        }
+        Action::PageUp => {
+            // T128g: Move 5 positions up
+            app.active_panel_mut().page_up();
+        }
+        Action::JumpToStart => {
+            // T128h: Jump to first entry
+            app.active_panel_mut().move_cursor_to_top();
+        }
+        Action::JumpToEnd => {
+            // T128i: Jump to last entry
+            app.active_panel_mut().move_cursor_to_bottom();
+        }
         Action::SwitchPanel => {
             // T579: Marks are preserved per panel (by design - separate HashSets)
             app.switch_panel();
@@ -53,7 +78,9 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
         }
         Action::GoUp => {
             app.active_panel_mut().go_up()?;
-            refresh_and_store(app)?;
+            // T112b: go_up() now refreshes internally, so we only need to store
+            let entries = app.active_panel().entries.clone();
+            app.store_all_entries(entries);
             // T578: Clear marks when navigating to parent directory
             app.selection_state.clear(app.active_panel);
         }
@@ -259,6 +286,99 @@ fn handle_dialog_action(app: &mut AppState, action: Action) -> Result<Action> {
 fn start_copy_operation(app: &mut AppState) -> Result<()> {
     let dest_panel_path = app.inactive_panel().current_path.clone();
     
+    // T844: Check for collisions first
+    let collision_path = if app.has_selection() {
+        // Check first marked item for collision
+        let marked_paths = app.selection_state.get_marked(app.active_panel);
+        marked_paths.iter().find_map(|path| {
+            let file_name = path.file_name()?.to_string_lossy().to_string();
+            let dest = dest_panel_path.join(&file_name);
+            if dest.exists() {
+                Some(dest.to_string_lossy().to_string())
+            } else {
+                None
+            }
+        })
+    } else {
+        // Check single item
+        app.active_panel().selected_entry().and_then(|entry| {
+            let dest = dest_panel_path.join(&entry.name);
+            if dest.exists() {
+                Some(dest.to_string_lossy().to_string())
+            } else {
+                None
+            }
+        })
+    };
+    
+    // If collision detected, show collision dialog
+    if let Some(collision_path) = collision_path {
+        app.dialog_state = Some(DialogState::CollisionPrompt {
+            file_path: collision_path,
+            selected: 0,
+            operation: crate::app::CollisionOperation::Copy,
+        });
+        return Ok(());
+    }
+    
+    // No collision, proceed with operation
+    // T574: Check if batch operation or single
+    if app.has_selection() {
+        let marked_paths = app.selection_state.get_marked(app.active_panel);
+        let count = marked_paths.len();
+        
+        // Calculate total size and create batch operation
+        let mut total_bytes = 0u64;
+        let mut operations = Vec::new();
+        
+        for path in &marked_paths {
+            if let Ok(metadata) = std::fs::metadata(path) {
+                total_bytes += metadata.len();
+                let file_name = path.file_name().unwrap().to_string_lossy().to_string();
+                let destination = dest_panel_path.join(&file_name);
+                operations.push((path.clone(), destination, file_name));
+            }
+        }
+        
+        let operation = Operation::copy_batch(operations, total_bytes, count);
+        app.current_operation = Some(operation);
+        
+        app.dialog_state = Some(DialogState::Progress {
+            message: format!("Copying {} items...", count),
+        });
+    } else {
+        // Single file operation
+        let source_panel = app.active_panel();
+        
+        if let Some(entry) = source_panel.selected_entry() {
+            let source = entry.path.clone();
+            let destination = dest_panel_path.join(&entry.name);
+            let entry_name = entry.name.clone();
+            let entry_type = entry.entry_type.clone();
+            let total_bytes = entry.size;
+            
+            let total_files = if entry_type == crate::models::file_entry::EntryType::Dir {
+                1
+            } else {
+                1
+            };
+            
+            let operation = Operation::copy(source, destination, total_bytes, total_files);
+            app.current_operation = Some(operation);
+            
+            app.dialog_state = Some(DialogState::Progress {
+                message: format!("Copying '{}'...", entry_name),
+            });
+        }
+    }
+    
+    Ok(())
+}
+
+// T844: Start copy without collision check (for when user confirmed overwrite)
+fn start_copy_operation_skip_check(app: &mut AppState) -> Result<()> {
+    let dest_panel_path = app.inactive_panel().current_path.clone();
+    
     // T574: Check if batch operation or single
     if app.has_selection() {
         let marked_paths = app.selection_state.get_marked(app.active_panel);
@@ -313,6 +433,98 @@ fn start_copy_operation(app: &mut AppState) -> Result<()> {
 }
 
 fn start_move_operation(app: &mut AppState) -> Result<()> {
+    let dest_panel_path = app.inactive_panel().current_path.clone();
+    
+    // T844: Check for collisions first
+    let collision_path = if app.has_selection() {
+        // Check first marked item for collision
+        let marked_paths = app.selection_state.get_marked(app.active_panel);
+        marked_paths.iter().find_map(|path| {
+            let file_name = path.file_name()?.to_string_lossy().to_string();
+            let dest = dest_panel_path.join(&file_name);
+            if dest.exists() {
+                Some(dest.to_string_lossy().to_string())
+            } else {
+                None
+            }
+        })
+    } else {
+        // Check single item
+        app.active_panel().selected_entry().and_then(|entry| {
+            let dest = dest_panel_path.join(&entry.name);
+            if dest.exists() {
+                Some(dest.to_string_lossy().to_string())
+            } else {
+                None
+            }
+        })
+    };
+    
+    // If collision detected, show collision dialog
+    if let Some(collision_path) = collision_path {
+        app.dialog_state = Some(DialogState::CollisionPrompt {
+            file_path: collision_path,
+            selected: 0,
+            operation: crate::app::CollisionOperation::Move,
+        });
+        return Ok(());
+    }
+    
+    // No collision, proceed with operation
+    // T574: Check if batch operation or single
+    if app.has_selection() {
+        let marked_paths = app.selection_state.get_marked(app.active_panel);
+        let count = marked_paths.len();
+        
+        let mut total_bytes = 0u64;
+        let mut operations = Vec::new();
+        
+        for path in &marked_paths {
+            if let Ok(metadata) = std::fs::metadata(path) {
+                total_bytes += metadata.len();
+                let file_name = path.file_name().unwrap().to_string_lossy().to_string();
+                let destination = dest_panel_path.join(&file_name);
+                operations.push((path.clone(), destination, file_name));
+            }
+        }
+        
+        let operation = Operation::move_batch(operations, total_bytes, count);
+        app.current_operation = Some(operation);
+        
+        app.dialog_state = Some(DialogState::Progress {
+            message: format!("Moving {} items...", count),
+        });
+    } else {
+        // Single file operation
+        let source_panel = app.active_panel();
+        
+        if let Some(entry) = source_panel.selected_entry() {
+            let source = entry.path.clone();
+            let destination = dest_panel_path.join(&entry.name);
+            let entry_name = entry.name.clone();
+            let entry_type = entry.entry_type.clone();
+            let total_bytes = entry.size;
+            
+            let total_files = if entry_type == crate::models::file_entry::EntryType::Dir {
+                1
+            } else {
+                1
+            };
+            
+            let operation = Operation::move_op(source, destination, total_bytes, total_files);
+            app.current_operation = Some(operation);
+            
+            app.dialog_state = Some(DialogState::Progress {
+                message: format!("Moving '{}'...", entry_name),
+            });
+        }
+    }
+    
+    Ok(())
+}
+
+// T844: Start move without collision check (for when user confirmed overwrite)
+fn start_move_operation_skip_check(app: &mut AppState) -> Result<()> {
     let dest_panel_path = app.inactive_panel().current_path.clone();
     
     // T574: Check if batch operation or single
@@ -455,6 +667,112 @@ fn handle_password_input_dialog(app: &mut AppState, key: KeyEvent) -> Result<Act
             }
         }
         // Escape: cancel
+        (KeyCode::Esc, _) => {
+            app.close_dialog();
+        }
+        _ => {}
+    }
+    
+    Ok(Action::None)
+}
+
+// T844: Handle collision dialog
+fn handle_collision_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
+    use crossterm::event::{KeyCode, KeyModifiers};
+    
+    match (key.code, key.modifiers) {
+        // Enter: confirm selected option
+        (KeyCode::Enter, _) => {
+            if let Some(DialogState::CollisionPrompt { selected, operation, .. }) = &app.dialog_state {
+                let selected_option = *selected;
+                let operation_type = operation.clone();
+                
+                match selected_option {
+                    0 => {
+                        // Overwrite this file
+                        app.close_dialog();
+                        // Resume the operation (the actual operation was saved in app state)
+                        match operation_type {
+                            crate::app::CollisionOperation::Copy => start_copy_operation_skip_check(app)?,
+                            crate::app::CollisionOperation::Move => start_move_operation_skip_check(app)?,
+                            crate::app::CollisionOperation::Extract => {}, // TODO: implement
+                        }
+                        return Ok(Action::None);
+                    }
+                    1 => {
+                        // Overwrite All (TODO: set global flag)
+                        app.close_dialog();
+                        match operation_type {
+                            crate::app::CollisionOperation::Copy => start_copy_operation_skip_check(app)?,
+                            crate::app::CollisionOperation::Move => start_move_operation_skip_check(app)?,
+                            crate::app::CollisionOperation::Extract => {},
+                        }
+                        return Ok(Action::None);
+                    }
+                    2 => {
+                        // Rename (TODO: implement rename logic)
+                        app.close_dialog();
+                        return Ok(Action::None);
+                    }
+                    3 => {
+                        // Skip
+                        app.close_dialog();
+                        return Ok(Action::None);
+                    }
+                    4 => {
+                        // Cancel
+                        app.close_dialog();
+                        return Ok(Action::None);
+                    }
+                    _ => {}
+                }
+            }
+        }
+        // Up arrow: move selection up
+        (KeyCode::Up, _) => {
+            if let Some(DialogState::CollisionPrompt { selected, .. }) = &mut app.dialog_state {
+                if *selected > 0 {
+                    *selected -= 1;
+                }
+            }
+        }
+        // Down arrow: move selection down
+        (KeyCode::Down, _) => {
+            if let Some(DialogState::CollisionPrompt { selected, .. }) = &mut app.dialog_state {
+                if *selected < 4 {
+                    *selected += 1;
+                }
+            }
+        }
+        // Letter shortcuts
+        (KeyCode::Char('s'), KeyModifiers::NONE) | (KeyCode::Char('S'), _) => {
+            if let Some(DialogState::CollisionPrompt { selected, .. }) = &mut app.dialog_state {
+                *selected = 0;
+            }
+            return Ok(Action::ConfirmYes);
+        }
+        (KeyCode::Char('t'), KeyModifiers::NONE) | (KeyCode::Char('T'), _) => {
+            if let Some(DialogState::CollisionPrompt { selected, .. }) = &mut app.dialog_state {
+                *selected = 1;
+            }
+            return Ok(Action::ConfirmYes);
+        }
+        (KeyCode::Char('r'), KeyModifiers::NONE) | (KeyCode::Char('R'), _) => {
+            if let Some(DialogState::CollisionPrompt { selected, .. }) = &mut app.dialog_state {
+                *selected = 2;
+            }
+            return Ok(Action::ConfirmYes);
+        }
+        (KeyCode::Char('o'), KeyModifiers::NONE) | (KeyCode::Char('O'), _) => {
+            if let Some(DialogState::CollisionPrompt { selected, .. }) = &mut app.dialog_state {
+                *selected = 3;
+            }
+            return Ok(Action::ConfirmNo);
+        }
+        (KeyCode::Char('c'), KeyModifiers::NONE) | (KeyCode::Char('C'), _) => {
+            app.close_dialog();
+        }
+        // Escape: cancel (same as 'C')
         (KeyCode::Esc, _) => {
             app.close_dialog();
         }

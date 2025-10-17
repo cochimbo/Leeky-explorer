@@ -8,6 +8,33 @@ use tokio::sync::mpsc;
 
 use crate::models::operation::Progress;
 
+/// Check if destination file exists (for collision detection)
+pub async fn check_collision(dst: &Path) -> bool {
+    fs::metadata(dst).await.is_ok()
+}
+
+/// Generate a new filename with suffix to avoid collision
+pub fn generate_collision_free_name(dst: &Path) -> std::path::PathBuf {
+    let parent = dst.parent().unwrap_or(Path::new("."));
+    let stem = dst.file_stem().and_then(|s| s.to_str()).unwrap_or("file");
+    let extension = dst.extension().and_then(|s| s.to_str()).unwrap_or("");
+    
+    let mut counter = 1;
+    loop {
+        let new_name = if extension.is_empty() {
+            format!("{}_{}", stem, counter)
+        } else {
+            format!("{}_{}.{}", stem, counter, extension)
+        };
+        
+        let new_path = parent.join(new_name);
+        if !std::path::Path::new(&new_path).exists() {
+            return new_path;
+        }
+        counter += 1;
+    }
+}
+
 pub async fn copy_file_with_progress(
     src: &Path,
     dst: &Path,
