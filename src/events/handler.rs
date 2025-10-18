@@ -291,6 +291,29 @@ fn handle_dialog_action(app: &mut AppState, action: Action) -> Result<Action> {
 fn start_copy_operation(app: &mut AppState) -> Result<()> {
     let dest_panel_path = app.inactive_panel().current_path.clone();
     
+    // T951: Validate source files exist before starting operation
+    if app.has_selection() {
+        let marked_paths = app.selection_state.get_marked(app.active_panel);
+        for path in &marked_paths {
+            if !path.exists() {
+                let file_name = path.file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("unknown");
+                app.show_error(format!("Archivo no encontrado: {}", file_name));
+                return Ok(());
+            }
+        }
+    } else {
+        // Check single file exists
+        if let Some(entry) = app.active_panel().selected_entry() {
+            let source_path = app.active_panel().current_path.join(&entry.name);
+            if !source_path.exists() {
+                app.show_error(format!("Archivo no encontrado: {}", entry.name));
+                return Ok(());
+            }
+        }
+    }
+    
     // T844: Check for collisions first
     let collision_path = if app.has_selection() {
         // Check first marked item for collision
@@ -439,6 +462,29 @@ fn start_copy_operation_skip_check(app: &mut AppState) -> Result<()> {
 
 fn start_move_operation(app: &mut AppState) -> Result<()> {
     let dest_panel_path = app.inactive_panel().current_path.clone();
+    
+    // T951: Validate source files exist before starting operation
+    if app.has_selection() {
+        let marked_paths = app.selection_state.get_marked(app.active_panel);
+        for path in &marked_paths {
+            if !path.exists() {
+                let file_name = path.file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("unknown");
+                app.show_error(format!("Archivo no encontrado: {}", file_name));
+                return Ok(());
+            }
+        }
+    } else {
+        // Check single file exists
+        if let Some(entry) = app.active_panel().selected_entry() {
+            let source_path = app.active_panel().current_path.join(&entry.name);
+            if !source_path.exists() {
+                app.show_error(format!("Archivo no encontrado: {}", entry.name));
+                return Ok(());
+            }
+        }
+    }
     
     // T844: Check for collisions first
     let collision_path = if app.has_selection() {
@@ -821,6 +867,28 @@ fn create_folder(app: &mut AppState, folder_name: &str) -> Result<()> {
 }
 
 fn start_delete_operation(app: &mut AppState) -> Result<()> {
+    // T951: Validate source files exist before starting operation
+    if app.has_selection() {
+        let marked_paths = app.selection_state.get_marked(app.active_panel);
+        for path in &marked_paths {
+            if !path.exists() {
+                let file_name = path.file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("unknown");
+                app.show_error(format!("Archivo no encontrado: {}", file_name));
+                return Ok(());
+            }
+        }
+    } else {
+        // Check single file exists
+        if let Some(entry) = app.active_panel().selected_entry() {
+            if !entry.path.exists() {
+                app.show_error(format!("Archivo no encontrado: {}", entry.name));
+                return Ok(());
+            }
+        }
+    }
+    
     // T574: Check if we have marked items for batch delete
     if app.has_selection() {
         let panel = app.active_panel();

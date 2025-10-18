@@ -494,6 +494,12 @@ impl AppState {
         if let Some(entry) = panel.entries.get(panel.cursor) {
             let path = entry.path.clone();
             
+            // T951: Validate archive file exists
+            if !path.exists() {
+                self.show_error(format!("Archivo no encontrado: {}", entry.name));
+                return Ok(());
+            }
+            
             // Check if it's a file (not a directory)
             if entry.entry_type == EntryType::Dir {
                 self.show_error("Cannot extract a directory".to_string());
@@ -552,10 +558,25 @@ impl AppState {
         let sources = {
             let marked = self.selection_state.get_marked(self.active_panel);
             if !marked.is_empty() {
+                // T951: Validate all marked files exist
+                for path in &marked {
+                    if !path.exists() {
+                        let file_name = path.file_name()
+                            .and_then(|n| n.to_str())
+                            .unwrap_or("unknown");
+                        self.show_error(format!("Archivo no encontrado: {}", file_name));
+                        return Ok(());
+                    }
+                }
                 marked
             } else {
                 let panel = self.active_panel();
                 if let Some(entry) = panel.entries.get(panel.cursor) {
+                    // T951: Validate single file exists
+                    if !entry.path.exists() {
+                        self.show_error(format!("Archivo no encontrado: {}", entry.name));
+                        return Ok(());
+                    }
                     vec![entry.path.clone()]
                 } else {
                     return Ok(());

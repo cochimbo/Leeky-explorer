@@ -192,8 +192,16 @@ async fn check_operation_completion(
                         let error_msg = format!("{}", e);
                         log::error!("Operation completed with error: {}", error_msg);
                         
+                        // T952: Check for permission errors
+                        if error_msg.contains("Permission denied") || error_msg.contains("Access denied") 
+                            || error_msg.contains("permission") || error_msg.contains("access") {
+                            log::info!("Detected permission error");
+                            app.close_dialog();
+                            app.show_error(format!("Permiso denegado: {}", error_msg));
+                            app.current_operation = None;
+                        }
                         // Check if it's a password error during extraction
-                        if error_msg.contains("wrong password") || error_msg.contains("Password required") {
+                        else if error_msg.contains("wrong password") || error_msg.contains("Password required") {
                             log::info!("Detected password error, reopening dialog");
                             // Close progress dialog and reopen password input dialog
                             app.close_dialog();
