@@ -83,19 +83,19 @@ git push origin v0.1.0
 
 ### 6. Monitor CI/CD Pipeline
 
-1. Go to GitLab → CI/CD → Pipelines
-2. Find the pipeline triggered by your tag
+1. Go to GitHub → Actions
+2. Find the "Release" workflow triggered by your tag
 3. Wait for all jobs to complete:
    - ✅ test
-   - ✅ build:linux
-   - ✅ build:windows
-   - ✅ build:macos-x86 (may fail if no macOS runner)
-   - ✅ build:macos-arm (may fail if no macOS runner)
+   - ✅ build-linux
+   - ✅ build-windows
+   - ✅ build-macos-intel
+   - ✅ build-macos-arm
    - ✅ release
 
 ### 7. Verify Release
 
-1. Go to GitLab → Deployments → Releases
+1. Go to GitHub → Releases
 2. Find your release (v0.1.0)
 3. Verify all artifacts are present:
    - leeky-explorer-v0.1.0-linux-x86_64.tar.gz
@@ -191,17 +191,15 @@ shasum -a 256 leeky-explorer-v0.1.0-macos-arm64.tar.gz > leeky-explorer-v0.1.0-m
 
 If you need to upload binaries manually:
 
-1. Go to GitLab → Deployments → Releases
-2. Click "New release"
-3. Enter tag name (v0.1.0)
+1. Go to GitHub → Releases
+2. Click "Draft a new release"
+3. Choose tag (v0.1.0) or create new tag
 4. Enter release title: "Leeky Explorer v0.1.0"
 5. Add release notes (copy from CHANGELOG.md)
 6. Upload artifacts:
-   - Click "Add asset link"
-   - For each platform, add:
-     - Link URL: direct download URL or uploaded file
-     - Link title: "Linux x86_64 Binary", "Windows x86_64 Binary", etc.
-     - Link type: "Package"
+   - Drag and drop or click to upload each binary file
+   - Include .sha256 checksum files
+   - Files will be available as downloadable assets
 
 ## Troubleshooting
 

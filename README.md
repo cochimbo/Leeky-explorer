@@ -23,12 +23,12 @@ A fast, dual-pane terminal file manager built with Rust and Ratatui.
 
 ### Pre-built Binaries (Recommended)
 
-Download the latest release for your platform from [GitLab Releases](https://gitlab.com/cochimbo/Leeky-explorer/-/releases):
+Download the latest release for your platform from [GitHub Releases](https://github.com/cochimbo/Leeky-explorer/releases):
 
 **Linux (x86_64)**:
 ```bash
 # Download and extract
-wget https://gitlab.com/cochimbo/Leeky-explorer/-/releases/v0.1.0/downloads/leeky-explorer-v0.1.0-linux-x86_64.tar.gz
+wget https://github.com/cochimbo/Leeky-explorer/releases/download/v0.1.0/leeky-explorer-v0.1.0-linux-x86_64.tar.gz
 tar -xzf leeky-explorer-v0.1.0-linux-x86_64.tar.gz
 
 # Verify checksum (optional)
@@ -43,8 +43,8 @@ leeky-explorer
 
 **Windows (x86_64)**:
 ```powershell
-# Download from GitLab Releases page or use PowerShell
-Invoke-WebRequest -Uri "https://gitlab.com/cochimbo/Leeky-explorer/-/releases/v0.1.0/downloads/leeky-explorer-v0.1.0-windows-x86_64.zip" -OutFile "leeky-explorer.zip"
+# Download from GitHub Releases page or use PowerShell
+Invoke-WebRequest -Uri "https://github.com/cochimbo/Leeky-explorer/releases/download/v0.1.0/leeky-explorer-v0.1.0-windows-x86_64.zip" -OutFile "leeky-explorer.zip"
 
 # Extract
 Expand-Archive leeky-explorer.zip -DestinationPath .
@@ -59,7 +59,7 @@ Get-FileHash leeky-explorer.exe -Algorithm SHA256
 **macOS (Intel)**:
 ```bash
 # Download and extract
-curl -L -o leeky-explorer.tar.gz https://gitlab.com/cochimbo/Leeky-explorer/-/releases/v0.1.0/downloads/leeky-explorer-v0.1.0-macos-x86_64.tar.gz
+curl -L -o leeky-explorer.tar.gz https://github.com/cochimbo/Leeky-explorer/releases/download/v0.1.0/leeky-explorer-v0.1.0-macos-x86_64.tar.gz
 tar -xzf leeky-explorer.tar.gz
 
 # Verify checksum (optional)
@@ -75,7 +75,7 @@ leeky-explorer
 **macOS (M1/M2 ARM)**:
 ```bash
 # Download and extract
-curl -L -o leeky-explorer.tar.gz https://gitlab.com/cochimbo/Leeky-explorer/-/releases/v0.1.0/downloads/leeky-explorer-v0.1.0-macos-arm64.tar.gz
+curl -L -o leeky-explorer.tar.gz https://github.com/cochimbo/Leeky-explorer/releases/download/v0.1.0/leeky-explorer-v0.1.0-macos-arm64.tar.gz
 tar -xzf leeky-explorer.tar.gz
 
 # Move to PATH
