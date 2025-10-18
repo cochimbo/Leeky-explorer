@@ -70,7 +70,7 @@ jobs:
           sha256sum leeky-explorer-${{ github.ref_name }}-linux-x86_64.tar.gz > leeky-explorer-${{ github.ref_name }}-linux-x86_64.tar.gz.sha256
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: linux-x86_64
           path: |
@@ -102,7 +102,7 @@ jobs:
           Get-FileHash "leeky-explorer-${{ github.ref_name }}-windows-x86_64.zip" -Algorithm SHA256 | Select-Object -ExpandProperty Hash | Out-File "leeky-explorer-${{ github.ref_name }}-windows-x86_64.zip.sha256" -NoNewline
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: windows-x86_64
           path: |
@@ -133,7 +133,7 @@ jobs:
           shasum -a 256 leeky-explorer-${{ github.ref_name }}-macos-x86_64.tar.gz > leeky-explorer-${{ github.ref_name }}-macos-x86_64.tar.gz.sha256
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: macos-x86_64
           path: |
@@ -164,7 +164,7 @@ jobs:
           shasum -a 256 leeky-explorer-${{ github.ref_name }}-macos-arm64.tar.gz > leeky-explorer-${{ github.ref_name }}-macos-arm64.tar.gz.sha256
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: macos-arm64
           path: |
@@ -181,7 +181,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
 
       - name: Display structure
         run: ls -R
