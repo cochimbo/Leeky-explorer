@@ -2,6 +2,12 @@
 name = "leeky-explorer"
 version = "0.1.0"
 edition = "2024"
+authors = ["cochimbo"]
+description = "A fast, dual-pane terminal file manager with archive support"
+repository = "https://github.com/cochimbo/Leeky-explorer"
+license = "MIT"
+keywords = ["file-manager", "tui", "terminal", "dual-pane", "archive"]
+categories = ["command-line-utilities", "filesystem"]
 
 [dependencies]
 ratatui = "0.29.0"
