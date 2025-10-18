@@ -403,6 +403,15 @@ fn handle_extract_options(
         dest = dest.join(archive_name);
     }
     
+    // T954: Check if destination already exists
+    if dest.exists() {
+        app.show_error(format!(
+            "El directorio de destino ya existe: {}",
+            dest.display()
+        ));
+        return Ok(());
+    }
+    
     // T953: Check available disk space before extraction
     let archive_size = std::fs::metadata(&source)
         .map(|m| m.len())
