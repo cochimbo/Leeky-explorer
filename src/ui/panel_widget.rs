@@ -12,6 +12,7 @@ use ratatui::{
     Frame,
 };
 
+#[allow(clippy::too_many_arguments)]
 pub fn render_panel(
     frame: &mut Frame,
     panel: &Panel,

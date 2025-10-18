@@ -46,15 +46,14 @@ fn parse_ansi_line(line: &str) -> Line<'static> {
             // Parse RGB color code (38;2;R;G;B)
             if code.starts_with("38;2;") {
                 let parts: Vec<&str> = code.split(';').collect();
-                if parts.len() >= 5 {
-                    if let (Ok(r), Ok(g), Ok(b)) = (
+                if parts.len() >= 5
+                    && let (Ok(r), Ok(g), Ok(b)) = (
                         parts[2].parse::<u8>(),
                         parts[3].parse::<u8>(),
                         parts[4].parse::<u8>(),
                     ) {
                         current_color = Some(Color::Rgb(r, g, b));
                     }
-                }
             } else if code == "0" {
                 // Reset
                 current_color = None;
@@ -273,7 +272,7 @@ pub fn render_preview_modal(f: &mut Frame, preview_state: &PreviewState) {
             // T719: Parse ASCII art with ANSI color codes and center within modal area
             let art_lines: Vec<Line> = ascii_art
                 .lines()
-                .map(|line| parse_ansi_line(line))
+                .map(parse_ansi_line)
                 .collect();
 
             let content_widget = Paragraph::new(art_lines)

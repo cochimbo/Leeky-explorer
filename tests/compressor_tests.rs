@@ -51,24 +51,6 @@ fn create_large_file(path: &Path, size_kb: usize) -> Result<()> {
 }
 
 /// Helper: Count files in directory recursively
-fn count_files_recursive(dir: &Path) -> usize {
-    let mut count = 0;
-    
-    if let Ok(entries) = fs::read_dir(dir) {
-        for entry in entries.flatten() {
-            if let Ok(metadata) = entry.metadata() {
-                if metadata.is_file() {
-                    count += 1;
-                } else if metadata.is_dir() {
-                    count += count_files_recursive(&entry.path());
-                }
-            }
-        }
-    }
-    
-    count
-}
-
 #[tokio::test]
 async fn test_compress_single_file_to_zip() -> Result<()> {
     // T958: Test compress single file to ZIP
@@ -89,7 +71,7 @@ async fn test_compress_single_file_to_zip() -> Result<()> {
         password: None,
     };
     
-    compress_archive(&[source_file.clone()], options, tx)?;
+    compress_archive(std::slice::from_ref(&source_file), options, tx)?;
     
     // Verify archive was created
     assert!(output_zip.exists(), "ZIP archive should be created");
@@ -279,7 +261,7 @@ async fn test_compression_levels() -> Result<()> {
         password: None,
     };
     
-    compress_archive(&[source_file.clone()], options_fast, tx_fast)?;
+    compress_archive(std::slice::from_ref(&source_file), options_fast, tx_fast)?;
     
     // Compress with Maximum level
     let output_max = temp_dir.path().join("maximum.zip");

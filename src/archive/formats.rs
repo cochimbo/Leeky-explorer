@@ -72,11 +72,10 @@ pub fn detect_format(path: &Path) -> Result<ArchiveFormat> {
         drop(file);
         let mut file = File::open(path)?;
         let mut buffer = vec![0u8; 262];
-        if file.read(&mut buffer)? >= 262 {
-            if &buffer[257..262] == b"ustar" {
+        if file.read(&mut buffer)? >= 262
+            && &buffer[257..262] == b"ustar" {
                 return Ok(ArchiveFormat::TAR);
             }
-        }
     }
     
     // T810: Fallback to extension detection

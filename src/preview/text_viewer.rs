@@ -16,15 +16,14 @@ pub fn is_text_file(path: &Path) -> bool {
         "gitignore", "gitattributes", "dockerignore", "env",
     ];
 
-    if let Some(extension) = path.extension() {
-        if let Some(ext_str) = extension.to_str() {
+    if let Some(extension) = path.extension()
+        && let Some(ext_str) = extension.to_str() {
             return text_extensions.contains(&ext_str.to_lowercase().as_str());
         }
-    }
 
     // Check for files without extension that are typically text
-    if let Some(filename) = path.file_name() {
-        if let Some(name_str) = filename.to_str() {
+    if let Some(filename) = path.file_name()
+        && let Some(name_str) = filename.to_str() {
             let common_text_files = [
                 "README", "LICENSE", "Makefile", "Dockerfile", "Cargo.lock",
                 ".gitignore", ".gitattributes", ".dockerignore", ".env",
@@ -33,7 +32,6 @@ pub fn is_text_file(path: &Path) -> bool {
                 name_str.eq_ignore_ascii_case(name) || name_str.starts_with(name)
             });
         }
-    }
 
     false
 }
@@ -52,7 +50,7 @@ fn is_binary_content(bytes: &[u8]) -> bool {
         .filter(|&&b| {
             // Consider null bytes and other control chars as non-printable
             // Allow: tab (9), newline (10), carriage return (13), and printable ASCII (32-126)
-            b != 9 && b != 10 && b != 13 && (b < 32 || b > 126) && b < 128
+            b != 9 && b != 10 && b != 13 && !(32..=126).contains(&b) && b < 128
         })
         .count();
 

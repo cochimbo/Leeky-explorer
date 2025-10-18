@@ -371,8 +371,8 @@ fn start_copy_operation(app: &mut AppState) -> Result<()> {
         }
         
         // T953: Check available disk space before copying
-        if let Ok(available_space) = fs2::available_space(&dest_panel_path) {
-            if available_space < total_bytes {
+        if let Ok(available_space) = fs2::available_space(&dest_panel_path)
+            && available_space < total_bytes {
                 let size_mb = total_bytes / (1024 * 1024);
                 let avail_mb = available_space / (1024 * 1024);
                 app.show_error(format!(
@@ -381,7 +381,6 @@ fn start_copy_operation(app: &mut AppState) -> Result<()> {
                 ));
                 return Ok(());
             }
-        }
         
         // T956: Warn about large operations
         let size_gb = total_bytes as f64 / (1024.0 * 1024.0 * 1024.0);
@@ -413,12 +412,11 @@ fn start_copy_operation(app: &mut AppState) -> Result<()> {
             let source = entry.path.clone();
             let destination = dest_panel_path.join(&entry.name);
             let entry_name = entry.name.clone();
-            let entry_type = entry.entry_type.clone();
             let total_bytes = entry.size;
             
             // T953: Check available disk space before copying
-            if let Ok(available_space) = fs2::available_space(&dest_panel_path) {
-                if available_space < total_bytes {
+            if let Ok(available_space) = fs2::available_space(&dest_panel_path)
+                && available_space < total_bytes {
                     let size_mb = total_bytes / (1024 * 1024);
                     let avail_mb = available_space / (1024 * 1024);
                     app.show_error(format!(
@@ -427,13 +425,8 @@ fn start_copy_operation(app: &mut AppState) -> Result<()> {
                     ));
                     return Ok(());
                 }
-            }
             
-            let total_files = if entry_type == crate::models::file_entry::EntryType::Dir {
-                1
-            } else {
-                1
-            };
+            let total_files = 1; // Single file or directory
             
             let operation = Operation::copy(source, destination, total_bytes, total_files);
             app.current_operation = Some(operation);
@@ -485,14 +478,9 @@ fn start_copy_operation_skip_check(app: &mut AppState) -> Result<()> {
             let source = entry.path.clone();
             let destination = dest_panel_path.join(&entry.name);
             let entry_name = entry.name.clone();
-            let entry_type = entry.entry_type.clone();
             let total_bytes = entry.size;
             
-            let total_files = if entry_type == crate::models::file_entry::EntryType::Dir {
-                1
-            } else {
-                1
-            };
+            let total_files = 1; // Single file or directory
             
             let operation = Operation::copy(source, destination, total_bytes, total_files);
             app.current_operation = Some(operation);
@@ -601,14 +589,9 @@ fn start_move_operation(app: &mut AppState) -> Result<()> {
             let source = entry.path.clone();
             let destination = dest_panel_path.join(&entry.name);
             let entry_name = entry.name.clone();
-            let entry_type = entry.entry_type.clone();
             let total_bytes = entry.size;
             
-            let total_files = if entry_type == crate::models::file_entry::EntryType::Dir {
-                1
-            } else {
-                1
-            };
+            let total_files = 1; // Single file or directory
             
             let operation = Operation::move_op(source, destination, total_bytes, total_files);
             app.current_operation = Some(operation);
@@ -659,14 +642,9 @@ fn start_move_operation_skip_check(app: &mut AppState) -> Result<()> {
             let source = entry.path.clone();
             let destination = dest_panel_path.join(&entry.name);
             let entry_name = entry.name.clone();
-            let entry_type = entry.entry_type.clone();
             let total_bytes = entry.size;
             
-            let total_files = if entry_type == crate::models::file_entry::EntryType::Dir {
-                1
-            } else {
-                1
-            };
+            let total_files = 1; // Single file or directory
             
             let operation = Operation::move_op(source, destination, total_bytes, total_files);
             app.current_operation = Some(operation);
@@ -715,11 +693,10 @@ fn handle_input_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
     
     match action {
         Action::ConfirmInput => {
-            if let Some(value) = app.get_input_value() {
-                if !value.is_empty() {
+            if let Some(value) = app.get_input_value()
+                && !value.is_empty() {
                     create_folder(app, &value)?;
                 }
-            }
             app.close_dialog();
         }
         Action::InputChar(c) => {
@@ -752,12 +729,11 @@ fn handle_password_input_dialog(app: &mut AppState, key: KeyEvent) -> Result<Act
     match (key.code, key.modifiers) {
         // Enter: confirm password (only if not empty)
         (KeyCode::Enter, _) => {
-            if let Some(DialogState::PasswordInput { value, .. }) = &app.dialog_state {
-                if !value.is_empty() {
+            if let Some(DialogState::PasswordInput { value, .. }) = &app.dialog_state
+                && !value.is_empty() {
                     return Ok(Action::ConfirmYes);
                 }
                 // If password is empty, do nothing (user must enter password or press Esc to cancel)
-            }
             return Ok(Action::None);
         }
         // Tab: toggle password visibility
@@ -842,19 +818,17 @@ fn handle_collision_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> 
         }
         // Up arrow: move selection up
         (KeyCode::Up, _) => {
-            if let Some(DialogState::CollisionPrompt { selected, .. }) = &mut app.dialog_state {
-                if *selected > 0 {
+            if let Some(DialogState::CollisionPrompt { selected, .. }) = &mut app.dialog_state
+                && *selected > 0 {
                     *selected -= 1;
                 }
-            }
         }
         // Down arrow: move selection down
         (KeyCode::Down, _) => {
-            if let Some(DialogState::CollisionPrompt { selected, .. }) = &mut app.dialog_state {
-                if *selected < 4 {
+            if let Some(DialogState::CollisionPrompt { selected, .. }) = &mut app.dialog_state
+                && *selected < 4 {
                     *selected += 1;
                 }
-            }
         }
         // Letter shortcuts
         (KeyCode::Char('s'), KeyModifiers::NONE) | (KeyCode::Char('S'), _) => {
@@ -931,12 +905,11 @@ fn start_delete_operation(app: &mut AppState) -> Result<()> {
         }
     } else {
         // Check single file exists
-        if let Some(entry) = app.active_panel().selected_entry() {
-            if !entry.path.exists() {
+        if let Some(entry) = app.active_panel().selected_entry()
+            && !entry.path.exists() {
                 app.show_error(format!("Archivo no encontrado: {}", entry.name));
                 return Ok(());
             }
-        }
     }
     
     // T574: Check if we have marked items for batch delete
@@ -978,14 +951,9 @@ fn start_delete_operation(app: &mut AppState) -> Result<()> {
     if let Some(entry) = panel.selected_entry() {
         let source = entry.path.clone();
         let entry_name = entry.name.clone();
-        let entry_type = entry.entry_type.clone();
         let total_bytes = entry.size;
         
-        let total_files = if entry_type == crate::models::file_entry::EntryType::Dir {
-            1 // Estimate
-        } else {
-            1
-        };
+        let total_files = 1; // Single file or directory (estimate)
         
         let operation = Operation::delete(source, total_bytes, total_files);
         app.current_operation = Some(operation);
@@ -1145,11 +1113,10 @@ fn handle_compress_options_dialog(app: &mut AppState, key: KeyEvent) -> Result<A
         }
         // Shift+Tab or Up: move to previous field
         (KeyCode::BackTab, _) | (KeyCode::Up, _) => {
-            if let Some(DialogState::CompressOptions { selected_field, .. }) = &mut app.dialog_state {
-                if *selected_field > 0 {
+            if let Some(DialogState::CompressOptions { selected_field, .. }) = &mut app.dialog_state
+                && *selected_field > 0 {
                     *selected_field -= 1;
                 }
-            }
         }
         // Left arrow: cycle format/level backwards
         (KeyCode::Left, _) => {
@@ -1205,11 +1172,10 @@ fn handle_compress_options_dialog(app: &mut AppState, key: KeyEvent) -> Result<A
         }
         // Space: toggle password checkbox
         (KeyCode::Char(' '), _) => {
-            if let Some(DialogState::CompressOptions { selected_field, use_password, .. }) = &mut app.dialog_state {
-                if *selected_field == 3 {
+            if let Some(DialogState::CompressOptions { selected_field, use_password, .. }) = &mut app.dialog_state
+                && *selected_field == 3 {
                     *use_password = !*use_password;
                 }
-            }
         }
         // Backspace: delete character from name or password fields
         (KeyCode::Backspace, _) => {
@@ -1224,8 +1190,8 @@ fn handle_compress_options_dialog(app: &mut AppState, key: KeyEvent) -> Result<A
         }
         // Char: append to name or password fields
         (KeyCode::Char(c), KeyModifiers::NONE) | (KeyCode::Char(c), KeyModifiers::SHIFT) => {
-            if c != ' ' || matches!(key.code, KeyCode::Char(' ')) {
-                if let Some(DialogState::CompressOptions { selected_field, output_name, password, confirm_password, .. }) = &mut app.dialog_state {
+            if (c != ' ' || matches!(key.code, KeyCode::Char(' ')))
+                && let Some(DialogState::CompressOptions { selected_field, output_name, password, confirm_password, .. }) = &mut app.dialog_state {
                     match *selected_field {
                         0 => { output_name.push(c); }
                         4 => { password.push(c); }
@@ -1233,7 +1199,6 @@ fn handle_compress_options_dialog(app: &mut AppState, key: KeyEvent) -> Result<A
                         _ => {}
                     }
                 }
-            }
         }
         // Escape: cancel
         (KeyCode::Esc, _) => {

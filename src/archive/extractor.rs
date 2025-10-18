@@ -788,8 +788,8 @@ async fn extract_zip(
         } else {
             // T829: Create parent directories
             // T848: Handle permission errors gracefully
-            if let Some(parent) = out_path.parent() {
-                if let Err(e) = fs::create_dir_all(parent) {
+            if let Some(parent) = out_path.parent()
+                && let Err(e) = fs::create_dir_all(parent) {
                     if e.kind() == std::io::ErrorKind::PermissionDenied {
                         log::warn!("Permission denied creating parent directory: {} - skipping file", parent.display());
                         continue;
@@ -797,7 +797,6 @@ async fn extract_zip(
                         return Err(e).context(format!("Failed to create parent directory: {}", parent.display()));
                     }
                 }
-            }
             
             // T846: Extract file with better error handling
             // T848: Handle permission errors during file creation

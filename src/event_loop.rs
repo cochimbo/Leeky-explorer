@@ -7,6 +7,7 @@ use crate::models::operation::{Operation, OperationType, Progress};
 use crate::ui;
 use crossterm::event::{self, Event};
 use ratatui::Terminal;
+use std::path::Path;
 use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
@@ -37,11 +38,11 @@ pub async fn run<B: ratatui::backend::Backend>(
         render_ui(terminal, app)?;
         
         // Handle input
-        if event::poll(Duration::from_millis(50))? {
-            if let Event::Key(key) = event::read()? {
+        if event::poll(Duration::from_millis(50))?
+            && let Event::Key(key) = event::read()? {
                 // T955: Check if user pressed Esc during progress dialog to cancel
-                if let Some(DialogState::Progress { .. }) = &app.dialog_state {
-                    if matches!(key.code, crossterm::event::KeyCode::Esc) {
+                if let Some(DialogState::Progress { .. }) = &app.dialog_state
+                    && matches!(key.code, crossterm::event::KeyCode::Esc) {
                         log::info!("User requested operation cancellation");
                         if let Some(ref cancel_sender) = current_cancel_tx {
                             let _ = cancel_sender.send(true);
@@ -49,7 +50,6 @@ pub async fn run<B: ratatui::backend::Backend>(
                         }
                         continue; // Don't process other actions while canceling
                     }
-                }
                 
                 let action = handle_key(app, key)?;
                 
@@ -60,7 +60,6 @@ pub async fn run<B: ratatui::backend::Backend>(
                 
                 handle_action(app, action, current_cancel_tx.as_ref()).await?;
             }
-        }
     }
     
     Ok(())
@@ -123,8 +122,8 @@ async fn handle_channel_closed(
                     app.close_dialog();
                     
                     // Get operation details to recreate password dialog
-                    if let Some(ref op) = app.current_operation {
-                        if let Some(format) = op.archive_format {
+                    if let Some(ref op) = app.current_operation
+                        && let Some(format) = op.archive_format {
                             let source = op.source.clone();
                             let dest = op.destination.clone();
                             let archive_name = source.file_name()
@@ -143,7 +142,6 @@ async fn handle_channel_closed(
                             
                             log::info!("Reopening password dialog after wrong password (from channel_closed)");
                         }
-                    }
                     // CRITICAL: Clear current_operation to prevent auto-restart by start_queued_operation
                     app.current_operation = None;
                     log::info!("current_operation cleared to prevent auto-retry loop (from channel_closed)");
@@ -207,8 +205,8 @@ async fn check_operation_completion(
                             app.close_dialog();
                             
                             // Get operation details to recreate password dialog
-                            if let Some(ref op) = app.current_operation {
-                                if let Some(format) = op.archive_format {
+                            if let Some(ref op) = app.current_operation
+                                && let Some(format) = op.archive_format {
                                     let source = op.source.clone();
                                     let dest = op.destination.clone();
                                     let archive_name = source.file_name()
@@ -227,7 +225,6 @@ async fn check_operation_completion(
                                     
                                     log::info!("Password dialog reopened successfully, task cleared");
                                 }
-                            }
                             // CRITICAL: Clear current_operation to prevent auto-restart by start_queued_operation
                             app.current_operation = None;
                             log::info!("current_operation cleared to prevent auto-retry loop");
@@ -257,8 +254,8 @@ fn start_queued_operation(
     progress_tx: &mpsc::Sender<Progress>,
     cancel_tx_holder: &mut Option<tokio::sync::watch::Sender<bool>>,
 ) {
-    if let Some(op) = &app.current_operation {
-        if operation_task.is_none() {
+    if let Some(op) = &app.current_operation
+        && operation_task.is_none() {
             let op = op.clone();
             let tx = progress_tx.clone();
             
@@ -270,7 +267,6 @@ fn start_queued_operation(
                 execute_operation(op, tx, cancel_rx).await
             }));
         }
-    }
 }
 
 /// Refresh both panels
@@ -358,7 +354,7 @@ async fn handle_confirm_action(
                 log::info!("Handling ExtractOptions dialog");
                 handle_extract_options(app, &source, &dest, &format, &archive_name, selected)?;
                 log::info!("After handle_extract_options, dialog state is: {:?}", 
-                    app.dialog_state.as_ref().map(|d| std::mem::discriminant(d)));
+                    app.dialog_state.as_ref().map(std::mem::discriminant));
             }
             DialogState::PasswordInput { archive_path, dest_path, format, value, .. } => {
                 log::info!("Handling PasswordInput dialog");
@@ -374,10 +370,8 @@ async fn handle_confirm_action(
                 };
                 handle_compress_options(app, sources, &output_name, format, level, use_password, &password, cancel_rx_to_use).await?;
             }
-            DialogState::Confirm { confirm_action, .. } => {
-                if let ConfirmAction::ExtractArchive { source, dest, format } = confirm_action {
-                    handle_extract_confirm(app, &source, &dest, format).await?;
-                }
+            DialogState::Confirm { confirm_action: ConfirmAction::ExtractArchive { source, dest, format }, .. } => {
+                handle_extract_confirm(app, &source, &dest, format).await?;
             }
             _ => {}
         }
@@ -389,14 +383,14 @@ async fn handle_confirm_action(
 /// Handle extract options dialog
 fn handle_extract_options(
     app: &mut AppState,
-    source: &std::path::PathBuf,
-    dest: &std::path::PathBuf,
+    source: &Path,
+    dest: &Path,
     format: &crate::archive::formats::ArchiveFormat,
     archive_name: &str,
     selected: usize,
 ) -> Result<()> {
-    let source = source.clone();
-    let mut dest = dest.clone();
+    let source = source.to_path_buf();
+    let mut dest = dest.to_path_buf();
     let format = *format;
     let create_folder = selected == 1;
     
@@ -423,8 +417,8 @@ fn handle_extract_options(
     let estimated_extracted_size = archive_size * 3;
     
     // Get available space on destination
-    if let Ok(available_space) = fs2::available_space(&dest) {
-        if available_space < estimated_extracted_size {
+    if let Ok(available_space) = fs2::available_space(&dest)
+        && available_space < estimated_extracted_size {
             let size_mb = estimated_extracted_size / (1024 * 1024);
             let avail_mb = available_space / (1024 * 1024);
             app.show_error(format!(
@@ -433,7 +427,6 @@ fn handle_extract_options(
             ));
             return Ok(());
         }
-    }
     
     // Check if archive is password-protected
     let is_encrypted = crate::archive::password::is_password_protected(&source)
@@ -465,13 +458,13 @@ fn handle_extract_options(
 /// Handle password input dialog
 fn handle_password_input(
     app: &mut AppState,
-    archive_path: &std::path::PathBuf,
-    dest_path: &std::path::PathBuf,
+    archive_path: &Path,
+    dest_path: &Path,
     format: &crate::archive::formats::ArchiveFormat,
     value: &str,
 ) -> Result<()> {
-    let source = archive_path.clone();
-    let dest = dest_path.clone();
+    let source = archive_path.to_path_buf();
+    let dest = dest_path.to_path_buf();
     let format = *format;
     let password = value.to_string();
     
@@ -481,6 +474,7 @@ fn handle_password_input(
 }
 
 /// Handle compress options dialog
+#[allow(clippy::too_many_arguments)]
 async fn handle_compress_options(
     app: &mut AppState,
     sources: Vec<std::path::PathBuf>,
@@ -653,12 +647,12 @@ async fn handle_compress_options(
 /// Handle extract confirm dialog (legacy path)
 async fn handle_extract_confirm(
     app: &mut AppState,
-    source: &std::path::PathBuf,
-    dest: &std::path::PathBuf,
+    source: &Path,
+    dest: &Path,
     format: crate::archive::formats::ArchiveFormat,
 ) -> Result<()> {
-    let source = source.clone();
-    let dest = dest.clone();
+    let source = source.to_path_buf();
+    let dest = dest.to_path_buf();
     
     app.close_dialog();
     

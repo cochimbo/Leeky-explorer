@@ -119,8 +119,8 @@ fn test_default_state_values() {
     let state = PersistedState::default();
     
     // Should have valid paths
-    assert!(state.left_panel_path.as_os_str().len() > 0);
-    assert!(state.right_panel_path.as_os_str().len() > 0);
+    assert!(!state.left_panel_path.as_os_str().is_empty());
+    assert!(!state.right_panel_path.as_os_str().is_empty());
     
     // Both panels should start at same location
     assert_eq!(state.left_panel_path, state.right_panel_path);

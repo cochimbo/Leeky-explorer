@@ -3,7 +3,7 @@ use crate::models::panel::Panel;
 use crate::models::operation::Operation;
 use crate::models::file_entry::{FileEntry, EntryType};
 use crate::models::selection::SelectionState;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PanelSide {
@@ -298,7 +298,7 @@ impl AppState {
     }
 
     // Internal method for text preview
-    async fn open_text_preview_internal(&mut self, path: &PathBuf, file_size: u64) -> anyhow::Result<()> {
+    async fn open_text_preview_internal(&mut self, path: &Path, file_size: u64) -> anyhow::Result<()> {
         match crate::preview::load_text_file(path).await {
             Ok((content, warning)) => {
                 let total_lines = content.lines().count();
@@ -307,7 +307,7 @@ impl AppState {
                     content,
                     scroll_offset: 0,
                     total_lines,
-                    file_path: path.clone(),
+                    file_path: path.to_path_buf(),
                     file_size,
                     warning,
                 });
@@ -320,7 +320,7 @@ impl AppState {
     }
 
     // T712-T715: Internal method for image preview
-    async fn open_image_preview_internal(&mut self, path: &PathBuf, file_size: u64) -> anyhow::Result<()> {
+    async fn open_image_preview_internal(&mut self, path: &Path, file_size: u64) -> anyhow::Result<()> {
         // T714: Check file size - warn for images >10MB
         const MAX_IMAGE_SIZE: u64 = 10 * 1024 * 1024;
         if file_size > MAX_IMAGE_SIZE {
@@ -354,7 +354,7 @@ impl AppState {
                         self.preview_state = Some(PreviewState::Image {
                             ascii_art,
                             metadata,
-                            file_path: path.clone(),
+                            file_path: path.to_path_buf(),
                             file_size,
                         });
                     }

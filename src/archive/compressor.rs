@@ -63,12 +63,11 @@ pub fn estimate_compressed_size(sources: &[PathBuf]) -> Result<u64> {
             }
         } else if source.is_dir() {
             for entry in WalkDir::new(source).into_iter().filter_map(|e| e.ok()) {
-                if entry.file_type().is_file() {
-                    if let Ok(metadata) = entry.metadata() {
+                if entry.file_type().is_file()
+                    && let Ok(metadata) = entry.metadata() {
                         // Use 0.6 as average ratio for directories
                         total_size += (metadata.len() as f64 * 0.6) as u64;
                     }
-                }
             }
         }
     }
@@ -87,11 +86,10 @@ fn get_total_size(sources: &[PathBuf]) -> Result<u64> {
             }
         } else if source.is_dir() {
             for entry in WalkDir::new(source).into_iter().filter_map(|e| e.ok()) {
-                if entry.file_type().is_file() {
-                    if let Ok(metadata) = entry.metadata() {
+                if entry.file_type().is_file()
+                    && let Ok(metadata) = entry.metadata() {
                         total += metadata.len();
                     }
-                }
             }
         }
     }

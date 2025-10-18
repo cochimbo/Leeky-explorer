@@ -16,11 +16,10 @@ pub fn is_image_file(path: &Path) -> bool {
         "png", "jpg", "jpeg", "gif", "bmp", "webp", "ico", "tiff", "tif",
     ];
 
-    if let Some(extension) = path.extension() {
-        if let Some(ext_str) = extension.to_str() {
+    if let Some(extension) = path.extension()
+        && let Some(ext_str) = extension.to_str() {
             return image_extensions.contains(&ext_str.to_lowercase().as_str());
         }
-    }
 
     false
 }

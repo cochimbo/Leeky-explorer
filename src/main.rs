@@ -80,12 +80,11 @@ fn init_logging() -> Result<()> {
     let log_file_path = log_dir.join("leeky.log");
     
     // T851b: Basic rotation - check if file > 10MB and rotate
-    if let Ok(metadata) = std::fs::metadata(&log_file_path) {
-        if metadata.len() > 10 * 1024 * 1024 { // 10MB
+    if let Ok(metadata) = std::fs::metadata(&log_file_path)
+        && metadata.len() > 10 * 1024 * 1024 { // 10MB
             let backup_path = log_dir.join("leeky.log.old");
             let _ = std::fs::rename(&log_file_path, &backup_path); // Rotate to .old
         }
-    }
     
     let log_file = std::fs::OpenOptions::new()
         .create(true)

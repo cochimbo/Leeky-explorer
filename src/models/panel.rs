@@ -117,14 +117,13 @@ impl Panel {
     }
 
     pub fn enter_dir(&mut self) -> Result<()> {
-        if let Some(entry) = self.selected_entry() {
-            if entry.is_dir() {
+        if let Some(entry) = self.selected_entry()
+            && entry.is_dir() {
                 let new_path = entry.path.clone();
                 self.current_path = new_path;
                 self.cursor = 0;
                 self.scroll_offset = 0;
             }
-        }
         Ok(())
     }
 
@@ -160,13 +159,12 @@ impl Panel {
             self.scroll_offset = 0;
             
             // T112b: Position cursor on the directory we came from
-            if let Some(dir_name) = previous_dir_name {
-                if let Some(index) = self.entries.iter().position(|entry| entry.name == dir_name) {
+            if let Some(dir_name) = previous_dir_name
+                && let Some(index) = self.entries.iter().position(|entry| entry.name == dir_name) {
                     self.cursor = index;
                     // Adjust scroll if needed to ensure the cursor is visible
                     self.adjust_scroll_for_cursor();
                 }
-            }
         }
         Ok(())
     }

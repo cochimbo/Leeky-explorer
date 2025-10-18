@@ -526,7 +526,7 @@ fn render_compress_options_dialog(
     
     // Source count
     let count_text = if sources.len() == 1 {
-        format!("📦 Comprimir 1 elemento")
+        "📦 Comprimir 1 elemento".to_string()
     } else {
         format!("📦 Comprimir {} elementos", sources.len())
     };
