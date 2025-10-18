@@ -403,6 +403,27 @@ fn handle_extract_options(
         dest = dest.join(archive_name);
     }
     
+    // T953: Check available disk space before extraction
+    let archive_size = std::fs::metadata(&source)
+        .map(|m| m.len())
+        .unwrap_or(0);
+    
+    // Estimate extracted size (typically 2-3x compressed size, use 3x to be safe)
+    let estimated_extracted_size = archive_size * 3;
+    
+    // Get available space on destination
+    if let Ok(available_space) = fs2::available_space(&dest) {
+        if available_space < estimated_extracted_size {
+            let size_mb = estimated_extracted_size / (1024 * 1024);
+            let avail_mb = available_space / (1024 * 1024);
+            app.show_error(format!(
+                "Espacio insuficiente. Se necesitan ~{} MB, disponibles {} MB",
+                size_mb, avail_mb
+            ));
+            return Ok(());
+        }
+    }
+    
     // Check if archive is password-protected
     let is_encrypted = crate::archive::password::is_password_protected(&source)
         .unwrap_or(false);

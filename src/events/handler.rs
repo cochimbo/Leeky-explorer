@@ -368,6 +368,19 @@ fn start_copy_operation(app: &mut AppState) -> Result<()> {
             }
         }
         
+        // T953: Check available disk space before copying
+        if let Ok(available_space) = fs2::available_space(&dest_panel_path) {
+            if available_space < total_bytes {
+                let size_mb = total_bytes / (1024 * 1024);
+                let avail_mb = available_space / (1024 * 1024);
+                app.show_error(format!(
+                    "Espacio insuficiente. Se necesitan {} MB, disponibles {} MB",
+                    size_mb, avail_mb
+                ));
+                return Ok(());
+            }
+        }
+        
         let operation = Operation::copy_batch(operations, total_bytes, count);
         app.current_operation = Some(operation);
         
@@ -384,6 +397,19 @@ fn start_copy_operation(app: &mut AppState) -> Result<()> {
             let entry_name = entry.name.clone();
             let entry_type = entry.entry_type.clone();
             let total_bytes = entry.size;
+            
+            // T953: Check available disk space before copying
+            if let Ok(available_space) = fs2::available_space(&dest_panel_path) {
+                if available_space < total_bytes {
+                    let size_mb = total_bytes / (1024 * 1024);
+                    let avail_mb = available_space / (1024 * 1024);
+                    app.show_error(format!(
+                        "Espacio insuficiente. Se necesitan {} MB, disponibles {} MB",
+                        size_mb, avail_mb
+                    ));
+                    return Ok(());
+                }
+            }
             
             let total_files = if entry_type == crate::models::file_entry::EntryType::Dir {
                 1
