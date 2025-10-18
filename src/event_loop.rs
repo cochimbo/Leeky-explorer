@@ -1,4 +1,42 @@
-// Event loop and operation execution
+//! Event loop and asynchronous operation execution
+//!
+//! This module implements the main event loop architecture for the file manager,
+//! handling user input, UI rendering, and background file operations.
+//!
+//! # Architecture
+//!
+//! The event loop follows a concurrent model with three main components:
+//!
+//! 1. **Input Handling**: Processes keyboard events via crossterm with 100ms timeout
+//! 2. **Operation Execution**: Runs file operations (copy/move/delete/compress) in background tasks
+//! 3. **Progress Updates**: Receives progress updates via mpsc channel and updates UI
+//!
+//! # Operation Lifecycle
+//!
+//! ```text
+//! User Input → Action → Operation Created → Background Task Spawned
+//!     ↓            ↓           ↓                      ↓
+//! handle_key → Confirm → app.current_operation → tokio::spawn
+//!                                                      ↓
+//!                                              Progress Updates
+//!                                                      ↓
+//!                                              UI Refresh (100ms)
+//!                                                      ↓
+//!                                              Completion/Error
+//! ```
+//!
+//! # Cancellation
+//!
+//! Operations support graceful cancellation via `tokio::sync::watch` channel.
+//! User presses Esc during operation → cancel signal sent → task cleanup → UI update.
+//!
+//! # Error Handling
+//!
+//! - File not found: Validated before operation starts (T951)
+//! - Permission denied: Detected in completion handler (T952)
+//! - Disk space: Checked before extraction/copy (T953)
+//! - Collisions: User prompted before overwrite (T954)
+
 use anyhow::Result;
 use crate::app::{AppState, DialogState, ConfirmAction};
 use crate::events::handler::handle_key;
@@ -13,6 +51,32 @@ use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
 /// Main event loop for the application
+///
+/// Runs the application's main loop, handling user input, rendering the UI,
+/// and managing background file operations.
+///
+/// # Architecture
+///
+/// The loop operates in cycles:
+/// 1. Process progress updates from background operations
+/// 2. Check if operations completed (success or error)
+/// 3. Start any queued operations
+/// 4. Render the current UI state
+/// 5. Poll for user input (50ms timeout)
+///
+/// # Arguments
+///
+/// * `terminal` - Ratatui terminal instance for rendering
+/// * `app` - Application state containing panels, dialogs, and operations
+///
+/// # Cancellation
+///
+/// Press Esc during a Progress dialog to cancel the current operation.
+/// The operation will cleanup partial files and return to normal state.
+///
+/// # Returns
+///
+/// `Ok(())` when user quits normally, or an error if rendering/IO fails.
 pub async fn run<B: ratatui::backend::Backend>(
     terminal: &mut Terminal<B>,
     app: &mut AppState,
@@ -65,7 +129,17 @@ pub async fn run<B: ratatui::backend::Backend>(
     Ok(())
 }
 
-/// Process all available progress updates
+/// Process all available progress updates from background operations
+///
+/// Drains the progress channel and updates the application state with
+/// the latest progress information. Handles both incremental progress
+/// and operation completion messages.
+///
+/// # Arguments
+///
+/// * `app` - Application state to update with progress
+/// * `progress_rx` - Channel receiving progress updates from background tasks
+/// * `operation_task` - Current operation task handle (for logging)
 async fn process_progress_updates(
     app: &mut AppState,
     progress_rx: &mut mpsc::Receiver<Progress>,
@@ -98,7 +172,15 @@ async fn process_progress_updates(
     }
 }
 
-/// Handle channel closed event (operation completed or failed)
+/// Handle progress channel closure (operation completed or failed)
+///
+/// Called when the progress channel is disconnected, indicating the background
+/// operation has finished. Awaits the task to get the result and updates UI.
+///
+/// # Arguments
+///
+/// * `app` - Application state to update with completion result
+/// * `operation_task` - Operation task handle to await and check result
 async fn handle_channel_closed(
     app: &mut AppState,
     operation_task: &mut Option<tokio::task::JoinHandle<Result<()>>>,
@@ -160,7 +242,15 @@ async fn handle_channel_closed(
     }
 }
 
-/// Check if current operation has completed
+/// Check if the current operation has completed
+///
+/// Polls the operation task handle to see if it has finished without blocking.
+/// If completed, processes the result and updates the UI accordingly.
+///
+/// # Arguments
+///
+/// * `app` - Application state to update on completion
+/// * `operation_task` - Operation task handle to poll
 async fn check_operation_completion(
     app: &mut AppState,
     operation_task: &mut Option<tokio::task::JoinHandle<Result<()>>>,
@@ -247,7 +337,18 @@ async fn check_operation_completion(
     }
 }
 
-/// Start a queued operation if there's no task running
+/// Start a queued operation if one is waiting and no task is running
+///
+/// Checks if `app.current_operation` exists and no task is currently executing.
+/// If so, spawns a new tokio task to execute the operation in the background.
+/// Creates a new cancellation channel for this operation.
+///
+/// # Arguments
+///
+/// * `app` - Application state containing the queued operation
+/// * `operation_task` - Mutable reference to store the spawned task handle
+/// * `progress_tx` - Channel sender for progress updates
+/// * `cancel_tx_holder` - Mutable reference to store cancellation sender
 fn start_queued_operation(
     app: &AppState,
     operation_task: &mut Option<tokio::task::JoinHandle<Result<()>>>,
