@@ -257,17 +257,19 @@ fn start_queued_operation(
     progress_tx: &mpsc::Sender<Progress>,
     cancel_tx_holder: &mut Option<tokio::sync::watch::Sender<bool>>,
 ) {
-    if app.current_operation.is_some() && operation_task.is_none() {
-        let op = app.current_operation.clone().unwrap();
-        let tx = progress_tx.clone();
-        
-        // T955: Create new cancellation channel for this operation
-        let (cancel_tx, cancel_rx) = tokio::sync::watch::channel(false);
-        *cancel_tx_holder = Some(cancel_tx);
-        
-        *operation_task = Some(tokio::spawn(async move {
-            execute_operation(op, tx, cancel_rx).await
-        }));
+    if let Some(op) = &app.current_operation {
+        if operation_task.is_none() {
+            let op = op.clone();
+            let tx = progress_tx.clone();
+            
+            // T955: Create new cancellation channel for this operation
+            let (cancel_tx, cancel_rx) = tokio::sync::watch::channel(false);
+            *cancel_tx_holder = Some(cancel_tx);
+            
+            *operation_task = Some(tokio::spawn(async move {
+                execute_operation(op, tx, cancel_rx).await
+            }));
+        }
     }
 }
 

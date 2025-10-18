@@ -362,9 +362,11 @@ fn start_copy_operation(app: &mut AppState) -> Result<()> {
         for path in &marked_paths {
             if let Ok(metadata) = std::fs::metadata(path) {
                 total_bytes += metadata.len();
-                let file_name = path.file_name().unwrap().to_string_lossy().to_string();
-                let destination = dest_panel_path.join(&file_name);
-                operations.push((path.clone(), destination, file_name));
+                if let Some(file_name) = path.file_name() {
+                    let file_name = file_name.to_string_lossy().to_string();
+                    let destination = dest_panel_path.join(&file_name);
+                    operations.push((path.clone(), destination, file_name));
+                }
             }
         }
         
@@ -461,9 +463,11 @@ fn start_copy_operation_skip_check(app: &mut AppState) -> Result<()> {
         for path in &marked_paths {
             if let Ok(metadata) = std::fs::metadata(path) {
                 total_bytes += metadata.len();
-                let file_name = path.file_name().unwrap().to_string_lossy().to_string();
-                let destination = dest_panel_path.join(&file_name);
-                operations.push((path.clone(), destination, file_name));
+                if let Some(file_name) = path.file_name() {
+                    let file_name = file_name.to_string_lossy().to_string();
+                    let destination = dest_panel_path.join(&file_name);
+                    operations.push((path.clone(), destination, file_name));
+                }
             }
         }
         
@@ -575,9 +579,11 @@ fn start_move_operation(app: &mut AppState) -> Result<()> {
         for path in &marked_paths {
             if let Ok(metadata) = std::fs::metadata(path) {
                 total_bytes += metadata.len();
-                let file_name = path.file_name().unwrap().to_string_lossy().to_string();
-                let destination = dest_panel_path.join(&file_name);
-                operations.push((path.clone(), destination, file_name));
+                if let Some(file_name) = path.file_name() {
+                    let file_name = file_name.to_string_lossy().to_string();
+                    let destination = dest_panel_path.join(&file_name);
+                    operations.push((path.clone(), destination, file_name));
+                }
             }
         }
         
@@ -631,9 +637,11 @@ fn start_move_operation_skip_check(app: &mut AppState) -> Result<()> {
         for path in &marked_paths {
             if let Ok(metadata) = std::fs::metadata(path) {
                 total_bytes += metadata.len();
-                let file_name = path.file_name().unwrap().to_string_lossy().to_string();
-                let destination = dest_panel_path.join(&file_name);
-                operations.push((path.clone(), destination, file_name));
+                if let Some(file_name) = path.file_name() {
+                    let file_name = file_name.to_string_lossy().to_string();
+                    let destination = dest_panel_path.join(&file_name);
+                    operations.push((path.clone(), destination, file_name));
+                }
             }
         }
         
@@ -1097,10 +1105,10 @@ fn handle_compress_options_dialog(app: &mut AppState, key: KeyEvent) -> Result<A
         // Enter: confirm and start compression
         (KeyCode::Enter, _) => {
             if let Some(DialogState::CompressOptions {
-                sources,
+                sources: _,
                 output_name,
-                format,
-                level,
+                format: _,
+                level: _,
                 use_password,
                 password,
                 confirm_password,

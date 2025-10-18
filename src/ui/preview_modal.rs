@@ -38,7 +38,9 @@ fn parse_ansi_line(line: &str) -> Line<'static> {
                     chars.next(); // consume 'm'
                     break;
                 }
-                code.push(chars.next().unwrap());
+                if let Some(ch) = chars.next() {
+                    code.push(ch);
+                }
             }
             
             // Parse RGB color code (38;2;R;G;B)
