@@ -19,6 +19,10 @@ pub async fn run<B: ratatui::backend::Backend>(
     let (progress_tx, mut progress_rx) = mpsc::channel::<Progress>(1000);
     let mut operation_task: Option<tokio::task::JoinHandle<Result<()>>> = None;
     
+    // T955: Cancellation channel - watch channel to signal cancellation
+    let (_cancel_tx, _cancel_rx) = tokio::sync::watch::channel(false);
+    let mut current_cancel_tx: Option<tokio::sync::watch::Sender<bool>> = None;
+    
     loop {
         // Process progress updates
         process_progress_updates(app, &mut progress_rx, &mut operation_task).await;
@@ -27,7 +31,7 @@ pub async fn run<B: ratatui::backend::Backend>(
         check_operation_completion(app, &mut operation_task).await;
         
         // Start new operation if one is queued
-        start_queued_operation(app, &mut operation_task, &progress_tx);
+        start_queued_operation(app, &mut operation_task, &progress_tx, &mut current_cancel_tx);
         
         // Draw UI
         render_ui(terminal, app)?;
@@ -35,6 +39,18 @@ pub async fn run<B: ratatui::backend::Backend>(
         // Handle input
         if event::poll(Duration::from_millis(50))? {
             if let Event::Key(key) = event::read()? {
+                // T955: Check if user pressed Esc during progress dialog to cancel
+                if let Some(DialogState::Progress { .. }) = &app.dialog_state {
+                    if matches!(key.code, crossterm::event::KeyCode::Esc) {
+                        log::info!("User requested operation cancellation");
+                        if let Some(ref cancel_sender) = current_cancel_tx {
+                            let _ = cancel_sender.send(true);
+                            log::info!("Cancellation signal sent");
+                        }
+                        continue; // Don't process other actions while canceling
+                    }
+                }
+                
                 let action = handle_key(app, key)?;
                 
                 if action == Action::Quit {
@@ -231,13 +247,18 @@ fn start_queued_operation(
     app: &AppState,
     operation_task: &mut Option<tokio::task::JoinHandle<Result<()>>>,
     progress_tx: &mpsc::Sender<Progress>,
+    cancel_tx_holder: &mut Option<tokio::sync::watch::Sender<bool>>,
 ) {
     if app.current_operation.is_some() && operation_task.is_none() {
         let op = app.current_operation.clone().unwrap();
         let tx = progress_tx.clone();
         
+        // T955: Create new cancellation channel for this operation
+        let (cancel_tx, cancel_rx) = tokio::sync::watch::channel(false);
+        *cancel_tx_holder = Some(cancel_tx);
+        
         *operation_task = Some(tokio::spawn(async move {
-            execute_operation(op, tx).await
+            execute_operation(op, tx, cancel_rx).await
         }));
     }
 }
@@ -631,13 +652,14 @@ fn start_extraction_with_password(
 async fn execute_operation(
     operation: Operation,
     progress_tx: mpsc::Sender<Progress>,
+    cancel_rx: tokio::sync::watch::Receiver<bool>,
 ) -> Result<()> {
     log::info!("Executing operation: {:?}", operation.operation_type);
     
     if operation.is_batch() {
-        execute_batch_operation(operation, progress_tx).await
+        execute_batch_operation(operation, progress_tx, cancel_rx).await
     } else {
-        execute_single_operation(operation, progress_tx).await
+        execute_single_operation(operation, progress_tx, cancel_rx).await
     }
 }
 
@@ -645,6 +667,7 @@ async fn execute_operation(
 async fn execute_batch_operation(
     operation: Operation,
     progress_tx: mpsc::Sender<Progress>,
+    cancel_rx: tokio::sync::watch::Receiver<bool>,
 ) -> Result<()> {
     let Some(batch_items) = &operation.batch_items else {
         return Err(anyhow::anyhow!("Batch operation without batch items"));
@@ -664,6 +687,12 @@ async fn execute_batch_operation(
     });
     
     for (source, destination, _name) in batch_items {
+        // T955: Check if operation was cancelled
+        if *cancel_rx.borrow() {
+            log::info!("Batch operation cancelled by user");
+            return Err(anyhow::anyhow!("Operation cancelled by user"));
+        }
+        
         let file_size = execute_single_batch_item(
             &operation.operation_type,
             source,
@@ -756,6 +785,7 @@ async fn execute_single_batch_item(
 async fn execute_single_operation(
     operation: Operation,
     progress_tx: mpsc::Sender<Progress>,
+    cancel_rx: tokio::sync::watch::Receiver<bool>,
 ) -> Result<()> {
     match operation.operation_type {
         OperationType::Copy => {
@@ -802,7 +832,7 @@ async fn execute_single_operation(
             }
         }
         OperationType::Extract => {
-            execute_extract_operation(operation, progress_tx).await?;
+            execute_extract_operation(operation, progress_tx, cancel_rx).await?;
         }
     }
     
@@ -813,6 +843,7 @@ async fn execute_single_operation(
 async fn execute_extract_operation(
     operation: Operation,
     progress_tx: mpsc::Sender<Progress>,
+    mut cancel_rx: tokio::sync::watch::Receiver<bool>,
 ) -> Result<()> {
     let Some(format) = operation.archive_format else {
         return Err(anyhow::anyhow!("Extract operation missing archive format"));
@@ -820,6 +851,7 @@ async fn execute_extract_operation(
     
     let source = operation.source.clone();
     let destination = operation.destination.clone();
+    let destination_for_cleanup = destination.clone(); // For cleanup on cancel
     let password = operation.password.clone();
     let tx = progress_tx.clone();
     
@@ -847,17 +879,43 @@ async fn execute_extract_operation(
     
     // Extract in blocking task
     log::info!("Spawning blocking extraction task");
-    let extract_handle = tokio::task::spawn_blocking(move || {
+    let mut extract_handle = tokio::task::spawn_blocking(move || {
         crate::archive::extractor::extract_archive_unbounded(&source, &destination, format, password, progress_sender)
     });
     
-    // Wait for extraction to complete
-    let extract_result = extract_handle.await?;
-    
-    // Wait for all progress messages to be forwarded
-    let _ = forward_handle.await;
-    
-    extract_result?;
-    
-    Ok(())
+    // T955: Wait for extraction to complete OR cancellation
+    loop {
+        tokio::select! {
+            result = &mut extract_handle => {
+                // Extraction completed (or failed)
+                let extract_result = result?;
+                
+                // Wait for all progress messages to be forwarded
+                let _ = forward_handle.await;
+                
+                extract_result?;
+                
+                return Ok(());
+            }
+            _ = cancel_rx.changed() => {
+                // User requested cancellation
+                if *cancel_rx.borrow() {
+                    log::info!("Extraction cancelled by user, aborting task");
+                    extract_handle.abort();
+                    
+                    // Wait a bit for cleanup
+                    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+                    
+                    // Try to remove partial extraction
+                    if destination_for_cleanup.exists() {
+                        log::info!("Removing partial extraction: {:?}", destination_for_cleanup);
+                        let _ = tokio::fs::remove_dir_all(&destination_for_cleanup).await;
+                    }
+                    
+                    return Err(anyhow::anyhow!("Extraction cancelled by user"));
+                }
+                // If false alarm, continue loop
+            }
+        }
+    }
 }
