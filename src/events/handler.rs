@@ -779,7 +779,12 @@ fn handle_password_input_dialog(app: &mut AppState, key: KeyEvent) -> Result<Act
 
 // T844: Handle collision dialog
 fn handle_collision_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
-    use crossterm::event::{KeyCode, KeyModifiers};
+    use crossterm::event::{KeyCode, KeyModifiers, KeyEventKind};
+    
+    // BUG-002 FIX: Filter out key release events to prevent double processing
+    if key.kind != KeyEventKind::Press {
+        return Ok(Action::None);
+    }
     
     match (key.code, key.modifiers) {
         // Enter: confirm selected option
