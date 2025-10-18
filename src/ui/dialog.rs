@@ -292,7 +292,8 @@ pub fn render_error_dialog(frame: &mut Frame, message: &str, area: Rect) {
         .style(Style::default().fg(Color::Red));
     frame.render_widget(text, chunks[0]);
     
-    let help_text = Paragraph::new("Press any key to close")
+    // BUG-001 FIX: Make it clearer that ESC closes the error dialog
+    let help_text = Paragraph::new("Presiona ESC para cerrar")
         .alignment(Alignment::Center)
         .style(Style::default().fg(Color::Gray));
     frame.render_widget(help_text, chunks[1]);

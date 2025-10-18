@@ -696,9 +696,21 @@ fn handle_input_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
         Action::ConfirmInput => {
             if let Some(value) = app.get_input_value()
                 && !value.is_empty() {
-                    create_folder(app, &value)?;
+                    // BUG-001 FIX: Only close dialog if create_folder succeeds
+                    if create_folder(app, &value).is_ok() && app.error_message.is_none() {
+                        app.close_dialog();
+                    } else {
+                        // Keep dialog open to show error, but clear input to allow retry
+                        // Actually, convert to error dialog
+                        if let Some(err_msg) = app.error_message.take() {
+                            app.dialog_state = Some(DialogState::Error {
+                                message: err_msg,
+                            });
+                        }
+                    }
+                } else {
+                    app.close_dialog();
                 }
-            app.close_dialog();
         }
         Action::InputChar(c) => {
             app.input_dialog_append(c);
@@ -873,6 +885,19 @@ fn create_folder(app: &mut AppState, folder_name: &str) -> Result<()> {
     let panel = app.active_panel();
     let new_path = panel.current_path.join(folder_name);
     
+    // BUG-001 FIX: Check if directory already exists
+    if new_path.exists() {
+        if new_path.is_dir() {
+            log::warn!("Folder already exists: {:?}", new_path);
+            app.error_message = Some(format!("El directorio '{}' ya existe", folder_name));
+            return Ok(()); // Don't crash, just show error
+        } else {
+            log::warn!("File with same name exists: {:?}", new_path);
+            app.error_message = Some(format!("Ya existe un archivo con el nombre '{}'", folder_name));
+            return Ok(());
+        }
+    }
+    
     // T851d: Log folder creation
     log::info!("Creating folder: {:?}", new_path);
     
@@ -886,7 +911,8 @@ fn create_folder(app: &mut AppState, folder_name: &str) -> Result<()> {
         }
         Err(e) => {
             log::error!("Failed to create folder {:?}: {}", new_path, e);
-            Err(e.into())
+            app.error_message = Some(format!("No se pudo crear el directorio: {}", e));
+            Ok(()) // Don't crash, show error message instead
         }
     }
 }
