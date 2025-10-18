@@ -1,9 +1,10 @@
 // Application state management
-use crate::models::panel::Panel;
-use crate::models::operation::Operation;
-use crate::models::file_entry::{FileEntry, EntryType};
-use crate::models::selection::SelectionState;
 use std::path::{Path, PathBuf};
+
+use crate::models::file_entry::{FileEntry, EntryType};
+use crate::models::operation::Operation;
+use crate::models::panel::Panel;
+use crate::models::selection::SelectionState;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PanelSide {

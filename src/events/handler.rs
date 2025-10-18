@@ -1,9 +1,10 @@
 // Event handler
+use anyhow::Result;
+use crossterm::event::KeyEvent;
+
 use crate::app::{AppState, ConfirmAction, DialogState};
 use crate::events::keybindings::{map_key_to_action, map_key_to_input_action, Action};
 use crate::models::operation::Operation;
-use anyhow::Result;
-use crossterm::event::KeyEvent;
 
 pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
     // T627: Special handling for preview mode

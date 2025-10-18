@@ -37,18 +37,20 @@
 //! - Disk space: Checked before extraction/copy (T953)
 //! - Collisions: User prompted before overwrite (T954)
 
+use std::path::Path;
+use std::time::Duration;
+
 use anyhow::Result;
+use crossterm::event::{self, Event};
+use ratatui::Terminal;
+use tokio::sync::mpsc;
+use tokio::task::JoinHandle;
+
 use crate::app::{AppState, DialogState, ConfirmAction};
 use crate::events::handler::handle_key;
 use crate::events::keybindings::Action;
 use crate::models::operation::{Operation, OperationType, Progress};
 use crate::ui;
-use crossterm::event::{self, Event};
-use ratatui::Terminal;
-use std::path::Path;
-use std::time::Duration;
-use tokio::sync::mpsc;
-use tokio::task::JoinHandle;
 
 /// Main event loop for the application
 ///
