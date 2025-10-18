@@ -58,7 +58,7 @@ pub async fn run<B: ratatui::backend::Backend>(
                     break;
                 }
                 
-                handle_action(app, action).await?;
+                handle_action(app, action, current_cancel_tx.as_ref()).await?;
             }
         }
     }
@@ -308,7 +308,11 @@ fn render_ui<B: ratatui::backend::Backend>(
 }
 
 /// Handle different actions
-async fn handle_action(app: &mut AppState, action: Action) -> Result<()> {
+async fn handle_action(
+    app: &mut AppState,
+    action: Action,
+    cancel_tx: Option<&tokio::sync::watch::Sender<bool>>,
+) -> Result<()> {
     match action {
         Action::OpenPreview => {
             app.open_text_preview().await?;
@@ -320,7 +324,7 @@ async fn handle_action(app: &mut AppState, action: Action) -> Result<()> {
             app.start_compress_archive()?;
         }
         Action::ConfirmYes => {
-            handle_confirm_action(app).await?;
+            handle_confirm_action(app, cancel_tx).await?;
         }
         _ => {}
     }
@@ -329,7 +333,10 @@ async fn handle_action(app: &mut AppState, action: Action) -> Result<()> {
 }
 
 /// Handle confirmation actions (extraction dialogs)
-async fn handle_confirm_action(app: &mut AppState) -> Result<()> {
+async fn handle_confirm_action(
+    app: &mut AppState,
+    cancel_tx: Option<&tokio::sync::watch::Sender<bool>>,
+) -> Result<()> {
     log::info!("handle_confirm_action called");
     // Clone the dialog state to avoid borrow checker issues
     let dialog_state = app.dialog_state.clone();
@@ -348,7 +355,14 @@ async fn handle_confirm_action(app: &mut AppState) -> Result<()> {
                 handle_password_input(app, &archive_path, &dest_path, &format, &value)?;
             }
             DialogState::CompressOptions { sources, output_name, format, level, use_password, password, .. } => {
-                handle_compress_options(app, sources, &output_name, format, level, use_password, &password).await?;
+                // Create cancel receiver from cancel_tx
+                let (_cancel_tx_local, cancel_rx) = tokio::sync::watch::channel(false);
+                let cancel_rx_to_use = if let Some(tx) = cancel_tx {
+                    tx.subscribe()
+                } else {
+                    cancel_rx
+                };
+                handle_compress_options(app, sources, &output_name, format, level, use_password, &password, cancel_rx_to_use).await?;
             }
             DialogState::Confirm { confirm_action, .. } => {
                 if let ConfirmAction::ExtractArchive { source, dest, format } = confirm_action {
@@ -435,6 +449,7 @@ async fn handle_compress_options(
     level: crate::archive::compressor::CompressionLevel,
     use_password: bool,
     password: &str,
+    cancel_rx: tokio::sync::watch::Receiver<bool>,
 ) -> Result<()> {
     use crate::archive::formats::ArchiveFormat;
     
@@ -509,14 +524,53 @@ async fn handle_compress_options(
     
     // Spawn compression task
     let sources_clone = sources.clone();
+    let dest_path_clone = dest_path.clone();
     let task = tokio::task::spawn_blocking(move || {
         crate::archive::compress_archive(&sources_clone, opts, progress_tx)
     });
     
-    // Process progress updates
-    while let Some(progress) = progress_rx.recv().await {
-        if let Some(op) = &mut app.current_operation {
-            op.progress = progress;
+    // Use tokio::select! to handle both progress updates and cancellation
+    let mut cancel_rx_clone = cancel_rx.clone();
+    loop {
+        tokio::select! {
+            // Process progress updates
+            progress_result = progress_rx.recv() => {
+                match progress_result {
+                    Some(progress) => {
+                        if let Some(op) = &mut app.current_operation {
+                            op.progress = progress;
+                        }
+                    }
+                    None => {
+                        // Progress channel closed, task finished
+                        break;
+                    }
+                }
+            }
+            
+            // Check for cancellation
+            _ = cancel_rx_clone.changed() => {
+                if *cancel_rx_clone.borrow() {
+                    log::info!("Compression cancellation requested");
+                    
+                    // Abort the compression task
+                    task.abort();
+                    
+                    // Small delay to let the task abort
+                    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+                    
+                    // Clean up partial archive if it exists
+                    if dest_path_clone.exists() {
+                        log::info!("Removing partial archive: {:?}", dest_path_clone);
+                        let _ = tokio::fs::remove_file(&dest_path_clone).await;
+                    }
+                    
+                    app.close_dialog();
+                    app.show_error("Compresión cancelada por el usuario".to_string());
+                    
+                    return Err(anyhow::anyhow!("Compression cancelled by user"));
+                }
+            }
         }
     }
     
