@@ -21,11 +21,75 @@ A fast, dual-pane terminal file manager built with Rust and Ratatui.
 
 ## 📦 Installation
 
+### Pre-built Binaries (Recommended)
+
+Download the latest release for your platform from [GitLab Releases](https://gitlab.com/cochimbo/Leeky-explorer/-/releases):
+
+**Linux (x86_64)**:
+```bash
+# Download and extract
+wget https://gitlab.com/cochimbo/Leeky-explorer/-/releases/v0.1.0/downloads/leeky-explorer-v0.1.0-linux-x86_64.tar.gz
+tar -xzf leeky-explorer-v0.1.0-linux-x86_64.tar.gz
+
+# Verify checksum (optional)
+sha256sum -c leeky-explorer-v0.1.0-linux-x86_64.tar.gz.sha256
+
+# Move to PATH
+sudo mv leeky-explorer /usr/local/bin/
+
+# Run
+leeky-explorer
+```
+
+**Windows (x86_64)**:
+```powershell
+# Download from GitLab Releases page or use PowerShell
+Invoke-WebRequest -Uri "https://gitlab.com/cochimbo/Leeky-explorer/-/releases/v0.1.0/downloads/leeky-explorer-v0.1.0-windows-x86_64.zip" -OutFile "leeky-explorer.zip"
+
+# Extract
+Expand-Archive leeky-explorer.zip -DestinationPath .
+
+# Verify checksum (optional)
+Get-FileHash leeky-explorer.exe -Algorithm SHA256
+
+# Add to PATH or run directly
+.\leeky-explorer.exe
+```
+
+**macOS (Intel)**:
+```bash
+# Download and extract
+curl -L -o leeky-explorer.tar.gz https://gitlab.com/cochimbo/Leeky-explorer/-/releases/v0.1.0/downloads/leeky-explorer-v0.1.0-macos-x86_64.tar.gz
+tar -xzf leeky-explorer.tar.gz
+
+# Verify checksum (optional)
+shasum -a 256 -c leeky-explorer-v0.1.0-macos-x86_64.tar.gz.sha256
+
+# Move to PATH
+sudo mv leeky-explorer /usr/local/bin/
+
+# Run (may need to allow in System Preferences > Security)
+leeky-explorer
+```
+
+**macOS (M1/M2 ARM)**:
+```bash
+# Download and extract
+curl -L -o leeky-explorer.tar.gz https://gitlab.com/cochimbo/Leeky-explorer/-/releases/v0.1.0/downloads/leeky-explorer-v0.1.0-macos-arm64.tar.gz
+tar -xzf leeky-explorer.tar.gz
+
+# Move to PATH
+sudo mv leeky-explorer /usr/local/bin/
+
+# Run
+leeky-explorer
+```
+
 ### From Source
 
 ```bash
 # Clone the repository
-git clone https://github.com/cochimbo/Leeky-explorer.git
+git clone https://gitlab.com/cochimbo/Leeky-explorer.git
 cd Leeky-explorer
 
 # Build and install
@@ -33,6 +97,29 @@ cargo install --path .
 
 # Run
 leeky-explorer
+```
+
+### Build Locally
+
+**Using Make** (Linux/macOS):
+```bash
+# Build release binary
+make build-release
+
+# Or build for all platforms
+make build-all
+
+# Create distribution packages
+make package
+```
+
+**Using PowerShell** (Windows):
+```powershell
+# Build release binary
+.\build.ps1 release
+
+# Run tests and create package
+.\build.ps1 all
 ```
 
 ### Prerequisites

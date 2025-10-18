@@ -1,0 +1,197 @@
+# GitLab CI/CD Pipeline for Leeky Explorer
+# Builds binaries for Windows, Linux, and macOS
+
+stages:
+  - test
+  - build
+  - release
+
+variables:
+  CARGO_HOME: $CI_PROJECT_DIR/.cargo
+  RUST_VERSION: "1.70"
+
+# Cache Rust dependencies between jobs
+.cache_template: &cache_template
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - .cargo/
+      - target/
+
+# Test stage - run on every commit
+test:
+  stage: test
+  image: rust:${RUST_VERSION}
+  <<: *cache_template
+  script:
+    - rustc --version
+    - cargo --version
+    - cargo test --all-targets --verbose
+    - cargo clippy -- -D warnings
+  only:
+    - branches
+    - tags
+
+# Build for Linux (x86_64)
+build:linux:
+  stage: build
+  image: rust:${RUST_VERSION}
+  <<: *cache_template
+  script:
+    - cargo build --release --target x86_64-unknown-linux-gnu
+    - mkdir -p builds/linux
+    - cp target/x86_64-unknown-linux-gnu/release/leeky-explorer builds/linux/
+    - cd builds/linux
+    - tar -czf leeky-explorer-${CI_COMMIT_TAG:-latest}-linux-x86_64.tar.gz leeky-explorer
+    - sha256sum leeky-explorer-${CI_COMMIT_TAG:-latest}-linux-x86_64.tar.gz > leeky-explorer-${CI_COMMIT_TAG:-latest}-linux-x86_64.tar.gz.sha256
+  artifacts:
+    name: "leeky-explorer-${CI_COMMIT_TAG:-latest}-linux-x86_64"
+    paths:
+      - builds/linux/leeky-explorer-${CI_COMMIT_TAG:-latest}-linux-x86_64.tar.gz
+      - builds/linux/leeky-explorer-${CI_COMMIT_TAG:-latest}-linux-x86_64.tar.gz.sha256
+    expire_in: 1 week
+  only:
+    - tags
+    - main
+
+# Build for Windows (x86_64)
+build:windows:
+  stage: build
+  image: rust:${RUST_VERSION}
+  <<: *cache_template
+  before_script:
+    - apt-get update
+    - apt-get install -y mingw-w64
+    - rustup target add x86_64-pc-windows-gnu
+  script:
+    - cargo build --release --target x86_64-pc-windows-gnu
+    - mkdir -p builds/windows
+    - cp target/x86_64-pc-windows-gnu/release/leeky-explorer.exe builds/windows/
+    - cd builds/windows
+    - apt-get install -y zip
+    - zip leeky-explorer-${CI_COMMIT_TAG:-latest}-windows-x86_64.zip leeky-explorer.exe
+    - sha256sum leeky-explorer-${CI_COMMIT_TAG:-latest}-windows-x86_64.zip > leeky-explorer-${CI_COMMIT_TAG:-latest}-windows-x86_64.zip.sha256
+  artifacts:
+    name: "leeky-explorer-${CI_COMMIT_TAG:-latest}-windows-x86_64"
+    paths:
+      - builds/windows/leeky-explorer-${CI_COMMIT_TAG:-latest}-windows-x86_64.zip
+      - builds/windows/leeky-explorer-${CI_COMMIT_TAG:-latest}-windows-x86_64.zip.sha256
+    expire_in: 1 week
+  only:
+    - tags
+    - main
+
+# Build for macOS (x86_64) - requires macOS runner
+build:macos-x86:
+  stage: build
+  tags:
+    - macos
+  <<: *cache_template
+  before_script:
+    - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+    - source $HOME/.cargo/env
+    - rustup target add x86_64-apple-darwin
+  script:
+    - cargo build --release --target x86_64-apple-darwin
+    - mkdir -p builds/macos-x86
+    - cp target/x86_64-apple-darwin/release/leeky-explorer builds/macos-x86/
+    - cd builds/macos-x86
+    - tar -czf leeky-explorer-${CI_COMMIT_TAG:-latest}-macos-x86_64.tar.gz leeky-explorer
+    - shasum -a 256 leeky-explorer-${CI_COMMIT_TAG:-latest}-macos-x86_64.tar.gz > leeky-explorer-${CI_COMMIT_TAG:-latest}-macos-x86_64.tar.gz.sha256
+  artifacts:
+    name: "leeky-explorer-${CI_COMMIT_TAG:-latest}-macos-x86_64"
+    paths:
+      - builds/macos-x86/leeky-explorer-${CI_COMMIT_TAG:-latest}-macos-x86_64.tar.gz
+      - builds/macos-x86/leeky-explorer-${CI_COMMIT_TAG:-latest}-macos-x86_64.tar.gz.sha256
+    expire_in: 1 week
+  only:
+    - tags
+    - main
+  allow_failure: true  # macOS runner might not be available
+
+# Build for macOS (ARM64/M1) - requires macOS ARM runner
+build:macos-arm:
+  stage: build
+  tags:
+    - macos-arm
+  <<: *cache_template
+  before_script:
+    - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+    - source $HOME/.cargo/env
+    - rustup target add aarch64-apple-darwin
+  script:
+    - cargo build --release --target aarch64-apple-darwin
+    - mkdir -p builds/macos-arm
+    - cp target/aarch64-apple-darwin/release/leeky-explorer builds/macos-arm/
+    - cd builds/macos-arm
+    - tar -czf leeky-explorer-${CI_COMMIT_TAG:-latest}-macos-arm64.tar.gz leeky-explorer
+    - shasum -a 256 leeky-explorer-${CI_COMMIT_TAG:-latest}-macos-arm64.tar.gz > leeky-explorer-${CI_COMMIT_TAG:-latest}-macos-arm64.tar.gz.sha256
+  artifacts:
+    name: "leeky-explorer-${CI_COMMIT_TAG:-latest}-macos-arm64"
+    paths:
+      - builds/macos-arm/leeky-explorer-${CI_COMMIT_TAG:-latest}-macos-arm64.tar.gz
+      - builds/macos-arm/leeky-explorer-${CI_COMMIT_TAG:-latest}-macos-arm64.tar.gz.sha256
+    expire_in: 1 week
+  only:
+    - tags
+    - main
+  allow_failure: true  # ARM runner might not be available
+
+# Create GitLab Release (only on tags)
+release:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  dependencies:
+    - build:linux
+    - build:windows
+    - build:macos-x86
+    - build:macos-arm
+  script:
+    - echo "Creating release for ${CI_COMMIT_TAG}"
+  release:
+    tag_name: '${CI_COMMIT_TAG}'
+    description: |
+      ## Leeky Explorer ${CI_COMMIT_TAG}
+      
+      Fast, dual-pane terminal file manager built with Rust.
+      
+      ### 📦 Downloads
+      
+      Choose the appropriate binary for your platform:
+      
+      - **Linux (x86_64)**: `leeky-explorer-${CI_COMMIT_TAG}-linux-x86_64.tar.gz`
+      - **Windows (x86_64)**: `leeky-explorer-${CI_COMMIT_TAG}-windows-x86_64.zip`
+      - **macOS (Intel)**: `leeky-explorer-${CI_COMMIT_TAG}-macos-x86_64.tar.gz`
+      - **macOS (M1/M2)**: `leeky-explorer-${CI_COMMIT_TAG}-macos-arm64.tar.gz`
+      
+      ### ✅ Verification
+      
+      Verify downloads using SHA256 checksums (`.sha256` files included).
+      
+      ```bash
+      # Linux/macOS
+      sha256sum -c leeky-explorer-*.tar.gz.sha256
+      
+      # Windows PowerShell
+      Get-FileHash leeky-explorer-*.zip -Algorithm SHA256
+      ```
+      
+      ### 📖 Documentation
+      
+      See [README.md](README.md) for installation and usage instructions.
+    assets:
+      links:
+        - name: 'Linux x86_64 Binary'
+          url: '${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/jobs/artifacts/${CI_COMMIT_TAG}/raw/builds/linux/leeky-explorer-${CI_COMMIT_TAG}-linux-x86_64.tar.gz?job=build:linux'
+          link_type: 'package'
+        - name: 'Windows x86_64 Binary'
+          url: '${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/jobs/artifacts/${CI_COMMIT_TAG}/raw/builds/windows/leeky-explorer-${CI_COMMIT_TAG}-windows-x86_64.zip?job=build:windows'
+          link_type: 'package'
+        - name: 'macOS x86_64 Binary'
+          url: '${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/jobs/artifacts/${CI_COMMIT_TAG}/raw/builds/macos-x86/leeky-explorer-${CI_COMMIT_TAG}-macos-x86_64.tar.gz?job=build:macos-x86'
+          link_type: 'package'
+        - name: 'macOS ARM64 Binary'
+          url: '${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/jobs/artifacts/${CI_COMMIT_TAG}/raw/builds/macos-arm/leeky-explorer-${CI_COMMIT_TAG}-macos-arm64.tar.gz?job=build:macos-arm'
+          link_type: 'package'
+  only:
+    - tags
