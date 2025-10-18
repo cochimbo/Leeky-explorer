@@ -17,10 +17,9 @@ pub fn get_icon_for_entry(entry: &FileEntry) -> &'static str {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        if let Some(mode) = entry.permissions.as_ref().map(|p| p.mode()) {
-            if mode & 0o111 != 0 {
-                return "⚡"; // T870: Executable file
-            }
+        let mode = entry.permissions.mode();
+        if mode & 0o111 != 0 {
+            return "⚡"; // T870: Executable file
         }
     }
     

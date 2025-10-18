@@ -142,8 +142,10 @@ fn extract_zip_unbounded(
                 fs::create_dir_all(parent)?;
             }
             
-            // Get file size before wrapping in ProgressReader
+            // Get file size and unix mode before moving file
             let file_size = file.size();
+            #[cfg(unix)]
+            let unix_mode = file.unix_mode();
             
             // Extract file with real-time progress updates
             let mut out_file = File::create(&out_path)?;
@@ -167,7 +169,7 @@ fn extract_zip_unbounded(
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt;
-                if let Some(mode) = file.unix_mode() {
+                if let Some(mode) = unix_mode {
                     let permissions = std::fs::Permissions::from_mode(mode);
                     fs::set_permissions(&out_path, permissions)?;
                 }
@@ -354,6 +356,9 @@ fn extract_tar_unbounded(
             files_total: total_files,
         });
         
+        // Get entry size before extraction
+        let entry_size = entry.size();
+        
         // T831: Handle symlinks (Unix only)
         #[cfg(unix)]
         {
@@ -367,7 +372,7 @@ fn extract_tar_unbounded(
         
         // T829: Extract with directory creation
         entry.unpack(&out_path)?;
-        bytes_extracted += entry.size();
+        bytes_extracted += entry_size;
     }
     
     // Send final progress
