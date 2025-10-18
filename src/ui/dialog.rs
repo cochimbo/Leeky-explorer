@@ -32,6 +32,10 @@ pub fn render_dialog(frame: &mut Frame, dialog: &DialogState, area: Rect) {
         DialogState::CollisionPrompt { file_path, selected, operation: _ } => {
             render_collision_dialog(frame, file_path, *selected, area);
         }
+        // T930: Render compression options dialog
+        DialogState::CompressOptions { sources, output_name, format, level, use_password, password, confirm_password, selected_field } => {
+            render_compress_options_dialog(frame, sources, output_name, format, level, *use_password, password, confirm_password, *selected_field, area);
+        }
     }
 }
 
@@ -473,6 +477,237 @@ pub fn render_collision_dialog(frame: &mut Frame, file_path: &str, selected: usi
     ]))
     .alignment(Alignment::Center);
     frame.render_widget(instructions, chunks[8]);
+}
+
+// T930-T936: Render compression options dialog
+#[allow(clippy::too_many_arguments)]
+fn render_compress_options_dialog(
+    frame: &mut Frame,
+    sources: &[std::path::PathBuf],
+    output_name: &str,
+    format: &crate::archive::formats::ArchiveFormat,
+    level: &crate::archive::compressor::CompressionLevel,
+    use_password: bool,
+    password: &str,
+    confirm_password: &str,
+    selected_field: usize,
+    area: Rect,
+) {
+    let dialog_area = centered_rect(80, 70, area);
+    
+    frame.render_widget(Clear, dialog_area);
+    
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(" Comprimir Archivos ")
+        .style(Style::default().bg(Color::Black).fg(Color::Cyan));
+    
+    let inner = block.inner(dialog_area);
+    frame.render_widget(block, dialog_area);
+    
+    // Create layout
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .margin(1)
+        .constraints([
+            Constraint::Length(2), // Source count
+            Constraint::Length(1), // Spacer
+            Constraint::Length(3), // Output name
+            Constraint::Length(3), // Format selector
+            Constraint::Length(3), // Compression level
+            Constraint::Length(3), // Password checkbox
+            Constraint::Length(3), // Password field (if enabled)
+            Constraint::Length(3), // Confirm password (if enabled)
+            Constraint::Length(2), // Estimated size
+            Constraint::Length(1), // Spacer
+            Constraint::Length(2), // Instructions
+        ])
+        .split(inner);
+    
+    // Source count
+    let count_text = if sources.len() == 1 {
+        format!("📦 Comprimir 1 elemento")
+    } else {
+        format!("📦 Comprimir {} elementos", sources.len())
+    };
+    let source_info = Paragraph::new(count_text)
+        .style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
+        .alignment(Alignment::Center);
+    frame.render_widget(source_info, chunks[0]);
+    
+    // Output name field
+    let name_style = if selected_field == 0 {
+        Style::default().fg(Color::Black).bg(Color::Cyan)
+    } else {
+        Style::default().fg(Color::White)
+    };
+    
+    // Get extension for current format
+    let extension = match format {
+        crate::archive::formats::ArchiveFormat::ZIP => ".zip",
+        crate::archive::formats::ArchiveFormat::TarGz => ".tar.gz",
+        crate::archive::formats::ArchiveFormat::TarBz2 => ".tar.bz2",
+        crate::archive::formats::ArchiveFormat::TarXz => ".tar.xz",
+        crate::archive::formats::ArchiveFormat::TAR => ".tar",
+        crate::archive::formats::ArchiveFormat::SEVENZ => ".7z",
+        _ => ".zip",
+    };
+    
+    let name_field = Paragraph::new(Line::from(vec![
+        Span::styled(" Nombre: ", Style::default().fg(Color::Green)),
+        Span::styled(output_name, name_style),
+        Span::styled("_", name_style),
+        Span::styled(extension, Style::default().fg(Color::DarkGray)), // Show extension as hint
+    ]))
+    .block(Block::default().borders(Borders::ALL).border_style(
+        if selected_field == 0 {
+            Style::default().fg(Color::Cyan)
+        } else {
+            Style::default().fg(Color::DarkGray)
+        }
+    ));
+    frame.render_widget(name_field, chunks[2]);
+    
+    // T931: Format selector
+    let format_text = match format {
+        crate::archive::formats::ArchiveFormat::ZIP => "ZIP (rápido, compatible)",
+        crate::archive::formats::ArchiveFormat::TarGz => "TAR.GZ (Linux, buena compresión)",
+        crate::archive::formats::ArchiveFormat::TarBz2 => "TAR.BZ2 (mejor compresión)",
+        crate::archive::formats::ArchiveFormat::TarXz => "TAR.XZ (máxima compresión)",
+        _ => "ZIP (rápido, compatible)",
+    };
+    let format_style = if selected_field == 1 {
+        Style::default().fg(Color::Black).bg(Color::Cyan)
+    } else {
+        Style::default().fg(Color::White)
+    };
+    let format_field = Paragraph::new(Line::from(vec![
+        Span::styled(" Formato: ", Style::default().fg(Color::Green)),
+        Span::styled("◀ ", if selected_field == 1 { Style::default().fg(Color::Cyan) } else { Style::default().fg(Color::DarkGray) }),
+        Span::styled(format_text, format_style),
+        Span::styled(" ▶", if selected_field == 1 { Style::default().fg(Color::Cyan) } else { Style::default().fg(Color::DarkGray) }),
+    ]))
+    .block(Block::default().borders(Borders::ALL).border_style(
+        if selected_field == 1 {
+            Style::default().fg(Color::Cyan)
+        } else {
+            Style::default().fg(Color::DarkGray)
+        }
+    ));
+    frame.render_widget(format_field, chunks[3]);
+    
+    // T932: Compression level selector
+    let level_text = match level {
+        crate::archive::compressor::CompressionLevel::Fast => "Rápido (1)",
+        crate::archive::compressor::CompressionLevel::Normal => "Normal (6)",
+        crate::archive::compressor::CompressionLevel::Maximum => "Máximo (9)",
+    };
+    let level_style = if selected_field == 2 {
+        Style::default().fg(Color::Black).bg(Color::Cyan)
+    } else {
+        Style::default().fg(Color::White)
+    };
+    let level_field = Paragraph::new(Line::from(vec![
+        Span::styled(" Nivel: ", Style::default().fg(Color::Green)),
+        Span::styled("◀ ", if selected_field == 2 { Style::default().fg(Color::Cyan) } else { Style::default().fg(Color::DarkGray) }),
+        Span::styled(level_text, level_style),
+        Span::styled(" ▶", if selected_field == 2 { Style::default().fg(Color::Cyan) } else { Style::default().fg(Color::DarkGray) }),
+    ]))
+    .block(Block::default().borders(Borders::ALL).border_style(
+        if selected_field == 2 {
+            Style::default().fg(Color::Cyan)
+        } else {
+            Style::default().fg(Color::DarkGray)
+        }
+    ));
+    frame.render_widget(level_field, chunks[4]);
+    
+    // T933: Password checkbox
+    let checkbox_style = if selected_field == 3 {
+        Style::default().fg(Color::Black).bg(Color::Cyan)
+    } else {
+        Style::default().fg(Color::White)
+    };
+    let checkbox_text = if use_password { "[✓]" } else { "[ ]" };
+    let password_checkbox = Paragraph::new(Line::from(vec![
+        Span::styled(" ", Style::default()),
+        Span::styled(checkbox_text, checkbox_style),
+        Span::styled(" Proteger con contraseña", checkbox_style),
+    ]))
+    .block(Block::default().borders(Borders::ALL).border_style(
+        if selected_field == 3 {
+            Style::default().fg(Color::Cyan)
+        } else {
+            Style::default().fg(Color::DarkGray)
+        }
+    ));
+    frame.render_widget(password_checkbox, chunks[5]);
+    
+    // T934: Password fields (only if checkbox enabled)
+    if use_password {
+        let pass_style = if selected_field == 4 {
+            Style::default().fg(Color::Black).bg(Color::Cyan)
+        } else {
+            Style::default().fg(Color::White)
+        };
+        let masked = "*".repeat(password.len());
+        let password_field = Paragraph::new(Line::from(vec![
+            Span::styled(" Contraseña: ", Style::default().fg(Color::Green)),
+            Span::styled(&masked, pass_style),
+            Span::styled("_", pass_style),
+        ]))
+        .block(Block::default().borders(Borders::ALL).border_style(
+            if selected_field == 4 {
+                Style::default().fg(Color::Cyan)
+            } else {
+                Style::default().fg(Color::DarkGray)
+            }
+        ));
+        frame.render_widget(password_field, chunks[6]);
+        
+        let confirm_style = if selected_field == 5 {
+            Style::default().fg(Color::Black).bg(Color::Cyan)
+        } else {
+            Style::default().fg(Color::White)
+        };
+        let masked_confirm = "*".repeat(confirm_password.len());
+        let confirm_field = Paragraph::new(Line::from(vec![
+            Span::styled(" Confirmar: ", Style::default().fg(Color::Green)),
+            Span::styled(&masked_confirm, confirm_style),
+            Span::styled("_", confirm_style),
+        ]))
+        .block(Block::default().borders(Borders::ALL).border_style(
+            if selected_field == 5 {
+                Style::default().fg(Color::Cyan)
+            } else {
+                Style::default().fg(Color::DarkGray)
+            }
+        ));
+        frame.render_widget(confirm_field, chunks[7]);
+    }
+    
+    // T935: Estimated size (placeholder for now)
+    let estimated_text = "Tamaño estimado: calculando...";
+    let estimate_info = Paragraph::new(estimated_text)
+        .style(Style::default().fg(Color::DarkGray))
+        .alignment(Alignment::Center);
+    frame.render_widget(estimate_info, chunks[8]);
+    
+    // Instructions
+    let instructions = Paragraph::new(Line::from(vec![
+        Span::styled("Tab/↑↓", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        Span::raw(": Navegar | "),
+        Span::styled("←→", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        Span::raw(": Cambiar | "),
+        Span::styled("Space", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+        Span::raw(": Toggle | "),
+        Span::styled("Enter", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+        Span::raw(": Comprimir | "),
+        Span::styled("Esc", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+        Span::raw(": Cancelar"),
+    ]))
+    .alignment(Alignment::Center);
+    frame.render_widget(instructions, chunks[10]);
 }
 
 fn centered_rect(percent_x: u16, percent_y: u16, area: Rect) -> Rect {

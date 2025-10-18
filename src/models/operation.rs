@@ -48,6 +48,7 @@ pub struct Operation {
     pub batch_items: Option<Vec<(PathBuf, PathBuf, String)>>, // (source, dest, name) for batch ops
     pub current_item_index: usize, // Track which item in batch we're processing
     pub archive_format: Option<crate::archive::formats::ArchiveFormat>, // For extract operations
+    pub password: Option<String>, // For password-protected archives
 }
 
 impl Operation {
@@ -60,6 +61,7 @@ impl Operation {
             batch_items: None,
             current_item_index: 0,
             archive_format: None,
+            password: None,
         }
     }
 
@@ -72,6 +74,7 @@ impl Operation {
             batch_items: None,
             current_item_index: 0,
             archive_format: None,
+            password: None,
         }
     }
 
@@ -84,6 +87,7 @@ impl Operation {
             batch_items: None,
             current_item_index: 0,
             archive_format: None,
+            password: None,
         }
     }
 
@@ -102,6 +106,27 @@ impl Operation {
             batch_items: None,
             current_item_index: 0,
             archive_format: Some(format),
+            password: None,
+        }
+    }
+    
+    pub fn extract_with_password(
+        source: PathBuf,
+        destination: PathBuf,
+        total_bytes: u64,
+        total_files: usize,
+        format: crate::archive::formats::ArchiveFormat,
+        password: String,
+    ) -> Self {
+        Self {
+            operation_type: OperationType::Extract,
+            source,
+            destination,
+            progress: Progress::new(total_bytes, total_files),
+            batch_items: None,
+            current_item_index: 0,
+            archive_format: Some(format),
+            password: Some(password),
         }
     }
 
@@ -118,6 +143,7 @@ impl Operation {
             batch_items: Some(items),
             current_item_index: 0,
             archive_format: None,
+            password: None,
         }
     }
 
@@ -133,6 +159,7 @@ impl Operation {
             batch_items: Some(items),
             current_item_index: 0,
             archive_format: None,
+            password: None,
         }
     }
 
@@ -148,6 +175,7 @@ impl Operation {
             batch_items: Some(items),
             current_item_index: 0,
             archive_format: None,
+            password: None,
         }
     }
 

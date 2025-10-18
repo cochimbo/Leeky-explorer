@@ -98,9 +98,44 @@ async fn handle_channel_closed(
                 refresh_panels(app);
             }
             Ok(Err(e)) => {
-                log::error!("Operation failed: {}", e);
-                app.show_error(format!("Operation failed: {}", e));
-                app.current_operation = None;
+                let error_msg = format!("{}", e);
+                log::error!("Operation failed: {}", error_msg);
+                
+                // Check if it's a password error during extraction
+                if error_msg.contains("wrong password") || error_msg.contains("Password required") {
+                    // Close progress dialog and reopen password input dialog
+                    app.close_dialog();
+                    
+                    // Get operation details to recreate password dialog
+                    if let Some(ref op) = app.current_operation {
+                        if let Some(format) = op.archive_format {
+                            let source = op.source.clone();
+                            let dest = op.destination.clone();
+                            let archive_name = source.file_name()
+                                .and_then(|n| n.to_str())
+                                .unwrap_or("archive");
+                            
+                            // Show password dialog again with error message
+                            app.dialog_state = Some(DialogState::PasswordInput {
+                                prompt: format!("❌ Incorrect password for {}. Try again:", archive_name),
+                                value: String::new(),
+                                show_password: false,
+                                archive_path: source.clone(),
+                                dest_path: dest.clone(),
+                                format,
+                            });
+                            
+                            log::info!("Reopening password dialog after wrong password (from channel_closed)");
+                        }
+                    }
+                    // CRITICAL: Clear current_operation to prevent auto-restart by start_queued_operation
+                    app.current_operation = None;
+                    log::info!("current_operation cleared to prevent auto-retry loop (from channel_closed)");
+                } else {
+                    // Other errors: show error and clear operation
+                    app.show_error(format!("Operation failed: {}", error_msg));
+                    app.current_operation = None;
+                }
             }
             Err(e) => {
                 log::error!("Task join error: {}", e);
@@ -116,9 +151,19 @@ async fn check_operation_completion(
     app: &mut AppState,
     operation_task: &mut Option<tokio::task::JoinHandle<Result<()>>>,
 ) {
-    if let Some(ref op) = app.current_operation {
-        if op.progress.is_complete() && operation_task.is_some() {
+    // Check if we have an operation and a task
+    if app.current_operation.is_some() && operation_task.is_some() {
+        // Check if task is finished (either success or error)
+        let task_finished = if let Some(task) = operation_task.as_ref() {
+            task.is_finished()
+        } else {
+            false
+        };
+        
+        if task_finished {
+            log::info!("Operation task has finished, checking result");
             if let Some(task) = operation_task.take() {
+                log::info!("Processing finished task result");
                 match task.await {
                     Ok(Ok(())) => {
                         log::info!("Operation completion check: success");
@@ -128,9 +173,46 @@ async fn check_operation_completion(
                         refresh_panels(app);
                     }
                     Ok(Err(e)) => {
-                        log::error!("Operation completed with error: {}", e);
-                        app.show_error(format!("Operation failed: {}", e));
-                        app.current_operation = None;
+                        let error_msg = format!("{}", e);
+                        log::error!("Operation completed with error: {}", error_msg);
+                        
+                        // Check if it's a password error during extraction
+                        if error_msg.contains("wrong password") || error_msg.contains("Password required") {
+                            log::info!("Detected password error, reopening dialog");
+                            // Close progress dialog and reopen password input dialog
+                            app.close_dialog();
+                            
+                            // Get operation details to recreate password dialog
+                            if let Some(ref op) = app.current_operation {
+                                if let Some(format) = op.archive_format {
+                                    let source = op.source.clone();
+                                    let dest = op.destination.clone();
+                                    let archive_name = source.file_name()
+                                        .and_then(|n| n.to_str())
+                                        .unwrap_or("archive");
+                                    
+                                    // Show password dialog again with error message
+                                    app.dialog_state = Some(DialogState::PasswordInput {
+                                        prompt: format!("❌ Incorrect password for {}. Try again:", archive_name),
+                                        value: String::new(),
+                                        show_password: false,
+                                        archive_path: source.clone(),
+                                        dest_path: dest.clone(),
+                                        format,
+                                    });
+                                    
+                                    log::info!("Password dialog reopened successfully, task cleared");
+                                }
+                            }
+                            // CRITICAL: Clear current_operation to prevent auto-restart by start_queued_operation
+                            app.current_operation = None;
+                            log::info!("current_operation cleared to prevent auto-retry loop");
+                        } else {
+                            // Other errors: show error and clear operation
+                            log::info!("Non-password error, showing error dialog");
+                            app.show_error(format!("Operation failed: {}", error_msg));
+                            app.current_operation = None;
+                        }
                     }
                     Err(e) => {
                         log::error!("Task join error during completion check: {}", e);
@@ -138,6 +220,7 @@ async fn check_operation_completion(
                         app.current_operation = None;
                     }
                 }
+                log::info!("Task processing complete, operation_task is now None");
             }
         }
     }
@@ -212,6 +295,9 @@ async fn handle_action(app: &mut AppState, action: Action) -> Result<()> {
         Action::ExtractArchive => {
             app.start_extract_archive()?;
         }
+        Action::CompressArchive => {
+            app.start_compress_archive()?;
+        }
         Action::ConfirmYes => {
             handle_confirm_action(app).await?;
         }
@@ -223,16 +309,25 @@ async fn handle_action(app: &mut AppState, action: Action) -> Result<()> {
 
 /// Handle confirmation actions (extraction dialogs)
 async fn handle_confirm_action(app: &mut AppState) -> Result<()> {
+    log::info!("handle_confirm_action called");
     // Clone the dialog state to avoid borrow checker issues
     let dialog_state = app.dialog_state.clone();
     
     if let Some(dialog) = dialog_state {
+        log::info!("Dialog state: {:?}", std::mem::discriminant(&dialog));
         match dialog {
             DialogState::ExtractOptions { source, dest, format, archive_name, selected } => {
+                log::info!("Handling ExtractOptions dialog");
                 handle_extract_options(app, &source, &dest, &format, &archive_name, selected)?;
+                log::info!("After handle_extract_options, dialog state is: {:?}", 
+                    app.dialog_state.as_ref().map(|d| std::mem::discriminant(d)));
             }
             DialogState::PasswordInput { archive_path, dest_path, format, value, .. } => {
+                log::info!("Handling PasswordInput dialog");
                 handle_password_input(app, &archive_path, &dest_path, &format, &value)?;
+            }
+            DialogState::CompressOptions { sources, output_name, format, level, use_password, password, .. } => {
+                handle_compress_options(app, sources, &output_name, format, level, use_password, &password).await?;
             }
             DialogState::Confirm { confirm_action, .. } => {
                 if let ConfirmAction::ExtractArchive { source, dest, format } = confirm_action {
@@ -269,7 +364,10 @@ fn handle_extract_options(
     let is_encrypted = crate::archive::password::is_password_protected(&source)
         .unwrap_or(false);
     
+    log::info!("Archive encryption check: {} - encrypted: {}", archive_name, is_encrypted);
+    
     if is_encrypted {
+        log::info!("Showing password input dialog for {}", archive_name);
         // Show password input dialog
         app.dialog_state = Some(DialogState::PasswordInput {
             prompt: format!("Enter password for {}:", archive_name),
@@ -279,7 +377,9 @@ fn handle_extract_options(
             dest_path: dest,
             format,
         });
+        log::info!("Password input dialog set successfully");
     } else {
+        log::info!("No encryption detected, starting extraction directly");
         // No password needed, start extraction immediately
         start_extraction(app, source, dest, format, "Extrayendo archivo...");
     }
@@ -293,14 +393,144 @@ fn handle_password_input(
     archive_path: &std::path::PathBuf,
     dest_path: &std::path::PathBuf,
     format: &crate::archive::formats::ArchiveFormat,
-    _value: &str,
+    value: &str,
 ) -> Result<()> {
     let source = archive_path.clone();
     let dest = dest_path.clone();
     let format = *format;
-    // TODO: T843 - Pass password to extraction
+    let password = value.to_string();
     
-    start_extraction(app, source, dest, format, "Extrayendo archivo con contraseña...");
+    start_extraction_with_password(app, source, dest, format, password, "Extrayendo archivo con contraseña...");
+    
+    Ok(())
+}
+
+/// Handle compress options dialog
+async fn handle_compress_options(
+    app: &mut AppState,
+    sources: Vec<std::path::PathBuf>,
+    output_name: &str,
+    format: crate::archive::formats::ArchiveFormat,
+    level: crate::archive::compressor::CompressionLevel,
+    use_password: bool,
+    password: &str,
+) -> Result<()> {
+    use crate::archive::formats::ArchiveFormat;
+    
+    // Add appropriate extension based on format
+    let extension = match format {
+        ArchiveFormat::ZIP => ".zip",
+        ArchiveFormat::TarGz => ".tar.gz",
+        ArchiveFormat::TarBz2 => ".tar.bz2",
+        ArchiveFormat::TarXz => ".tar.xz",
+        ArchiveFormat::TAR => ".tar",
+        ArchiveFormat::SEVENZ => ".7z",
+        _ => ".zip", // fallback
+    };
+    
+    let full_output_name = format!("{}{}", output_name, extension);
+    
+    // Get active panel path (where source files are)
+    let dest_dir = if app.active_panel == crate::app::PanelSide::Left {
+        app.left_panel.current_path.clone()
+    } else {
+        app.right_panel.current_path.clone()
+    };
+    let dest_path = dest_dir.join(&full_output_name);
+    
+    // Check if output file already exists
+    if dest_path.exists() {
+        app.show_error(format!("El archivo {} ya existe", full_output_name));
+        return Ok(());
+    }
+    
+    // Estimate total size
+    let total_size = crate::archive::estimate_compressed_size(&sources).unwrap_or(0);
+    
+    // Check disk space
+    let available_space = match fs2::available_space(&dest_dir) {
+        Ok(space) => space,
+        Err(_) => {
+            // If we can't get space, just proceed anyway
+            u64::MAX
+        }
+    };
+    
+    if available_space < total_size {
+        let size_mb = total_size / (1024 * 1024);
+        let avail_mb = available_space / (1024 * 1024);
+        app.show_error(format!(
+            "Espacio insuficiente. Necesitas {} MB, tienes {} MB",
+            size_mb, avail_mb
+        ));
+        return Ok(());
+    }
+    
+    // Show progress dialog
+    app.dialog_state = Some(DialogState::Progress {
+        message: format!("Comprimiendo {}...", full_output_name),
+    });
+    
+    // Create progress channel
+    let (progress_tx, mut progress_rx) = tokio::sync::mpsc::unbounded_channel();
+    
+    // Prepare compression options
+    let opts = crate::archive::compressor::CompressionOptions {
+        output_path: dest_path.clone(),
+        format,
+        level,
+        password: if use_password && !password.is_empty() {
+            Some(password.to_string())
+        } else {
+            None
+        },
+    };
+    
+    // Spawn compression task
+    let sources_clone = sources.clone();
+    let task = tokio::task::spawn_blocking(move || {
+        crate::archive::compress_archive(&sources_clone, opts, progress_tx)
+    });
+    
+    // Process progress updates
+    while let Some(progress) = progress_rx.recv().await {
+        if let Some(op) = &mut app.current_operation {
+            op.progress = progress;
+        }
+    }
+    
+    // Wait for task to complete
+    match task.await {
+        Ok(Ok(())) => {
+            log::info!("Compression completed successfully");
+            app.close_dialog();
+            
+            // Refresh active panel (where archive was created)
+            let active_panel = if app.active_panel == crate::app::PanelSide::Left {
+                &mut app.left_panel
+            } else {
+                &mut app.right_panel
+            };
+            
+            active_panel.refresh_entries()?;
+            
+            // Try to select the newly created archive
+            if let Some(file_name) = dest_path.file_name() {
+                let file_name_str = file_name.to_string_lossy().to_string();
+                if let Some(idx) = active_panel.entries.iter().position(|e| e.name == file_name_str) {
+                    active_panel.cursor = idx;
+                }
+            }
+        }
+        Ok(Err(e)) => {
+            log::error!("Compression failed: {}", e);
+            app.show_error(format!("Error al comprimir: {}", e));
+        }
+        Err(e) => {
+            log::error!("Compression task failed: {}", e);
+            app.show_error(format!("Error en tarea de compresión: {}", e));
+        }
+    }
     
     Ok(())
 }
@@ -360,6 +590,35 @@ fn start_extraction(
         archive_size,
         1,
         format,
+    ));
+    
+    // Show progress dialog
+    app.dialog_state = Some(DialogState::Progress {
+        message: message.to_string(),
+    });
+}
+
+fn start_extraction_with_password(
+    app: &mut AppState,
+    source: std::path::PathBuf,
+    dest: std::path::PathBuf,
+    format: crate::archive::formats::ArchiveFormat,
+    password: String,
+    message: &str,
+) {
+    // Get archive size for progress
+    let archive_size = std::fs::metadata(&source)
+        .map(|m| m.len())
+        .unwrap_or(0);
+    
+    // Create extract operation with password
+    app.current_operation = Some(Operation::extract_with_password(
+        source,
+        dest,
+        archive_size,
+        1,
+        format,
+        password,
     ));
     
     // Show progress dialog
@@ -561,6 +820,7 @@ async fn execute_extract_operation(
     
     let source = operation.source.clone();
     let destination = operation.destination.clone();
+    let password = operation.password.clone();
     let tx = progress_tx.clone();
     
     // Create an unbounded channel for progress from blocking context
@@ -588,7 +848,7 @@ async fn execute_extract_operation(
     // Extract in blocking task
     log::info!("Spawning blocking extraction task");
     let extract_handle = tokio::task::spawn_blocking(move || {
-        crate::archive::extractor::extract_archive_unbounded(&source, &destination, format, None, progress_sender)
+        crate::archive::extractor::extract_archive_unbounded(&source, &destination, format, password, progress_sender)
     });
     
     // Wait for extraction to complete

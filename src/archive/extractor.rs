@@ -68,7 +68,7 @@ pub fn extract_archive_sync(
 fn extract_zip_unbounded(
     archive_path: &Path,
     dest_path: &Path,
-    _password: Option<String>,
+    password: Option<String>,
     tokio_tx: tokio::sync::mpsc::UnboundedSender<Progress>,
 ) -> Result<()> {
     log::info!("extract_zip_unbounded: Starting extraction from {:?} to {:?}", archive_path, dest_path);
@@ -96,7 +96,14 @@ fn extract_zip_unbounded(
     // Calculate real total bytes by iterating files
     let mut total_bytes = 0u64;
     for i in 0..total_files {
-        if let Ok(file) = archive.by_index(i) {
+        // Use by_index_decrypt if password provided, otherwise by_index
+        let file_result = if let Some(ref pwd) = password {
+            archive.by_index_decrypt(i, pwd.as_bytes())
+        } else {
+            archive.by_index(i)
+        };
+        
+        if let Ok(file) = file_result {
             total_bytes += file.size();
         }
     }
@@ -104,7 +111,13 @@ fn extract_zip_unbounded(
     log::info!("ZIP archive has {} files, {} total bytes", total_files, total_bytes);
     
     for i in 0..total_files {
-        let file = archive.by_index(i)?;
+        // Use by_index_decrypt if password provided, otherwise by_index
+        let file = if let Some(ref pwd) = password {
+            archive.by_index_decrypt(i, pwd.as_bytes())
+                .context("Failed to decrypt file - wrong password?")?
+        } else {
+            archive.by_index(i)?
+        };
         let file_name = file.name().to_string();
         
         // T832: Sanitize path (convert absolute to relative)
@@ -179,7 +192,7 @@ fn extract_zip_unbounded(
 fn extract_zip_sync(
     archive_path: &Path,
     dest_path: &Path,
-    _password: Option<String>,
+    password: Option<String>,
     progress_tx: std::sync::mpsc::Sender<Progress>,
 ) -> Result<()> {
     let file = File::open(archive_path).context("Failed to open ZIP file")?;
@@ -190,7 +203,13 @@ fn extract_zip_sync(
     let total_bytes = total_files as u64 * 1024; // Approximation
     
     for i in 0..total_files {
-        let mut file = archive.by_index(i)?;
+        // Use by_index_decrypt if password provided, otherwise by_index
+        let mut file = if let Some(ref pwd) = password {
+            archive.by_index_decrypt(i, pwd.as_bytes())
+                .context("Failed to decrypt file - wrong password?")?
+        } else {
+            archive.by_index(i)?
+        };
         let file_name = file.name().to_string();
         
         // T832: Sanitize path (convert absolute to relative)

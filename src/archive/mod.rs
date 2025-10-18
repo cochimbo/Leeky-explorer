@@ -2,11 +2,13 @@
 pub mod formats;
 pub mod extractor;
 pub mod password;
+pub mod compressor; // T902: Export compressor module
 mod progress_reader;
 
 pub use formats::{ArchiveFormat, ArchiveEntry, detect_format, list_archive_contents};
 pub use extractor::extract_archive;
 pub use password::{prompt_password, PasswordDialog};
+pub use compressor::{compress_archive, CompressionLevel, CompressionOptions, estimate_compressed_size};
 
 use std::path::Path;
 

@@ -46,14 +46,22 @@ pub fn prompt_password() -> Option<String> {
 
 /// T821: Detect if archive is password-protected
 pub fn is_password_protected(path: &Path) -> Result<bool> {
+    log::info!("Checking if archive is password protected: {:?}", path);
+    
     // Check file extension first
     let ext = path.extension()
         .and_then(|e| e.to_str())
         .unwrap_or("")
         .to_lowercase();
     
+    log::info!("Archive extension: {}", ext);
+    
     match ext.as_str() {
-        "zip" => is_zip_encrypted(path),
+        "zip" => {
+            let result = is_zip_encrypted(path);
+            log::info!("ZIP encryption check result: {:?}", result);
+            result
+        },
         "7z" => is_7z_encrypted(path),
         "rar" => {
             // RAR encryption detection would require libunrar
@@ -66,21 +74,40 @@ pub fn is_password_protected(path: &Path) -> Result<bool> {
 
 /// Check if ZIP file is encrypted
 fn is_zip_encrypted(path: &Path) -> Result<bool> {
+    log::info!("Opening ZIP file to check encryption: {:?}", path);
     let file = File::open(path)?;
     let mut archive = zip::ZipArchive::new(file)?;
     
+    log::info!("ZIP archive opened, checking {} files", archive.len());
+    
     // Check if any file in the archive is encrypted
-    // Note: zip crate 0.6 doesn't have is_encrypted() method directly
-    // We check if files require password by examining encryption method
+    // zip 6.0 provides the encrypted() method
+    // We need to be careful not to try to read encrypted files without password
     for i in 0..archive.len() {
-        let file = archive.by_index(i)?;
-        // If compression method indicates encryption, it's encrypted
-        // AES encrypted files have specific compression methods
-        if file.compression() == zip::CompressionMethod::AES {
-            return Ok(true);
+        // Try to get file metadata without reading content
+        match archive.by_index(i) {
+            Ok(file) => {
+                log::debug!("File {}: {} - encrypted: {}", i, file.name(), file.encrypted());
+                if file.encrypted() {
+                    log::info!("Found encrypted file: {}", file.name());
+                    return Ok(true);
+                }
+            }
+            Err(e) => {
+                // If we can't even read the file metadata, it might be because it requires a password
+                // Check if the error message indicates password requirement
+                let err_msg = format!("{}", e);
+                log::debug!("Error reading file {}: {}", i, err_msg);
+                if err_msg.contains("Password required") || err_msg.contains("password") {
+                    log::info!("Password required error detected");
+                    return Ok(true);
+                }
+                // For other errors, continue checking
+            }
         }
     }
     
+    log::info!("No encrypted files found");
     Ok(false)
 }
 

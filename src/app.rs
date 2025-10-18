@@ -68,6 +68,17 @@ pub enum DialogState {
         selected: usize, // 0=Overwrite, 1=Overwrite All, 2=Rename, 3=Skip, 4=Cancel
         operation: CollisionOperation,
     },
+    // T925-T926: Compression options dialog
+    CompressOptions {
+        sources: Vec<PathBuf>,
+        output_name: String,
+        format: crate::archive::formats::ArchiveFormat,
+        level: crate::archive::compressor::CompressionLevel,
+        use_password: bool,
+        password: String,
+        confirm_password: String,
+        selected_field: usize, // 0=name, 1=format, 2=level, 3=password_checkbox, 4=password, 5=confirm_password
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -530,6 +541,55 @@ impl AppState {
             }
         }
         
+        Ok(())
+    }
+
+    // T927-T929: Start compression with options dialog
+    pub fn start_compress_archive(&mut self) -> anyhow::Result<()> {
+        use chrono::Local;
+        
+        // Get marked items or current item
+        let sources = {
+            let marked = self.selection_state.get_marked(self.active_panel);
+            if !marked.is_empty() {
+                marked
+            } else {
+                let panel = self.active_panel();
+                if let Some(entry) = panel.entries.get(panel.cursor) {
+                    vec![entry.path.clone()]
+                } else {
+                    return Ok(());
+                }
+            }
+        };
+
+        // T928: Pre-fill output name (WITHOUT extension - will be added based on format)
+        let output_name = if sources.len() == 1 {
+            // Single file: use filename without extension
+            let path = &sources[0];
+            if let Some(stem) = path.file_stem() {
+                stem.to_string_lossy().to_string()
+            } else {
+                "archive".to_string()
+            }
+        } else {
+            // Multiple files: use date-based name
+            let date = Local::now().format("%Y-%m-%d").to_string();
+            format!("archive_{}", date)
+        };
+
+        // Show compression options dialog
+        self.dialog_state = Some(DialogState::CompressOptions {
+            sources,
+            output_name,
+            format: crate::archive::formats::ArchiveFormat::ZIP,
+            level: crate::archive::compressor::CompressionLevel::Normal,
+            use_password: false,
+            password: String::new(),
+            confirm_password: String::new(),
+            selected_field: 0, // Start at output name field
+        });
+
         Ok(())
     }
 }

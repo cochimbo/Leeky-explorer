@@ -22,7 +22,7 @@ chrono = "0.4"  # T851b: Timestamps for structured logs
 image = "0.25"
 viuer = "0.9.2"
 # T801-T803: Archive extraction dependencies
-zip = "6.0.0"
+zip = { version = "6.0.0", features = ["aes-crypto"] }  # T908: Enable AES encryption for compression
 tar = "0.4"
 flate2 = "1.0"
 xz2 = "0.1"

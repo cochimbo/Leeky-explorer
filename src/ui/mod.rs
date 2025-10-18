@@ -104,6 +104,7 @@ pub fn render_footer(frame: &mut Frame, area: Rect) {
         ("F7", "NewDir", Color::Yellow),
         ("F8", "Delete", Color::Red),
         ("F9", "Extract", Color::Cyan),
+        ("⇧F9", "Compress", Color::Cyan),    // Shift+F9 for compression
         ("Ctrl+Q", "Quit", Color::Gray),     // T128b: Changed from Q to Ctrl+Q
         ("Ctrl+A", "All", Color::Magenta),
     ];

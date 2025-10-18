@@ -31,6 +31,11 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
         return handle_collision_dialog(app, key);
     }
     
+    // Special handling for compress options dialog
+    if let Some(DialogState::CompressOptions { .. }) = &app.dialog_state {
+        return handle_compress_options_dialog(app, key);
+    }
+    
     let action = map_key_to_action(key);
 
     // Handle other dialog-specific actions
@@ -641,12 +646,23 @@ fn handle_input_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
 
 // T843: Handle password input dialog
 fn handle_password_input_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
-    use crossterm::event::{KeyCode, KeyModifiers};
+    use crossterm::event::{KeyCode, KeyModifiers, KeyEventKind};
+    
+    // Filter out key release events to prevent double processing
+    if key.kind != KeyEventKind::Press {
+        return Ok(Action::None);
+    }
     
     match (key.code, key.modifiers) {
-        // Enter: confirm password
+        // Enter: confirm password (only if not empty)
         (KeyCode::Enter, _) => {
-            return Ok(Action::ConfirmYes);
+            if let Some(DialogState::PasswordInput { value, .. }) = &app.dialog_state {
+                if !value.is_empty() {
+                    return Ok(Action::ConfirmYes);
+                }
+                // If password is empty, do nothing (user must enter password or press Esc to cancel)
+            }
+            return Ok(Action::None);
         }
         // Tab: toggle password visibility
         (KeyCode::Tab, _) | (KeyCode::BackTab, _) => {
@@ -954,5 +970,160 @@ fn handle_preview_mode(app: &mut AppState, key: KeyEvent) -> Result<Action> {
         }
         _ => Ok(Action::None),
     }
+}
+
+/// Handle compress options dialog
+fn handle_compress_options_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
+    use crossterm::event::{KeyCode, KeyModifiers, KeyEventKind};
+    use crate::archive::formats::ArchiveFormat;
+    use crate::archive::compressor::CompressionLevel;
+    
+    // Filter out key release events to prevent double navigation (same as BUG-001 fix)
+    if key.kind != KeyEventKind::Press {
+        return Ok(Action::None);
+    }
+    
+    match (key.code, key.modifiers) {
+        // Enter: confirm and start compression
+        (KeyCode::Enter, _) => {
+            if let Some(DialogState::CompressOptions {
+                sources,
+                output_name,
+                format,
+                level,
+                use_password,
+                password,
+                confirm_password,
+                ..
+            }) = &app.dialog_state {
+                // Validate output name
+                if output_name.trim().is_empty() {
+                    app.show_error("El nombre no puede estar vacío".to_string());
+                    return Ok(Action::None);
+                }
+                
+                // Validate passwords if enabled
+                if *use_password {
+                    if password.is_empty() {
+                        app.show_error("La contraseña no puede estar vacía".to_string());
+                        return Ok(Action::None);
+                    }
+                    if password != confirm_password {
+                        app.show_error("Las contraseñas no coinciden".to_string());
+                        return Ok(Action::None);
+                    }
+                }
+                
+                // Start compression (will be handled in event_loop.rs)
+                return Ok(Action::ConfirmYes);
+            }
+        }
+        // Tab or Down: move to next field
+        (KeyCode::Tab, _) | (KeyCode::Down, _) => {
+            if let Some(DialogState::CompressOptions { selected_field, use_password, .. }) = &mut app.dialog_state {
+                let max_field = if *use_password { 5 } else { 3 };
+                *selected_field = (*selected_field + 1).min(max_field);
+            }
+        }
+        // Shift+Tab or Up: move to previous field
+        (KeyCode::BackTab, _) | (KeyCode::Up, _) => {
+            if let Some(DialogState::CompressOptions { selected_field, .. }) = &mut app.dialog_state {
+                if *selected_field > 0 {
+                    *selected_field -= 1;
+                }
+            }
+        }
+        // Left arrow: cycle format/level backwards
+        (KeyCode::Left, _) => {
+            if let Some(DialogState::CompressOptions { selected_field, format, level, .. }) = &mut app.dialog_state {
+                match *selected_field {
+                    1 => {
+                        // Cycle format backwards
+                        *format = match format {
+                            ArchiveFormat::ZIP => ArchiveFormat::TarXz,
+                            ArchiveFormat::TarGz => ArchiveFormat::ZIP,
+                            ArchiveFormat::TarBz2 => ArchiveFormat::TarGz,
+                            ArchiveFormat::TarXz => ArchiveFormat::TarBz2,
+                            _ => ArchiveFormat::ZIP,
+                        };
+                    }
+                    2 => {
+                        // Cycle level backwards
+                        *level = match level {
+                            CompressionLevel::Fast => CompressionLevel::Maximum,
+                            CompressionLevel::Normal => CompressionLevel::Fast,
+                            CompressionLevel::Maximum => CompressionLevel::Normal,
+                        };
+                    }
+                    _ => {}
+                }
+            }
+        }
+        // Right arrow: cycle format/level forwards
+        (KeyCode::Right, _) => {
+            if let Some(DialogState::CompressOptions { selected_field, format, level, .. }) = &mut app.dialog_state {
+                match *selected_field {
+                    1 => {
+                        // Cycle format forwards
+                        *format = match format {
+                            ArchiveFormat::ZIP => ArchiveFormat::TarGz,
+                            ArchiveFormat::TarGz => ArchiveFormat::TarBz2,
+                            ArchiveFormat::TarBz2 => ArchiveFormat::TarXz,
+                            ArchiveFormat::TarXz => ArchiveFormat::ZIP,
+                            _ => ArchiveFormat::ZIP,
+                        };
+                    }
+                    2 => {
+                        // Cycle level forwards
+                        *level = match level {
+                            CompressionLevel::Fast => CompressionLevel::Normal,
+                            CompressionLevel::Normal => CompressionLevel::Maximum,
+                            CompressionLevel::Maximum => CompressionLevel::Fast,
+                        };
+                    }
+                    _ => {}
+                }
+            }
+        }
+        // Space: toggle password checkbox
+        (KeyCode::Char(' '), _) => {
+            if let Some(DialogState::CompressOptions { selected_field, use_password, .. }) = &mut app.dialog_state {
+                if *selected_field == 3 {
+                    *use_password = !*use_password;
+                }
+            }
+        }
+        // Backspace: delete character from name or password fields
+        (KeyCode::Backspace, _) => {
+            if let Some(DialogState::CompressOptions { selected_field, output_name, password, confirm_password, .. }) = &mut app.dialog_state {
+                match *selected_field {
+                    0 => { output_name.pop(); }
+                    4 => { password.pop(); }
+                    5 => { confirm_password.pop(); }
+                    _ => {}
+                }
+            }
+        }
+        // Char: append to name or password fields
+        (KeyCode::Char(c), KeyModifiers::NONE) | (KeyCode::Char(c), KeyModifiers::SHIFT) => {
+            if c != ' ' || matches!(key.code, KeyCode::Char(' ')) {
+                if let Some(DialogState::CompressOptions { selected_field, output_name, password, confirm_password, .. }) = &mut app.dialog_state {
+                    match *selected_field {
+                        0 => { output_name.push(c); }
+                        4 => { password.push(c); }
+                        5 => { confirm_password.push(c); }
+                        _ => {}
+                    }
+                }
+            }
+        }
+        // Escape: cancel
+        (KeyCode::Esc, _) => {
+            app.close_dialog();
+        }
+        _ => {}
+    }
+    
+    Ok(Action::None)
 }
 

@@ -46,6 +46,16 @@
   - **Files Modified**: `src/events/keybindings.rs`
   - **Verified**: User confirmed single movement per keystroke ✓
 
+- [X] **BUG-002** [HIGH] [UI] Compress options dialog has double displacement on key press
+  - **Status**: FIXED ✅
+  - **Reported**: 2025-10-18
+  - **Fixed**: 2025-10-18
+  - **Related Tasks**: T940, T941, T942 (Compression dialog navigation)
+  - **Root Cause**: Same as BUG-001 - `handle_compress_options_dialog()` was processing both Press and Release events
+  - **Solution**: Added `KeyEventKind::Press` filter at the start of `handle_compress_options_dialog()` function
+  - **Files Modified**: `src/events/handler.rs`
+  - **Impact**: Tab/arrows navigation now moves one field per keystroke instead of two
+
 <!--
   Move bugs here after they are verified as fixed
 -->
