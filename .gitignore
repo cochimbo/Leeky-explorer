@@ -32,3 +32,4 @@ TEST_PLAN.md
 # Added by cargo
 
 /target
+.vscode/settings.json
