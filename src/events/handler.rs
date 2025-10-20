@@ -22,6 +22,11 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
         return handle_input_dialog(app, key);
     }
     
+    // Special handling for rename dialog
+    if let Some(DialogState::Rename { .. }) = &app.dialog_state {
+        return handle_rename_dialog(app, key);
+    }
+    
     // T843: Special handling for password input dialogs
     if let Some(DialogState::PasswordInput { .. }) = &app.dialog_state {
         return handle_password_input_dialog(app, key);
@@ -116,6 +121,9 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
         }
         Action::CreateFolder => {
             handle_create_folder_request(app)?;
+        }
+        Action::Rename => {
+            handle_rename_request(app)?;
         }
         Action::Search => {
             // T411: Activate search mode
@@ -866,6 +874,23 @@ fn handle_create_folder_request(app: &mut AppState) -> Result<()> {
     Ok(())
 }
 
+fn handle_rename_request(app: &mut AppState) -> Result<()> {
+    // Get the current selected entry
+    let panel = app.active_panel();
+    if let Some(entry) = panel.selected_entry() {
+        let old_path = entry.path.clone();
+        let current_name = entry.name.clone();
+        
+        // Show rename dialog with current name pre-loaded
+        app.dialog_state = Some(DialogState::Rename {
+            prompt: format!("Rename '{}' to:", current_name),
+            value: current_name,
+            old_path,
+        });
+    }
+    Ok(())
+}
+
 fn handle_input_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
     let action = map_key_to_input_action(key);
     
@@ -900,6 +925,78 @@ fn handle_input_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
         }
         Action::Quit => {
             return Ok(Action::Quit);
+        }
+        _ => {}
+    }
+    
+    Ok(Action::None)
+}
+
+fn handle_rename_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
+    use crossterm::event::{KeyCode, KeyEventKind};
+    
+    // Filter out key release events to prevent double processing
+    if key.kind != KeyEventKind::Press {
+        return Ok(Action::None);
+    }
+    
+    match key.code {
+        KeyCode::Enter => {
+            if let Some(DialogState::Rename { value, old_path, .. }) = &app.dialog_state {
+                let new_name = value.trim();
+                
+                if new_name.is_empty() {
+                    app.show_error("El nombre no puede estar vacío".to_string());
+                    return Ok(Action::None);
+                }
+                
+                // Build new path
+                let parent = old_path.parent().unwrap_or(old_path.as_path());
+                let new_path = parent.join(new_name);
+                
+                // Check if name is the same
+                if new_path == *old_path {
+                    app.close_dialog();
+                    return Ok(Action::None);
+                }
+                
+                // Check if target already exists
+                if new_path.exists() {
+                    app.show_error(format!("Ya existe un archivo o directorio con el nombre '{}'", new_name));
+                    return Ok(Action::None);
+                }
+                
+                // Perform rename
+                match std::fs::rename(old_path, &new_path) {
+                    Ok(()) => {
+                        log::info!("Renamed successfully: {:?} -> {:?}", old_path, new_path);
+                        app.close_dialog();
+                        
+                        // Refresh panels
+                        let _ = app.left_panel.refresh_entries();
+                        app.left_all_entries = app.left_panel.entries.clone();
+                        let _ = app.right_panel.refresh_entries();
+                        app.right_all_entries = app.right_panel.entries.clone();
+                    }
+                    Err(e) => {
+                        log::error!("Failed to rename: {}", e);
+                        app.show_error(format!("Error al renombrar: {}", e));
+                    }
+                }
+            }
+        }
+        KeyCode::Char(c) => {
+            if let Some(DialogState::Rename { value, .. }) = &mut app.dialog_state {
+                value.push(c);
+            }
+        }
+        KeyCode::Backspace => {
+            if let Some(DialogState::Rename { value, .. }) = &mut app.dialog_state {
+                value.pop();
+            }
+        }
+        KeyCode::Esc => {
+            app.close_dialog();
         }
         _ => {}
     }

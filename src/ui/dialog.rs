@@ -17,6 +17,9 @@ pub fn render_dialog(frame: &mut Frame, dialog: &DialogState, area: Rect) {
         DialogState::Input { prompt, value } => {
             render_input_dialog(frame, prompt, value, area);
         }
+        DialogState::Rename { prompt, value, .. } => {
+            render_input_dialog(frame, prompt, value, area);
+        }
         DialogState::Progress { message } => {
             render_progress_dialog(frame, message, area);
         }

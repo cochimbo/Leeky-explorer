@@ -69,6 +69,11 @@ pub enum DialogState {
         selected: usize, // 0=Overwrite, 1=Overwrite All, 2=Rename, 3=Skip, 4=Cancel
         operation: CollisionOperation,
     },
+    Rename {
+        prompt: String,
+        value: String,
+        old_path: PathBuf,
+    },
     // T925-T926: Compression options dialog
     CompressOptions {
         sources: Vec<PathBuf>,
