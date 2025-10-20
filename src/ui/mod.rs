@@ -97,6 +97,8 @@ pub fn render_footer(frame: &mut Frame, area: Rect) {
     ];
     
     let line2_bindings = vec![
+        ("F2", "Rename", Color::Yellow),
+        ("⇧F2", "Full", Color::Yellow),      // Shift+F2 for rename with extension
         ("F3", "Search", Color::Cyan),
         ("F4", "Preview", Color::Cyan),
         ("F5", "Copy", Color::Green),

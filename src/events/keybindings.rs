@@ -14,7 +14,8 @@ pub enum Action {
     Move,
     Delete,
     CreateFolder,
-    Rename,           // F2 to rename file/directory
+    Rename,           // F2 to rename file/directory (name only, no extension)
+    RenameWithExtension, // Shift+F2 to rename with extension
     Search,
     ToggleSelection,  // T562: Space to mark/unmark
     SelectAll,        // T563: Ctrl+A to select all
@@ -66,7 +67,8 @@ pub fn map_key_to_action(key: KeyEvent) -> Action {
         (KeyCode::PageUp, _) => Action::PageUp,
         (KeyCode::Home, _) => Action::JumpToStart,
         (KeyCode::End, _) => Action::JumpToEnd,
-        (KeyCode::F(2), _) => Action::Rename,
+        (KeyCode::F(2), KeyModifiers::NONE) => Action::Rename,
+        (KeyCode::F(2), KeyModifiers::SHIFT) => Action::RenameWithExtension,
         (KeyCode::F(5), _) => Action::Copy,
         (KeyCode::F(6), _) => Action::Move,
         (KeyCode::F(7), _) => Action::CreateFolder,

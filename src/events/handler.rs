@@ -123,7 +123,10 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
             handle_create_folder_request(app)?;
         }
         Action::Rename => {
-            handle_rename_request(app)?;
+            handle_rename_request(app, false)?; // false = name only
+        }
+        Action::RenameWithExtension => {
+            handle_rename_request(app, true)?; // true = name with extension
         }
         Action::Search => {
             // T411: Activate search mode
@@ -874,18 +877,37 @@ fn handle_create_folder_request(app: &mut AppState) -> Result<()> {
     Ok(())
 }
 
-fn handle_rename_request(app: &mut AppState) -> Result<()> {
+fn handle_rename_request(app: &mut AppState, include_extension: bool) -> Result<()> {
     // Get the current selected entry
     let panel = app.active_panel();
     if let Some(entry) = panel.selected_entry() {
         let old_path = entry.path.clone();
         let current_name = entry.name.clone();
         
-        // Show rename dialog with current name pre-loaded
+        // For F2 (name only), extract just the name without extension
+        let display_name = if !include_extension && old_path.is_file() {
+            // Get stem (name without extension)
+            old_path.file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or(&current_name)
+                .to_string()
+        } else {
+            // For directories or Shift+F2, use full name
+            current_name.clone()
+        };
+        
+        // Show rename dialog with appropriate name pre-loaded
+        let prompt = if include_extension {
+            format!("Rename '{}' to (with extension):", current_name)
+        } else {
+            format!("Rename '{}' to:", current_name)
+        };
+        
         app.dialog_state = Some(DialogState::Rename {
-            prompt: format!("Rename '{}' to:", current_name),
-            value: current_name,
+            prompt,
+            value: display_name,
             old_path,
+            include_extension,
         });
     }
     Ok(())
@@ -942,7 +964,7 @@ fn handle_rename_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
     
     match key.code {
         KeyCode::Enter => {
-            if let Some(DialogState::Rename { value, old_path, .. }) = &app.dialog_state {
+            if let Some(DialogState::Rename { value, old_path, include_extension, .. }) = &app.dialog_state {
                 let new_name = value.trim();
                 
                 if new_name.is_empty() {
@@ -952,7 +974,19 @@ fn handle_rename_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
                 
                 // Build new path
                 let parent = old_path.parent().unwrap_or(old_path.as_path());
-                let new_path = parent.join(new_name);
+                
+                // If not including extension and this is a file, add back the original extension
+                let final_name = if !include_extension && old_path.is_file() {
+                    if let Some(ext) = old_path.extension() {
+                        format!("{}.{}", new_name, ext.to_string_lossy())
+                    } else {
+                        new_name.to_string()
+                    }
+                } else {
+                    new_name.to_string()
+                };
+                
+                let new_path = parent.join(&final_name);
                 
                 // Check if name is the same
                 if new_path == *old_path {
@@ -962,7 +996,7 @@ fn handle_rename_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
                 
                 // Check if target already exists
                 if new_path.exists() {
-                    app.show_error(format!("Ya existe un archivo o directorio con el nombre '{}'", new_name));
+                    app.show_error(format!("Ya existe un archivo o directorio con el nombre '{}'", final_name));
                     return Ok(Action::None);
                 }
                 

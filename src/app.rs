@@ -73,6 +73,7 @@ pub enum DialogState {
         prompt: String,
         value: String,
         old_path: PathBuf,
+        include_extension: bool, // True if renaming with extension, False if name only
     },
     // T925-T926: Compression options dialog
     CompressOptions {
