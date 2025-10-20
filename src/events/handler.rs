@@ -458,12 +458,11 @@ fn start_copy_operation(app: &mut AppState) -> Result<()> {
             let total_bytes = entry.size;
             
             // BUG-003 FIX: Check if copying to same directory
-            if let (Some(src_parent), Some(dst_parent)) = (source.parent(), destination.parent()) {
-                if src_parent == dst_parent {
+            if let (Some(src_parent), Some(dst_parent)) = (source.parent(), destination.parent())
+                && src_parent == dst_parent {
                     // Copying to same directory - generate new name with suffix
                     destination = crate::fs::operations::generate_collision_free_name(&destination);
                 }
-            }
             
             // T953: Check available disk space before copying
             if let Ok(available_space) = fs2::available_space(&dest_panel_path)
@@ -512,12 +511,11 @@ fn start_copy_operation_skip_check(app: &mut AppState) -> Result<()> {
                     let mut destination = dest_panel_path.join(&file_name);
                     
                     // BUG-003 FIX: Check if copying to same directory
-                    if let (Some(src_parent), Some(dst_parent)) = (path.parent(), destination.parent()) {
-                        if src_parent == dst_parent {
+                    if let (Some(src_parent), Some(dst_parent)) = (path.parent(), destination.parent())
+                        && src_parent == dst_parent {
                             // Copying to same directory - generate new name with suffix
                             destination = crate::fs::operations::generate_collision_free_name(&destination);
                         }
-                    }
                     
                     operations.push((path.clone(), destination, file_name));
                 }
@@ -541,12 +539,11 @@ fn start_copy_operation_skip_check(app: &mut AppState) -> Result<()> {
             let total_bytes = entry.size;
             
             // BUG-003 FIX: Check if copying to same directory
-            if let (Some(src_parent), Some(dst_parent)) = (source.parent(), destination.parent()) {
-                if src_parent == dst_parent {
+            if let (Some(src_parent), Some(dst_parent)) = (source.parent(), destination.parent())
+                && src_parent == dst_parent {
                     // Copying to same directory - generate new name with suffix
                     destination = crate::fs::operations::generate_collision_free_name(&destination);
                 }
-            }
             
             let total_files = 1; // Single file or directory
             

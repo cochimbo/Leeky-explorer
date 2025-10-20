@@ -59,8 +59,8 @@ pub async fn copy_file_with_progress(
     
     loop {
         // BUG-004 FIX: Check for cancellation
-        if let Some(ref cancel_rx) = cancel_rx {
-            if *cancel_rx.borrow() {
+        if let Some(ref cancel_rx) = cancel_rx
+            && *cancel_rx.borrow() {
                 log::info!("Copy operation cancelled by user");
                 drop(writer);
                 drop(reader);
@@ -68,7 +68,6 @@ pub async fn copy_file_with_progress(
                 let _ = tokio::fs::remove_file(&dst_path).await;
                 return Err(anyhow::anyhow!("Operation cancelled by user"));
             }
-        }
         
         let n = reader.read(&mut buffer).await?;
         if n == 0 {
@@ -135,6 +134,7 @@ pub async fn copy_dir_recursive(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 #[async_recursion::async_recursion]
 async fn copy_dir_recursive_impl(
     src: &Path,
@@ -150,12 +150,11 @@ async fn copy_dir_recursive_impl(
     
     while let Some(entry) = entries.next_entry().await? {
         // BUG-004 FIX: Check for cancellation
-        if let Some(ref cancel_rx) = cancel_rx {
-            if *cancel_rx.borrow() {
+        if let Some(ref cancel_rx) = cancel_rx
+            && *cancel_rx.borrow() {
                 log::info!("Copy directory operation cancelled by user");
                 return Err(anyhow::anyhow!("Operation cancelled by user"));
             }
-        }
         
         let src_path = entry.path();
         let file_name = entry.file_name();
