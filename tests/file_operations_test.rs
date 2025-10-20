@@ -24,7 +24,7 @@ async fn test_copy_file_with_progress() -> Result<()> {
     
     // Spawn copy operation
     let copy_task = tokio::spawn(async move {
-        operations::copy_file_with_progress(&src, &dst, progress_tx).await
+        operations::copy_file_with_progress(&src, &dst, progress_tx, None).await
     });
     
     // Collect progress updates
@@ -81,7 +81,7 @@ async fn test_copy_dir_recursive() -> Result<()> {
     
     // Spawn copy operation
     let copy_task = tokio::spawn(async move {
-        operations::copy_dir_recursive(&src, &dst, progress_tx, total_size).await
+        operations::copy_dir_recursive(&src, &dst, progress_tx, total_size, None).await
     });
     
     // Collect progress updates
@@ -136,7 +136,7 @@ async fn test_move_item() -> Result<()> {
     
     // Spawn move operation
     let move_task = tokio::spawn(async move {
-        operations::move_item(&src, &dst, progress_tx).await
+        operations::move_item(&src, &dst, progress_tx, None).await
     });
     
     // Wait for completion
@@ -168,6 +168,7 @@ async fn test_copy_handles_error_nonexistent_source() -> Result<()> {
         &source_path,
         &dest_path,
         progress_tx,
+        None,
     ).await;
     
     // Should return error
@@ -193,7 +194,7 @@ async fn test_copy_overwrites_existing_file() -> Result<()> {
     let dst = dest_path.clone();
     
     let copy_task = tokio::spawn(async move {
-        operations::copy_file_with_progress(&src, &dst, progress_tx).await
+        operations::copy_file_with_progress(&src, &dst, progress_tx, None).await
     });
     
     while let Some(progress) = progress_rx.recv().await {
