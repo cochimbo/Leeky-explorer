@@ -26,7 +26,10 @@ Thumbs.db
 # Logs
 *.log
 
+# Test files (personal use only)
+TEST_PLAN.md
 
 # Added by cargo
 
 /target
+.vscode/settings.json

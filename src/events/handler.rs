@@ -22,6 +22,11 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
         return handle_input_dialog(app, key);
     }
     
+    // Special handling for rename dialog
+    if let Some(DialogState::Rename { .. }) = &app.dialog_state {
+        return handle_rename_dialog(app, key);
+    }
+    
     // T843: Special handling for password input dialogs
     if let Some(DialogState::PasswordInput { .. }) = &app.dialog_state {
         return handle_password_input_dialog(app, key);
@@ -116,6 +121,12 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
         }
         Action::CreateFolder => {
             handle_create_folder_request(app)?;
+        }
+        Action::Rename => {
+            handle_rename_request(app, false)?; // false = name only
+        }
+        Action::RenameWithExtension => {
+            handle_rename_request(app, true)?; // true = name with extension
         }
         Action::Search => {
             // T411: Activate search mode
@@ -315,39 +326,62 @@ fn start_copy_operation(app: &mut AppState) -> Result<()> {
         }
     }
     
-    // T844: Check for collisions first
-    let collision_path = if app.has_selection() {
-        // Check first marked item for collision
+    // BUG-003/BUG-005 FIX: Check if copying to same directory
+    // If so, skip collision check and generate suffix automatically
+    let copying_to_same_dir = if app.has_selection() {
         let marked_paths = app.selection_state.get_marked(app.active_panel);
-        marked_paths.iter().find_map(|path| {
-            let file_name = path.file_name()?.to_string_lossy().to_string();
-            let dest = dest_panel_path.join(&file_name);
-            if dest.exists() {
-                Some(dest.to_string_lossy().to_string())
+        marked_paths.iter().any(|path| {
+            if let Some(src_parent) = path.parent() {
+                src_parent == dest_panel_path
             } else {
-                None
+                false
             }
         })
     } else {
-        // Check single item
-        app.active_panel().selected_entry().and_then(|entry| {
-            let dest = dest_panel_path.join(&entry.name);
-            if dest.exists() {
-                Some(dest.to_string_lossy().to_string())
-            } else {
-                None
-            }
-        })
+        app.active_panel().selected_entry()
+            .map(|entry| {
+                entry.path.parent()
+                    .map(|p| p == dest_panel_path)
+                    .unwrap_or(false)
+            })
+            .unwrap_or(false)
     };
     
-    // If collision detected, show collision dialog
-    if let Some(collision_path) = collision_path {
-        app.dialog_state = Some(DialogState::CollisionPrompt {
-            file_path: collision_path,
-            selected: 0,
-            operation: crate::app::CollisionOperation::Copy,
-        });
-        return Ok(());
+    // T844: Check for collisions first (but skip if copying to same directory)
+    if !copying_to_same_dir {
+        let collision_path = if app.has_selection() {
+            // Check first marked item for collision
+            let marked_paths = app.selection_state.get_marked(app.active_panel);
+            marked_paths.iter().find_map(|path| {
+                let file_name = path.file_name()?.to_string_lossy().to_string();
+                let dest = dest_panel_path.join(&file_name);
+                if dest.exists() {
+                    Some(dest.to_string_lossy().to_string())
+                } else {
+                    None
+                }
+            })
+        } else {
+            // Check single item
+            app.active_panel().selected_entry().and_then(|entry| {
+                let dest = dest_panel_path.join(&entry.name);
+                if dest.exists() {
+                    Some(dest.to_string_lossy().to_string())
+                } else {
+                    None
+                }
+            })
+        };
+        
+        // If collision detected, show collision dialog
+        if let Some(collision_path) = collision_path {
+            app.dialog_state = Some(DialogState::CollisionPrompt {
+                file_path: collision_path,
+                selected: 0,
+                operation: crate::app::CollisionOperation::Copy,
+            });
+            return Ok(());
+        }
     }
     
     // No collision, proceed with operation
@@ -366,7 +400,15 @@ fn start_copy_operation(app: &mut AppState) -> Result<()> {
                 if let Some(file_name) = path.file_name() {
                     let file_name = file_name.to_string_lossy().to_string();
                     let destination = dest_panel_path.join(&file_name);
-                    operations.push((path.clone(), destination, file_name));
+                    
+                    // BUG-003/BUG-005 FIX: Generate new name if copying to same directory
+                    let final_destination = if copying_to_same_dir {
+                        crate::fs::operations::generate_collision_free_name(&destination)
+                    } else {
+                        destination
+                    };
+                    
+                    operations.push((path.clone(), final_destination, file_name));
                 }
             }
         }
@@ -411,9 +453,17 @@ fn start_copy_operation(app: &mut AppState) -> Result<()> {
         
         if let Some(entry) = source_panel.selected_entry() {
             let source = entry.path.clone();
-            let destination = dest_panel_path.join(&entry.name);
+            let mut destination = dest_panel_path.join(&entry.name);
             let entry_name = entry.name.clone();
             let total_bytes = entry.size;
+            
+            // BUG-003 FIX: Check if copying to same directory
+            if let (Some(src_parent), Some(dst_parent)) = (source.parent(), destination.parent()) {
+                if src_parent == dst_parent {
+                    // Copying to same directory - generate new name with suffix
+                    destination = crate::fs::operations::generate_collision_free_name(&destination);
+                }
+            }
             
             // T953: Check available disk space before copying
             if let Ok(available_space) = fs2::available_space(&dest_panel_path)
@@ -459,8 +509,83 @@ fn start_copy_operation_skip_check(app: &mut AppState) -> Result<()> {
                 total_bytes += metadata.len();
                 if let Some(file_name) = path.file_name() {
                     let file_name = file_name.to_string_lossy().to_string();
-                    let destination = dest_panel_path.join(&file_name);
+                    let mut destination = dest_panel_path.join(&file_name);
+                    
+                    // BUG-003 FIX: Check if copying to same directory
+                    if let (Some(src_parent), Some(dst_parent)) = (path.parent(), destination.parent()) {
+                        if src_parent == dst_parent {
+                            // Copying to same directory - generate new name with suffix
+                            destination = crate::fs::operations::generate_collision_free_name(&destination);
+                        }
+                    }
+                    
                     operations.push((path.clone(), destination, file_name));
+                }
+            }
+        }
+        
+        let operation = Operation::copy_batch(operations, total_bytes, count);
+        app.current_operation = Some(operation);
+        
+        app.dialog_state = Some(DialogState::Progress {
+            message: format!("Copying {} items...", count),
+        });
+    } else {
+        // Single file operation
+        let source_panel = app.active_panel();
+        
+        if let Some(entry) = source_panel.selected_entry() {
+            let source = entry.path.clone();
+            let mut destination = dest_panel_path.join(&entry.name);
+            let entry_name = entry.name.clone();
+            let total_bytes = entry.size;
+            
+            // BUG-003 FIX: Check if copying to same directory
+            if let (Some(src_parent), Some(dst_parent)) = (source.parent(), destination.parent()) {
+                if src_parent == dst_parent {
+                    // Copying to same directory - generate new name with suffix
+                    destination = crate::fs::operations::generate_collision_free_name(&destination);
+                }
+            }
+            
+            let total_files = 1; // Single file or directory
+            
+            let operation = Operation::copy(source, destination, total_bytes, total_files);
+            app.current_operation = Some(operation);
+            
+            app.dialog_state = Some(DialogState::Progress {
+                message: format!("Copying '{}'...", entry_name),
+            });
+        }
+    }
+    
+    Ok(())
+}
+
+// BUG-003/BUG-005 FIX: Start copy with automatic rename (generate suffix)
+fn start_copy_operation_with_rename(app: &mut AppState) -> Result<()> {
+    let dest_panel_path = app.inactive_panel().current_path.clone();
+    
+    // T574: Check if batch operation or single
+    if app.has_selection() {
+        let marked_paths = app.selection_state.get_marked(app.active_panel);
+        let count = marked_paths.len();
+        
+        // Calculate total size and create batch operation
+        let mut total_bytes = 0u64;
+        let mut operations = Vec::new();
+        
+        for path in &marked_paths {
+            if let Ok(metadata) = std::fs::metadata(path) {
+                total_bytes += metadata.len();
+                if let Some(file_name) = path.file_name() {
+                    let file_name = file_name.to_string_lossy().to_string();
+                    let destination = dest_panel_path.join(&file_name);
+                    
+                    // Always generate collision-free name
+                    let final_destination = crate::fs::operations::generate_collision_free_name(&destination);
+                    
+                    operations.push((path.clone(), final_destination, file_name));
                 }
             }
         }
@@ -481,9 +606,12 @@ fn start_copy_operation_skip_check(app: &mut AppState) -> Result<()> {
             let entry_name = entry.name.clone();
             let total_bytes = entry.size;
             
+            // Always generate collision-free name
+            let final_destination = crate::fs::operations::generate_collision_free_name(&destination);
+            
             let total_files = 1; // Single file or directory
             
-            let operation = Operation::copy(source, destination, total_bytes, total_files);
+            let operation = Operation::copy(source, final_destination, total_bytes, total_files);
             app.current_operation = Some(operation);
             
             app.dialog_state = Some(DialogState::Progress {
@@ -659,6 +787,66 @@ fn start_move_operation_skip_check(app: &mut AppState) -> Result<()> {
     Ok(())
 }
 
+// BUG-003/BUG-005 FIX: Start move with automatic rename (generate suffix)
+fn start_move_operation_with_rename(app: &mut AppState) -> Result<()> {
+    let dest_panel_path = app.inactive_panel().current_path.clone();
+    
+    // T574: Check if batch operation or single
+    if app.has_selection() {
+        let marked_paths = app.selection_state.get_marked(app.active_panel);
+        let count = marked_paths.len();
+        
+        let mut total_bytes = 0u64;
+        let mut operations = Vec::new();
+        
+        for path in &marked_paths {
+            if let Ok(metadata) = std::fs::metadata(path) {
+                total_bytes += metadata.len();
+                if let Some(file_name) = path.file_name() {
+                    let file_name = file_name.to_string_lossy().to_string();
+                    let destination = dest_panel_path.join(&file_name);
+                    
+                    // Always generate collision-free name
+                    let final_destination = crate::fs::operations::generate_collision_free_name(&destination);
+                    
+                    operations.push((path.clone(), final_destination, file_name));
+                }
+            }
+        }
+        
+        let operation = Operation::move_batch(operations, total_bytes, count);
+        app.current_operation = Some(operation);
+        
+        app.dialog_state = Some(DialogState::Progress {
+            message: format!("Moving {} items...", count),
+        });
+    } else {
+        // Single file operation
+        let source_panel = app.active_panel();
+        
+        if let Some(entry) = source_panel.selected_entry() {
+            let source = entry.path.clone();
+            let destination = dest_panel_path.join(&entry.name);
+            let entry_name = entry.name.clone();
+            let total_bytes = entry.size;
+            
+            // Always generate collision-free name
+            let final_destination = crate::fs::operations::generate_collision_free_name(&destination);
+            
+            let total_files = 1; // Single file or directory
+            
+            let operation = Operation::move_op(source, final_destination, total_bytes, total_files);
+            app.current_operation = Some(operation);
+            
+            app.dialog_state = Some(DialogState::Progress {
+                message: format!("Moving '{}'...", entry_name),
+            });
+        }
+    }
+    
+    Ok(())
+}
+
 fn handle_delete_request(app: &mut AppState) -> Result<()> {
     // T572: Check if there are marked items first
     if app.has_selection() {
@@ -689,6 +877,42 @@ fn handle_create_folder_request(app: &mut AppState) -> Result<()> {
     Ok(())
 }
 
+fn handle_rename_request(app: &mut AppState, include_extension: bool) -> Result<()> {
+    // Get the current selected entry
+    let panel = app.active_panel();
+    if let Some(entry) = panel.selected_entry() {
+        let old_path = entry.path.clone();
+        let current_name = entry.name.clone();
+        
+        // For F2 (name only), extract just the name without extension
+        let display_name = if !include_extension && old_path.is_file() {
+            // Get stem (name without extension)
+            old_path.file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or(&current_name)
+                .to_string()
+        } else {
+            // For directories or Shift+F2, use full name
+            current_name.clone()
+        };
+        
+        // Show rename dialog with appropriate name pre-loaded
+        let prompt = if include_extension {
+            format!("Rename '{}' to (with extension):", current_name)
+        } else {
+            format!("Rename '{}' to:", current_name)
+        };
+        
+        app.dialog_state = Some(DialogState::Rename {
+            prompt,
+            value: display_name,
+            old_path,
+            include_extension,
+        });
+    }
+    Ok(())
+}
+
 fn handle_input_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
     let action = map_key_to_input_action(key);
     
@@ -696,9 +920,21 @@ fn handle_input_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
         Action::ConfirmInput => {
             if let Some(value) = app.get_input_value()
                 && !value.is_empty() {
-                    create_folder(app, &value)?;
+                    // BUG-001 FIX: Only close dialog if create_folder succeeds
+                    if create_folder(app, &value).is_ok() && app.error_message.is_none() {
+                        app.close_dialog();
+                    } else {
+                        // Keep dialog open to show error, but clear input to allow retry
+                        // Actually, convert to error dialog
+                        if let Some(err_msg) = app.error_message.take() {
+                            app.dialog_state = Some(DialogState::Error {
+                                message: err_msg,
+                            });
+                        }
+                    }
+                } else {
+                    app.close_dialog();
                 }
-            app.close_dialog();
         }
         Action::InputChar(c) => {
             app.input_dialog_append(c);
@@ -711,6 +947,90 @@ fn handle_input_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
         }
         Action::Quit => {
             return Ok(Action::Quit);
+        }
+        _ => {}
+    }
+    
+    Ok(Action::None)
+}
+
+fn handle_rename_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
+    use crossterm::event::{KeyCode, KeyEventKind};
+    
+    // Filter out key release events to prevent double processing
+    if key.kind != KeyEventKind::Press {
+        return Ok(Action::None);
+    }
+    
+    match key.code {
+        KeyCode::Enter => {
+            if let Some(DialogState::Rename { value, old_path, include_extension, .. }) = &app.dialog_state {
+                let new_name = value.trim();
+                
+                if new_name.is_empty() {
+                    app.show_error("El nombre no puede estar vacío".to_string());
+                    return Ok(Action::None);
+                }
+                
+                // Build new path
+                let parent = old_path.parent().unwrap_or(old_path.as_path());
+                
+                // If not including extension and this is a file, add back the original extension
+                let final_name = if !include_extension && old_path.is_file() {
+                    if let Some(ext) = old_path.extension() {
+                        format!("{}.{}", new_name, ext.to_string_lossy())
+                    } else {
+                        new_name.to_string()
+                    }
+                } else {
+                    new_name.to_string()
+                };
+                
+                let new_path = parent.join(&final_name);
+                
+                // Check if name is the same
+                if new_path == *old_path {
+                    app.close_dialog();
+                    return Ok(Action::None);
+                }
+                
+                // Check if target already exists
+                if new_path.exists() {
+                    app.show_error(format!("Ya existe un archivo o directorio con el nombre '{}'", final_name));
+                    return Ok(Action::None);
+                }
+                
+                // Perform rename
+                match std::fs::rename(old_path, &new_path) {
+                    Ok(()) => {
+                        log::info!("Renamed successfully: {:?} -> {:?}", old_path, new_path);
+                        app.close_dialog();
+                        
+                        // Refresh panels
+                        let _ = app.left_panel.refresh_entries();
+                        app.left_all_entries = app.left_panel.entries.clone();
+                        let _ = app.right_panel.refresh_entries();
+                        app.right_all_entries = app.right_panel.entries.clone();
+                    }
+                    Err(e) => {
+                        log::error!("Failed to rename: {}", e);
+                        app.show_error(format!("Error al renombrar: {}", e));
+                    }
+                }
+            }
+        }
+        KeyCode::Char(c) => {
+            if let Some(DialogState::Rename { value, .. }) = &mut app.dialog_state {
+                value.push(c);
+            }
+        }
+        KeyCode::Backspace => {
+            if let Some(DialogState::Rename { value, .. }) = &mut app.dialog_state {
+                value.pop();
+            }
+        }
+        KeyCode::Esc => {
+            app.close_dialog();
         }
         _ => {}
     }
@@ -767,7 +1087,12 @@ fn handle_password_input_dialog(app: &mut AppState, key: KeyEvent) -> Result<Act
 
 // T844: Handle collision dialog
 fn handle_collision_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
-    use crossterm::event::{KeyCode, KeyModifiers};
+    use crossterm::event::{KeyCode, KeyModifiers, KeyEventKind};
+    
+    // BUG-002 FIX: Filter out key release events to prevent double processing
+    if key.kind != KeyEventKind::Press {
+        return Ok(Action::None);
+    }
     
     match (key.code, key.modifiers) {
         // Enter: confirm selected option
@@ -799,8 +1124,13 @@ fn handle_collision_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> 
                         return Ok(Action::None);
                     }
                     2 => {
-                        // Rename (TODO: implement rename logic)
+                        // Rename - BUG-003/BUG-005 FIX: Generate name with suffix
                         app.close_dialog();
+                        match operation_type {
+                            crate::app::CollisionOperation::Copy => start_copy_operation_with_rename(app)?,
+                            crate::app::CollisionOperation::Move => start_move_operation_with_rename(app)?,
+                            crate::app::CollisionOperation::Extract => {},
+                        }
                         return Ok(Action::None);
                     }
                     3 => {
@@ -873,6 +1203,19 @@ fn create_folder(app: &mut AppState, folder_name: &str) -> Result<()> {
     let panel = app.active_panel();
     let new_path = panel.current_path.join(folder_name);
     
+    // BUG-001 FIX: Check if directory already exists
+    if new_path.exists() {
+        if new_path.is_dir() {
+            log::warn!("Folder already exists: {:?}", new_path);
+            app.error_message = Some(format!("El directorio '{}' ya existe", folder_name));
+            return Ok(()); // Don't crash, just show error
+        } else {
+            log::warn!("File with same name exists: {:?}", new_path);
+            app.error_message = Some(format!("Ya existe un archivo con el nombre '{}'", folder_name));
+            return Ok(());
+        }
+    }
+    
     // T851d: Log folder creation
     log::info!("Creating folder: {:?}", new_path);
     
@@ -886,7 +1229,8 @@ fn create_folder(app: &mut AppState, folder_name: &str) -> Result<()> {
         }
         Err(e) => {
             log::error!("Failed to create folder {:?}: {}", new_path, e);
-            Err(e.into())
+            app.error_message = Some(format!("No se pudo crear el directorio: {}", e));
+            Ok(()) // Don't crash, show error message instead
         }
     }
 }

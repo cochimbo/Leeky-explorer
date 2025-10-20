@@ -39,6 +39,7 @@ pub async fn copy_file_with_progress(
     src: &Path,
     dst: &Path,
     tx: mpsc::Sender<Progress>,
+    cancel_rx: Option<tokio::sync::watch::Receiver<bool>>,
 ) -> Result<()> {
     // T851d: Log file copy start
     log::info!("Copying file: {:?} -> {:?}", src, dst);
@@ -54,8 +55,21 @@ pub async fn copy_file_with_progress(
         .with_context(|| format!("Failed to create destination file: {}", dst.display()))?;
 
     let mut buffer = vec![0u8; 8192]; // 8KB buffer
+    let dst_path = dst.to_path_buf(); // Clone for cleanup
     
     loop {
+        // BUG-004 FIX: Check for cancellation
+        if let Some(ref cancel_rx) = cancel_rx {
+            if *cancel_rx.borrow() {
+                log::info!("Copy operation cancelled by user");
+                drop(writer);
+                drop(reader);
+                // Clean up partial file
+                let _ = tokio::fs::remove_file(&dst_path).await;
+                return Err(anyhow::anyhow!("Operation cancelled by user"));
+            }
+        }
+        
         let n = reader.read(&mut buffer).await?;
         if n == 0 {
             break;
@@ -102,6 +116,7 @@ pub async fn copy_dir_recursive(
     dst: &Path,
     tx: mpsc::Sender<Progress>,
     total_size: u64,
+    cancel_rx: Option<tokio::sync::watch::Receiver<bool>>,
 ) -> Result<()> {
     // T851d: Log directory copy start
     log::info!("Copying directory recursively: {:?} -> {:?}", src, dst);
@@ -112,7 +127,7 @@ pub async fn copy_dir_recursive(
     let mut files_copied = 0usize;
     let total_files = count_files(src).await?;
     
-    copy_dir_recursive_impl(src, dst, &tx, &mut bytes_copied, &mut files_copied, total_size, total_files).await?;
+    copy_dir_recursive_impl(src, dst, &tx, &mut bytes_copied, &mut files_copied, total_size, total_files, cancel_rx).await?;
     
     // T851d: Log successful directory copy
     log::info!("Directory copied successfully: {:?}", dst);
@@ -129,10 +144,19 @@ async fn copy_dir_recursive_impl(
     files_copied: &mut usize,
     total_bytes: u64,
     total_files: usize,
+    cancel_rx: Option<tokio::sync::watch::Receiver<bool>>,
 ) -> Result<()> {
     let mut entries = fs::read_dir(src).await?;
     
     while let Some(entry) = entries.next_entry().await? {
+        // BUG-004 FIX: Check for cancellation
+        if let Some(ref cancel_rx) = cancel_rx {
+            if *cancel_rx.borrow() {
+                log::info!("Copy directory operation cancelled by user");
+                return Err(anyhow::anyhow!("Operation cancelled by user"));
+            }
+        }
+        
         let src_path = entry.path();
         let file_name = entry.file_name();
         let dst_path = dst.join(&file_name);
@@ -141,7 +165,7 @@ async fn copy_dir_recursive_impl(
         
         if metadata.is_dir() {
             fs::create_dir_all(&dst_path).await?;
-            copy_dir_recursive_impl(&src_path, &dst_path, tx, bytes_copied, files_copied, total_bytes, total_files).await?;
+            copy_dir_recursive_impl(&src_path, &dst_path, tx, bytes_copied, files_copied, total_bytes, total_files, cancel_rx.clone()).await?;
         } else {
             // Copy file
             let file_size = metadata.len();
@@ -168,6 +192,7 @@ pub async fn move_item(
     src: &Path,
     dst: &Path,
     tx: mpsc::Sender<Progress>,
+    cancel_rx: Option<tokio::sync::watch::Receiver<bool>>,
 ) -> Result<()> {
     // T851d: Log move start
     log::info!("Moving item: {:?} -> {:?}", src, dst);
@@ -195,10 +220,10 @@ pub async fn move_item(
             // Cross-device move: copy then delete
             let total_size = get_total_size(src).await?;
             if src.is_dir() {
-                copy_dir_recursive(src, dst, tx.clone(), total_size).await?;
+                copy_dir_recursive(src, dst, tx.clone(), total_size, cancel_rx.clone()).await?;
                 fs::remove_dir_all(src).await?;
             } else {
-                copy_file_with_progress(src, dst, tx.clone()).await?;
+                copy_file_with_progress(src, dst, tx.clone(), cancel_rx.clone()).await?;
                 fs::remove_file(src).await?;
             }
             

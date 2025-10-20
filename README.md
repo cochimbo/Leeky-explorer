@@ -133,11 +133,9 @@ make package
 
 | Key | Action |
 |-----|--------|
-| `↑` / `k` | Move cursor up |
-| `↓` / `j` | Move cursor down |
-| `←` / `h` | Switch to left panel |
-| `→` / `l` | Switch to right panel |
-| `Enter` | Enter directory / Open file preview |
+| `↑` | Move cursor up |
+| `↓` | Move cursor down |
+| `Enter` | Enter directory |
 | `Backspace` | Go to parent directory |
 | `Tab` | Switch active panel |
 | `Home` | Jump to first item |
@@ -150,18 +148,18 @@ make package
 | Key | Action |
 |-----|--------|
 | `F5` | Copy file(s) to opposite panel |
-| `F6` | Move/Rename file(s) to opposite panel |
-| `F7` | Create new folder |
+| `F6` | Move file(s) to opposite panel |
+| `F7` | Create new directory |
 | `F8` / `Delete` | Delete selected file(s) |
+| `Space` | Mark/Unmark file for batch operations |
 | `Ctrl+A` | Select/Deselect all files |
-| `Insert` / `Space` | Mark/Unmark file for batch operations |
 
 ### Archive Operations
 
 | Key | Action |
 |-----|--------|
-| `F9` | Extract archive to current panel |
-| `F10` | Compress selected files |
+| `Ctrl+E` | Extract archive to current directory |
+| `Ctrl+Z` | Compress selected files |
 
 **Compression Options**:
 - Format: ZIP, TAR.GZ, TAR.BZ2, TAR.XZ
@@ -203,7 +201,7 @@ make package
 
 | Key | Action |
 |-----|--------|
-| `F1` / `?` | Help screen (keybindings) |
+| `?` | Help screen (keybindings) |
 | `Ctrl+C` / `q` | Quit application |
 | `Esc` | Cancel operation / Close dialog |
 
@@ -221,7 +219,7 @@ make package
 │                                          ││                                         │
 │                                          ││                                         │
 └──────────────────────────────────────────┘└──────────────────────────────────────────┘
- F1 Help  F5 Copy  F6 Move  F7 MkDir  F8 Delete  F9 Extract  F10 Compress  / Search  q Quit
+ ? Help  F5 Copy  F6 Move  F7 MkDir  F8 Delete  Ctrl+E Extract  Ctrl+Z Compress  / Filter  q Quit
 ```
 
 ## 🚀 Usage Examples
@@ -242,7 +240,7 @@ make package
 
 ### Multi-Select Operations
 
-1. Mark files with `Insert` or `Space`
+1. Mark files with `Space`
 2. Or press `Ctrl+A` to select all
 3. Press `F5` (copy), `F6` (move), or `F8` (delete)
 4. All marked files will be processed
@@ -256,8 +254,8 @@ make package
 
 ### Create Archive
 
-1. Select files to compress (use `Insert` for multiple)
-2. Press `F10`
+1. Select files to compress (use `Space` for multiple)
+2. Press `Ctrl+Z`
 3. Choose format (ZIP, TAR.GZ, etc.)
 4. Choose compression level
 5. Optionally add password (ZIP only)
@@ -266,7 +264,7 @@ make package
 ### Extract Archive
 
 1. Navigate to `.zip`, `.tar.gz`, `.7z`, etc.
-2. Press `F9`
+2. Press `Ctrl+E`
 3. Choose extraction option:
    - Extract here
    - Extract to new folder

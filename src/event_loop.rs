@@ -889,6 +889,7 @@ async fn execute_batch_operation(
             source,
             destination,
             dummy_tx.clone(),
+            cancel_rx.clone(),
         ).await?;
         
         bytes_done += file_size;
@@ -916,6 +917,7 @@ async fn execute_single_batch_item(
     source: &std::path::Path,
     destination: &std::path::Path,
     progress_tx: mpsc::Sender<Progress>,
+    cancel_rx: tokio::sync::watch::Receiver<bool>,
 ) -> Result<u64> {
     match operation_type {
         OperationType::Copy => {
@@ -928,12 +930,14 @@ async fn execute_single_batch_item(
                     destination,
                     progress_tx,
                     size,
+                    Some(cancel_rx),
                 ).await?;
             } else {
                 crate::fs::operations::copy_file_with_progress(
                     source,
                     destination,
                     progress_tx,
+                    Some(cancel_rx),
                 ).await?;
             }
             
@@ -947,6 +951,7 @@ async fn execute_single_batch_item(
                 source,
                 destination,
                 progress_tx,
+                Some(cancel_rx),
             ).await?;
             
             Ok(size)
@@ -988,12 +993,14 @@ async fn execute_single_operation(
                     &operation.destination,
                     progress_tx,
                     total_size,
+                    Some(cancel_rx),
                 ).await?;
             } else {
                 crate::fs::operations::copy_file_with_progress(
                     &operation.source,
                     &operation.destination,
                     progress_tx,
+                    Some(cancel_rx),
                 ).await?;
             }
         }
@@ -1002,6 +1009,7 @@ async fn execute_single_operation(
                 &operation.source,
                 &operation.destination,
                 progress_tx,
+                Some(cancel_rx),
             ).await?;
         }
         OperationType::Delete => {
