@@ -188,26 +188,30 @@ Similar a BUG-003 pero para directorios. Al copiar un directorio al mismo nivel,
 
 ### FEATURE-001: Renombrar archivo/directorio (F2)
 **Prioridad**: Alta  
-**Estado**: 📝 Planned (v0.2.0)
+**Estado**: ✅ COMPLETADO (v0.2.0)
 **Asignado a**: -
+**Commits**: a43cb4a, 9aa751e
 
 **Descripción**:
 No existe funcionalidad para renombrar archivos/directorios con `F2` como se esperaba en el test plan.
 
 **Implementación requerida**:
-1. Añadir keybinding `F2` para renombrar
-2. Mostrar diálogo con nombre actual pre-cargado
-3. Validar nuevo nombre (no vacío, no duplicado)
-4. Ejecutar rename operation
-5. Actualizar vista
+1. ✅ Añadir keybinding `F2` para renombrar
+2. ✅ Mostrar diálogo con nombre actual pre-cargado
+3. ✅ Validar nuevo nombre (no vacío, no duplicado)
+4. ✅ Ejecutar rename operation
+5. ✅ Actualizar vista
+6. ✅ **Enhancement**: F2 renombra solo nombre, Shift+F2 incluye extensión
 
 **User Story**:
 Como usuario, quiero renombrar archivos y directorios fácilmente con F2 para reorganizar mi sistema de archivos.
 
 **Criterios de aceptación**:
-- [ ] `F2` abre diálogo de renombrar
-- [ ] Input muestra nombre actual
-- [ ] Validación de nombre duplicado
+- [x] `F2` abre diálogo de renombrar (solo nombre sin extensión)
+- [x] `Shift+F2` abre diálogo con nombre completo incluyendo extensión
+- [x] Input muestra nombre actual apropiado según modo
+- [x] Validación de nombre duplicado
+- [x] Footer muestra ambas opciones de renombrado
 - [ ] Mensaje de error si falla
 - [ ] Vista se actualiza después de renombrar
 
@@ -223,7 +227,7 @@ Como usuario, quiero renombrar archivos y directorios fácilmente con F2 para re
 **Medios**: 1 (completado)  
 **Bajos**: 0  
 
-**Features faltantes**: 1 (diferido a v0.2.0)
+**Features faltantes**: 1 ✅ (completado en v0.2.0)
 
 ## Release: v0.1.1
 
@@ -235,7 +239,13 @@ Como usuario, quiero renombrar archivos y directorios fácilmente con F2 para re
 - [x] BUG-003: Fix copiar archivo sin sufijo (ddc5cbc)
 - [x] BUG-004: Fix cancelación con ESC (c77e8f8)
 - [x] BUG-005: Fix copiar directorio sin sufijo (ddc5cbc)
-- [ ] FEATURE-001: Renombrar F2 (diferido a v0.2.0)
+
+## Release: v0.2.0
+
+**Objetivo**: Funcionalidad de renombrado mejorada  
+**Estado**: ✅ COMPLETADO  
+**Commits**:
+- [x] FEATURE-001: Renombrar con F2/Shift+F2 (a43cb4a, 9aa751e)
 
 **Fecha completado**: 2025-10-20  
 **Rama**: dev/v0.2.0
