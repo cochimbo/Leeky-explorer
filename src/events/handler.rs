@@ -47,6 +47,11 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
         return handle_collision_dialog(app, key);
     }
     
+    // US4: Special handling for drive selector
+    if let Some(DialogState::DriveSelector { .. }) = &app.dialog_state {
+        return handle_drive_selector_dialog(app, key);
+    }
+    
     // Special handling for compress options dialog
     if let Some(DialogState::CompressOptions { .. }) = &app.dialog_state {
         return handle_compress_options_dialog(app, key);
@@ -148,6 +153,16 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
             // T625-T626: Open preview for current file
             // This needs to be async, so we'll handle it in main.rs
             return Ok(action);
+        }
+        Action::OpenDriveSelector => {
+            // US4: Open drive selector dialog
+            let drives = crate::fs::disk_info::get_available_drives();
+            if !drives.is_empty() {
+                app.dialog_state = Some(DialogState::DriveSelector {
+                    drives,
+                    selected: 0,
+                });
+            }
         }
         Action::ExtractArchive => {
             // T838-T839: Extract archive
@@ -1562,3 +1577,47 @@ fn handle_compress_options_dialog(app: &mut AppState, key: KeyEvent) -> Result<A
     Ok(Action::None)
 }
 
+// US4: Handle drive selector dialog key events
+fn handle_drive_selector_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
+    use crossterm::event::{KeyCode, KeyModifiers};
+    
+    match (key.code, key.modifiers) {
+        // Up: move selection up
+        (KeyCode::Up, _) | (KeyCode::Char('k'), KeyModifiers::NONE) => {
+            if let Some(DialogState::DriveSelector { selected, .. }) = &mut app.dialog_state {
+                if *selected > 0 {
+                    *selected -= 1;
+                }
+            }
+        }
+        // Down: move selection down
+        (KeyCode::Down, _) | (KeyCode::Char('j'), KeyModifiers::NONE) => {
+            if let Some(DialogState::DriveSelector { selected, drives }) = &mut app.dialog_state {
+                if *selected < drives.len().saturating_sub(1) {
+                    *selected += 1;
+                }
+            }
+        }
+        // Enter: select drive and navigate to it
+        (KeyCode::Enter, _) => {
+            if let Some(DialogState::DriveSelector { drives, selected }) = &app.dialog_state {
+                if let Some((drive_path, _)) = drives.get(*selected) {
+                    let new_path = std::path::PathBuf::from(drive_path);
+                    // Change the active panel to this drive
+                    let panel = app.active_panel_mut();
+                    panel.current_path = new_path;
+                    panel.refresh_entries()?;
+                    panel.cursor = 0; // Reset cursor to top
+                }
+            }
+            app.close_dialog();
+        }
+        // Escape: cancel
+        (KeyCode::Esc, _) => {
+            app.close_dialog();
+        }
+        _ => {}
+    }
+    
+    Ok(Action::None)
+}

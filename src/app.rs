@@ -91,6 +91,11 @@ pub enum DialogState {
         confirm_password: String,
         selected_field: usize, // 0=name, 1=format, 2=level, 3=password_checkbox, 4=password, 5=confirm_password
     },
+    // US4: Drive selector dialog (Windows drive letters)
+    DriveSelector {
+        drives: Vec<(String, String)>, // (letter like "C:", label like "Local Disk")
+        selected: usize,
+    },
 }
 
 #[derive(Debug, Clone)]

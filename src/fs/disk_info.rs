@@ -130,6 +130,57 @@ pub fn format_disk_space(info: &DiskSpaceInfo) -> String {
     )
 }
 
+/// Get list of available drives (Windows: A-Z, Unix: common mount points)
+/// Returns Vec<(drive_path, label)>
+#[cfg(target_os = "windows")]
+pub fn get_available_drives() -> Vec<(String, String)> {
+    use std::fs;
+    let mut drives = Vec::new();
+    
+    // Try each drive letter from A to Z
+    for letter in b'A'..=b'Z' {
+        let drive_path = format!("{}:\\", letter as char);
+        // Check if drive exists by trying to read metadata
+        if fs::metadata(&drive_path).is_ok() {
+            // Try to get disk space info for a better label
+            let label = match get_disk_space(std::path::Path::new(&drive_path)) {
+                Ok(info) => {
+                    // Format as "C: (123.4 GB free)"
+                    format!("{} ({} free)", info.drive_label, format_size(info.free_bytes))
+                }
+                Err(_) => {
+                    // Fallback to just the drive letter
+                    format!("{}:", letter as char)
+                }
+            };
+            drives.push((drive_path, label));
+        }
+    }
+    
+    drives
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn get_available_drives() -> Vec<(String, String)> {
+    // On Unix, list common mount points
+    let mut drives = Vec::new();
+    let common_mounts = vec![
+        ("/", "Root"),
+        ("/home", "Home"),
+        ("/media", "Media"),
+        ("/mnt", "Mount"),
+        ("/Volumes", "Volumes"), // macOS
+    ];
+    
+    for (path, label) in common_mounts {
+        if std::path::Path::new(path).exists() {
+            drives.push((path.to_string(), label.to_string()));
+        }
+    }
+    
+    drives
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

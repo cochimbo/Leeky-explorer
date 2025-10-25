@@ -24,6 +24,7 @@ pub enum Action {
     ClosePreview,     // T628: Esc/Q to close preview
     ExtractArchive,   // T838: F9 to extract archive
     CompressArchive,  // T937: Shift+F9 to compress archive
+    OpenDriveSelector, // US4: F10 to open drive selector (Windows)
     ScrollPreviewUp,
     ScrollPreviewDown,
     PagePreviewUp,
@@ -73,11 +74,12 @@ pub fn map_key_to_action(key: KeyEvent) -> Action {
         (KeyCode::F(6), _) => Action::Move,
         (KeyCode::F(7), _) => Action::CreateFolder,
         (KeyCode::F(8), _) => Action::Delete,
-        // F3 for search, F4 for preview (T626), F9 for extract (T839), Shift+F9 for compress (T938)
+        // F3 for search, F4 for preview (T626), F9 for extract (T839), Shift+F9 for compress (T938), F10 for drive selector (US4)
         (KeyCode::F(3), _) => Action::Search,
         (KeyCode::F(4), _) => Action::OpenPreview,
         (KeyCode::F(9), KeyModifiers::NONE) => Action::ExtractArchive,
         (KeyCode::F(9), KeyModifiers::SHIFT) => Action::CompressArchive,
+        (KeyCode::F(10), _) => Action::OpenDriveSelector,
         // T565-T566: Selection keybindings
         (KeyCode::Char(' '), KeyModifiers::NONE) => Action::ToggleSelection,
         (KeyCode::Char('a'), KeyModifiers::CONTROL) => Action::SelectAll,

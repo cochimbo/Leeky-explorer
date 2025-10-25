@@ -39,6 +39,10 @@ pub fn render_dialog(frame: &mut Frame, dialog: &DialogState, area: Rect) {
         DialogState::CompressOptions { sources, output_name, format, level, use_password, password, confirm_password, selected_field } => {
             render_compress_options_dialog(frame, sources, output_name, format, level, *use_password, password, confirm_password, *selected_field, area);
         }
+        // US4: Render drive selector dialog
+        DialogState::DriveSelector { drives, selected } => {
+            crate::ui::drive_selector::render(frame, drives, *selected);
+        }
     }
 }
 

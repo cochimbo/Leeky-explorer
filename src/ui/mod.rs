@@ -8,6 +8,7 @@ pub mod file_icons;
 pub mod welcome_screen;
 pub mod column_layout;
 pub mod formatters;
+pub mod drive_selector;
 
 use crate::app::{AppState, PanelSide, DialogState};
 use ratatui::{
@@ -208,6 +209,7 @@ pub fn render_footer(frame: &mut Frame, area: Rect) {
         ("F8", "Delete", Color::Red),
         ("F9", "Extract", Color::Cyan),
         ("⇧F9", "Compress", Color::Cyan),    // Shift+F9 for compression
+        ("F10", "Drive", Color::Blue),        // US4: Drive selector
         ("Ctrl+Q", "Quit", Color::Gray),     // T128b: Changed from Q to Ctrl+Q
         ("Ctrl+A", "All", Color::Magenta),
     ];
