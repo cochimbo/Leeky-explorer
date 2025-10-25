@@ -229,22 +229,22 @@
 
 ### FileEntry Struct Extension
 
-- [ ] T101 Add `pub created: Option<SystemTime>` field to FileEntry struct
-- [ ] T102 Add `pub extension: Option<String>` field to FileEntry struct
-- [ ] T103 Update FileEntry constructor to initialize new fields
-- [ ] T104 Add Default trait implementation for new fields
+- [x] T101 Add `pub created: Option<SystemTime>` field to FileEntry struct ✅
+- [x] T102 Add `pub extension: Option<String>` field to FileEntry struct ✅
+- [x] T103 Update FileEntry constructor to initialize new fields ✅
+- [x] T104 Add Default trait implementation for new fields ✅
 
 ### Navigator Modifications
 
-- [ ] T105 Modify `navigator.rs::read_dir()` to query creation time from metadata
-- [ ] T106 Windows: Use `metadata.created()` to populate created field
-- [ ] T107 Unix: Use `metadata.created()` with fallback to modified if unavailable
-- [ ] T108 Implement extension extraction logic (split on last '.')
-- [ ] T109 Handle multi-part extensions (.tar.gz, .test.js)
-- [ ] T110 Handle dotfiles without extension (.gitignore → no ext)
-- [ ] T111 Handle directories (show None or Some("DIR"))
+- [x] T105 Modify `navigator.rs::read_dir()` to query creation time from metadata ✅
+- [x] T106 Windows: Use `metadata.created()` to populate created field ✅
+- [x] T107 Unix: Use `metadata.created()` with fallback to modified if unavailable ✅
+- [x] T108 Implement extension extraction logic (split on last '.') ✅
+- [x] T109 Handle multi-part extensions (.tar.gz, .test.js) ✅
+- [x] T110 Handle dotfiles without extension (.gitignore → no ext) ✅
+- [x] T111 Handle directories (show None or Some("DIR")) ✅
 
-**Deliverable**: FileEntry includes creation date and extension data
+**Deliverable**: FileEntry includes creation date and extension data ✅
 
 ---
 
