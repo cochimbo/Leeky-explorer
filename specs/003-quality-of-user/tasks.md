@@ -174,10 +174,11 @@
 - [x] T072 Add disk space query for right panel: `get_disk_space(&app.right_panel.current_path)` ✅
 - [x] T073 Format disk space strings and render in header with cyan color ✅
 - [x] T074 Add error handling: show "Space: N/A" if query fails ✅
-- [ ] T075 Test header rendering with disk space info in dual panels
-- [ ] T076 Verify text truncation for long drive labels (ellipsis if needed)
+- [x] T075 Test header rendering with disk space info in dual panels ✅
+- [x] T076 Verify text truncation for long drive labels (ellipsis if needed) ✅
+  - Bonus: Split header into two blocks aligned with panels for better visual separation
 
-**Checkpoint**: Header displays disk space information correctly ⏳
+**Checkpoint**: Header displays disk space information correctly ✅
 
 ### Phase 8: Performance Optimization (Caching)
 
@@ -194,7 +195,7 @@
 ### Phase 9: Testing and Validation
 
 **Manual Testing - Windows**:
-- [ ] T084 Test on C: drive - verify correct space display
+- [x] T084 Test on C: drive - verify correct space display ✅
 - [ ] T085 Test on D: drive (if available) - verify different space display
 - [ ] T086 Navigate between C: and D: - verify header updates correctly
 - [ ] T087 Test with network drive (\\server\share) - verify "N/A" fallback
@@ -214,19 +215,207 @@
 - [ ] T097 Copy large file to drive - verify disk space updates
 
 **Unit Tests** (`tests/unit/disk_info_test.rs`):
-- [ ] T098 Write test: `test_format_size()` with KB/MB/GB/TB ranges
-- [ ] T099 Write test: `test_get_drive_label()` on Windows paths (C:\, D:\Users\)
-- [ ] T100 Write test: `test_get_drive_label()` on Linux paths (/, /home, /mnt/data)
+- [x] T098 Write test: `test_format_size()` with KB/MB/GB/TB ranges ✅
+- [x] T099 Write test: `test_get_drive_label()` on Windows paths (C:\, D:\Users\) ✅
+- [x] T100 Write test: `test_get_drive_label()` on Linux paths (/, /home, /mnt/data) ✅
 
-**Deliverable**: Disk space information displays accurately in header, replacing redundant paths
+**Deliverable**: Disk space information displays accurately in header, replacing redundant paths ✅
+
+---
+
+## Phase 10: Data Model Enhancement (User Story 3)
+
+**Goal**: Add creation date and extension to FileEntry model
+
+### FileEntry Struct Extension
+
+- [ ] T101 Add `pub created: Option<SystemTime>` field to FileEntry struct
+- [ ] T102 Add `pub extension: Option<String>` field to FileEntry struct
+- [ ] T103 Update FileEntry constructor to initialize new fields
+- [ ] T104 Add Default trait implementation for new fields
+
+### Navigator Modifications
+
+- [ ] T105 Modify `navigator.rs::read_dir()` to query creation time from metadata
+- [ ] T106 Windows: Use `metadata.created()` to populate created field
+- [ ] T107 Unix: Use `metadata.created()` with fallback to modified if unavailable
+- [ ] T108 Implement extension extraction logic (split on last '.')
+- [ ] T109 Handle multi-part extensions (.tar.gz, .test.js)
+- [ ] T110 Handle dotfiles without extension (.gitignore → no ext)
+- [ ] T111 Handle directories (show None or Some("DIR"))
+
+**Deliverable**: FileEntry includes creation date and extension data
+
+---
+
+## Phase 11: Column Layout Module (User Story 3)
+
+**Goal**: Calculate dynamic column widths based on terminal size
+
+### Module Creation
+
+- [ ] T112 Create `src/ui/column_layout.rs` file
+- [ ] T113 Define ColumnLayout struct with 8 width fields (icon, mark, name, ext, size, modified, created, perms)
+- [ ] T114 Implement `calculate_layout(available_width, entries)` function
+- [ ] T115 Add exports to `src/ui/mod.rs`
+
+### Width Calculation Logic
+
+- [ ] T116 Implement fixed width allocation (icon: 2, mark: 1, size: 10, dates: 16 each)
+- [ ] T117 Calculate permissions width based on platform (Windows: 4, Unix: 10)
+- [ ] T118 Implement dynamic name width calculation (remaining space after fixed cols)
+- [ ] T119 Implement column hiding logic for narrow terminals (<100, <120 cols)
+- [ ] T120 Add minimum width validation (ensure name column ≥20 chars)
+
+### Alignment Configuration
+
+- [ ] T121 Define alignment enum (Left, Right, Center)
+- [ ] T122 Configure left-alignment for icon, mark, name, extension
+- [ ] T123 Configure right-alignment for size
+- [ ] T124 Configure center-alignment for dates and permissions
+
+**Deliverable**: Column layout calculator with dynamic width adjustment
+
+---
+
+## Phase 12: Formatting Utilities (User Story 3)
+
+**Goal**: Format file metadata for column display
+
+### Module Creation
+
+- [ ] T125 Create `src/ui/formatters.rs` file
+- [ ] T126 Add exports to `src/ui/mod.rs`
+
+### Extension Formatting
+
+- [ ] T127 Implement `format_extension(name: &str) -> String`
+- [ ] T128 Handle standard extensions (.txt, .rs, .json)
+- [ ] T129 Handle multi-part extensions (.tar.gz → "tar.gz")
+- [ ] T130 Handle dotfiles (.gitignore → "" or special indicator)
+- [ ] T131 Handle no extension (README → "")
+- [ ] T132 Add max length truncation (>8 chars → truncate)
+
+### Size Formatting
+
+- [ ] T133 Implement `format_size(bytes: u64) -> String`
+- [ ] T134 Reuse disk_info size formatting logic (B/KB/MB/GB/TB)
+- [ ] T135 Format to fixed width (10 chars: "  1.23 GB ")
+- [ ] T136 Handle directories (show "DIR" or empty)
+
+### Date Formatting
+
+- [ ] T137 Implement `format_date(time: Option<SystemTime>) -> String`
+- [ ] T138 Format as ISO: "YYYY-MM-DD HH:MM"
+- [ ] T139 Use local timezone conversion
+- [ ] T140 Handle None case: show "N/A" or "----"
+- [ ] T141 Add optional chrono crate dependency if needed (or use manual formatting)
+
+### Permissions Formatting
+
+- [ ] T142 Implement `format_permissions(entry: &FileEntry) -> String`
+- [ ] T143 Windows: Format as "RHSA" (4 chars: R/-, H/-, S/-, A/-)
+- [ ] T144 Unix: Format as "rwxr-xr-x" (9 chars: user/group/other)
+- [ ] T145 Unix: Add prefix for type (d=dir, l=symlink, -=file, etc.)
+- [ ] T146 Handle special files (block device, char device, socket, pipe)
+- [ ] T147 Test with readonly files, hidden files, executables
+
+**Deliverable**: Complete formatting utilities for all column types
+
+---
+
+## Phase 13: Panel Rendering Update (User Story 3)
+
+**Goal**: Replace simple list with columnar view
+
+### Header Row Implementation
+
+- [ ] T148 Design column header layout ("Icon│Name│Ext│Size│Modified│Created│Perms")
+- [ ] T149 Implement header row rendering with borders
+- [ ] T150 Apply bold or color styling to headers
+- [ ] T151 Align headers to match data column alignment
+- [ ] T152 Add separator line below headers (─ characters)
+
+### Data Row Rendering
+
+- [ ] T153 Modify `panel_widget.rs` rendering loop
+- [ ] T154 Call `calculate_layout()` to get column widths
+- [ ] T155 Iterate entries and format each column with correct width
+- [ ] T156 Apply column alignment (left/right/center)
+- [ ] T157 Add padding between columns (1-2 spaces or │ separator)
+- [ ] T158 Implement name truncation with "..." for long names
+- [ ] T159 Render icon using existing `get_icon()` function
+- [ ] T160 Render mark indicator (space or '*' for marked files)
+
+### Selection and Highlighting
+
+- [ ] T161 Maintain selection highlighting with columnar layout
+- [ ] T162 Test selection cursor positioning
+- [ ] T163 Test scroll behavior with new layout
+- [ ] T164 Verify multi-select marking displays correctly
+
+**Deliverable**: Panel displays files in detailed columnar format
+
+---
+
+## Phase 14: Testing and Validation (User Story 3)
+
+**Goal**: Verify all scenarios and edge cases
+
+### Unit Tests
+
+- [ ] T165 Create `tests/unit/column_layout_test.rs`
+- [ ] T166 Test `calculate_layout()` with 80 cols (minimum)
+- [ ] T167 Test `calculate_layout()` with 120 cols (comfortable)
+- [ ] T168 Test `calculate_layout()` with 200 cols (wide)
+- [ ] T169 Test column hiding logic at various widths
+- [ ] T170 Create `tests/unit/formatters_test.rs`
+- [ ] T171 Test `format_extension()` with standard files
+- [ ] T172 Test `format_extension()` with multi-part extensions
+- [ ] T173 Test `format_extension()` with dotfiles
+- [ ] T174 Test `format_date()` with valid SystemTime
+- [ ] T175 Test `format_date()` with None
+- [ ] T176 Test `format_permissions()` on Windows (mock RHSA)
+- [ ] T177 Test `format_permissions()` on Unix (mock rwx)
+
+### Manual Testing - Windows
+
+- [ ] T178 Test with various file types (.txt, .rs, .json, .tar.gz)
+- [ ] T179 Test with long filenames (>50 chars) - verify truncation
+- [ ] T180 Test with dotfiles (.gitignore, .bashrc)
+- [ ] T181 Test with directories and regular files
+- [ ] T182 Test with readonly files - verify "R---" permissions
+- [ ] T183 Test with hidden files - verify "-H--" permissions
+- [ ] T184 Test terminal resize from 80 to 200 cols - verify layout adapts
+- [ ] T185 Test navigation and selection with new layout
+- [ ] T186 Test multi-select marking visibility
+
+### Manual Testing - Cross-Platform (if available)
+
+- [ ] T187 Test on Linux: verify rwx permissions display
+- [ ] T188 Test on Linux: verify executable files show 'x' flag
+- [ ] T189 Test on Linux: verify directories show 'd' prefix
+- [ ] T190 Test on Linux: verify symlinks show 'l' prefix
+- [ ] T191 Test on macOS: similar permission verification
+
+### Edge Cases
+
+- [ ] T192 Test with files without extensions (README, Makefile)
+- [ ] T193 Test with very large files (>1TB) - verify size formatting
+- [ ] T194 Test with files where created date unavailable - verify fallback
+- [ ] T195 Test with special files (if applicable: pipes, sockets)
+- [ ] T196 Test scrolling performance with 1000+ files in columnar view
+- [ ] T197 Test with unicode filenames - verify display and truncation
+
+**Deliverable**: Comprehensive columnar view working across platforms
 
 ---
 
 ## Summary
 
-**Total Tasks**: 100 (60 from US1 + 40 from US2)
-**Completed**: 38/100 (38%)
-**Remaining**: 62 (22 from US1 + 40 from US2)
+**Total Tasks**: 197 (60 from US1 + 40 from US2 + 97 from US3)
+**Completed**: 63/197 (32%)
+**Remaining**: 134 (22 from US1 + 15 from US2 + 97 from US3)
 
 **User Story 1 (Welcome Screen)**:
 - Total: 60 tasks
@@ -235,30 +424,43 @@
 
 **User Story 2 (Disk Space Info)**:
 - Total: 40 tasks
+- Completed: 25 (62.5%)
+- Status: ✅ Core implementation complete, some edge case testing pending
+
+**User Story 3 (Detailed Column View)**:
+- Total: 97 tasks
 - Completed: 0 (0%)
-- Status: 🆕 Ready to start implementation
+- Status: 🚧 Ready to start - specification complete, plan defined
 
 **Time Spent**:
 - Phase 1-3 (US1 Implementation): ✅ ~7.5 hours (completed)
 - Phase 4 (US1 Testing): ⏳ Partial
 - Phase 5 (Release): ⏳ ON HOLD
-- Phase 6-9 (US2): 📝 Not started
+- Phase 6-8 (US2 Implementation): ✅ ~3 hours (completed)
+- Phase 9 (US2 Testing): ⏳ Partial - core functionality verified
+- Phase 10-14 (US3 Implementation): 🚧 Starting now
 
 **Critical Path**: 
 - US1: ✅ All blocking tasks done
-- US2: T061-T069 (disk space module) must complete before T070-T076 (header modification)
+- US2: ✅ MVP achieved, some edge cases remain
+- US3: 🎯 Ready to implement - Phase 10 first (T101-T111)
+- US2: ✅ All blocking tasks done (T061-T080)
 
 **Minimum Viable**: 
 - US1: ✅ ACHIEVED
-- US2: ❌ Not started
+- US2: ✅ ACHIEVED - Header shows disk space with dual-block layout
 
 **Current Status**: 
 - User Story 1 (Welcome Screen) implementation complete and functional ✅
-- User Story 2 (Disk Space Info) spec and plan complete, ready for implementation 📝
-- Both stories will be included in v0.3.0 release
+- User Story 2 (Disk Space Info) core implementation complete ✅
+  - Dual-block header layout aligned with panels
+  - Cross-platform support (Windows/Linux/macOS)
+  - 5-second caching for performance
+  - Unit tests passing (3/3)
+- Both stories ready for final testing and release preparation
 
 **Next Steps**: 
-1. Implement User Story 2 (T061-T100)
-2. Complete cross-platform testing for both stories
-3. Prepare final release (version bump, changelog, build testing)
+1. Continue with remaining testing tasks (T081-T097) if needed
+2. Or proceed to release preparation (version bump, changelog, final testing)
+3. Merge to master and create v0.3.0 release
 4. Prepare final release (T056-T060)

@@ -56,6 +56,29 @@ As a user navigating through directories, I want to see disk space information (
 
 ---
 
+### User Story 3 - Detailed Column View for File Listings (Priority: P3)
+
+As a user browsing files, I want to see detailed information in a columnar format for each file and directory, so I can quickly understand file properties without needing additional commands or tools.
+
+**Why this priority**: Essential for power users who need quick access to file metadata. Current simple list view lacks critical information (dates, permissions, extensions) that users frequently need for decision-making.
+
+**Independent Test**: Can be tested by navigating to any directory and verifying that columns display: icon, name, extension, size, modification date, creation date, and permissions. Works independently of other features.
+
+**Acceptance Scenarios**:
+
+1. **Given** panel displays files, **When** viewing list, **Then** each entry shows: icon, name, extension (if file), size, modification date, creation date, and permissions in aligned columns
+2. **Given** file has extension, **When** displayed in panel, **Then** name and extension are shown in separate columns (e.g., "document" | ".txt")
+3. **Given** entry is a directory, **When** displayed, **Then** extension column is empty and size shows "<DIR>" or folder count
+4. **Given** file size is displayed, **When** rendering, **Then** size uses appropriate units (B, KB, MB, GB) with right-alignment
+5. **Given** dates are displayed, **When** rendering, **Then** format is compact and locale-aware (e.g., "2025-01-15 14:30" or "Jan 15 14:30")
+6. **Given** system is Windows, **When** showing permissions, **Then** display as "R" (readonly), "H" (hidden), "S" (system), "A" (archive)
+7. **Given** system is Unix-like, **When** showing permissions, **Then** display as rwxr-xr-x format (user-group-other)
+8. **Given** terminal width is limited, **When** rendering, **Then** columns adapt or truncate gracefully to fit available space
+9. **Given** entry is marked for operation, **When** displayed, **Then** "*" prefix is visible before icon
+10. **Given** user resizes terminal, **When** panels redraw, **Then** column widths recalculate to maintain readability
+
+---
+
 ### Edge Cases
 
 **User Story 1 (Welcome Screen)**:
@@ -71,6 +94,17 @@ As a user navigating through directories, I want to see disk space information (
 - How to display very large disk sizes (TB/PB)? (Use appropriate units: KB, MB, GB, TB)
 - What about drives with multiple mount points? (Show space for the filesystem containing the current path)
 - How to handle extremely long drive names/labels? (Truncate with ellipsis)
+
+**User Story 3 (Detailed Column View)**:
+- How to handle very long filenames? (Truncate with ellipsis in name column)
+- What if extension is very long (.tar.gz.bak)? (Show full extension or truncate)
+- How to handle files with no extension? (Leave extension column empty)
+- What about hidden files on Windows vs Unix? (Windows: check Hidden attribute, Unix: starts with '.')
+- How to display symlink permissions? (Show target permissions or link permissions?)
+- What if creation date is unavailable (Linux ext4)? (Show "N/A" or fallback to modification date)
+- How to handle very large file sizes (>1TB)? (Use TB unit with decimal places)
+- What about special files (devices, sockets, pipes) on Unix? (Show type indicator in permissions: c, b, s, p)
+- How wide should each column be on different terminal sizes? (Dynamic calculation based on available width)
 
 ## Requirements *(mandatory)*
 
@@ -94,6 +128,19 @@ As a user navigating through directories, I want to see disk space information (
 - **FR-013**: Disk space display MUST replace current redundant path information in header
 - **FR-014**: Format MUST be compact: "Drive: UsedGB / TotalGB (XX% free)"
 - **FR-015**: System MUST detect correct filesystem/partition for current panel path (Windows drives, Linux partitions, macOS volumes)
+
+**User Story 3 (Detailed Column View)**:
+- **FR-016**: Panel view MUST display files in columnar format with aligned columns
+- **FR-017**: Columns MUST include: icon, name, extension (files only), size, modification date, creation date, permissions
+- **FR-018**: File extensions MUST be separated from name and shown in dedicated column
+- **FR-019**: Directories MUST show "<DIR>" or folder count in size column, empty extension column
+- **FR-020**: File sizes MUST use appropriate units (B, KB, MB, GB, TB) with right-alignment
+- **FR-021**: Dates MUST be formatted compactly and consistently (YYYY-MM-DD HH:MM or locale-aware)
+- **FR-022**: Windows permissions MUST display as combination of: R (readonly), H (hidden), S (system), A (archive)
+- **FR-023**: Unix permissions MUST display as rwxr-xr-x format (user-group-other octal representation)
+- **FR-024**: System MUST handle terminal width constraints by adapting or truncating columns gracefully
+- **FR-025**: Marked entries MUST show "*" prefix before icon
+- **FR-026**: Column widths MUST recalculate on terminal resize to maintain readability
 
 ### Key Entities
 
@@ -119,6 +166,27 @@ As a user navigating through directories, I want to see disk space information (
   - Linux: Mount points (/dev/sda1, /dev/nvme0n1p2, etc.)
   - macOS: Volumes (/Volumes/Macintosh HD, etc.)
 
+**User Story 3**:
+- **Column Layout**: Structured display of file metadata
+  - Columns: Icon (emoji), Mark (*), Name, Extension, Size, Modified Date, Created Date, Permissions
+  - Alignment: Left for text, right for numbers
+  - Width: Dynamic based on terminal size and content
+  
+- **File Extension**: Separated component of filename
+  - Extraction: Everything after last '.' in filename
+  - Display: Dedicated column after name
+  - Special cases: No extension (empty), multiple dots (.tar.gz)
+  
+- **Date Formatting**: Consistent timestamp display
+  - Format options: ISO (YYYY-MM-DD HH:MM) or locale-aware
+  - Modification date: Last write time (always available)
+  - Creation date: Birth time (Windows/macOS) or fallback to modified (Linux ext4)
+  
+- **Permissions Display**: Platform-specific access control info
+  - Windows: RHSA flags (Readonly, Hidden, System, Archive)
+  - Unix: rwxr-xr-x format (user/group/other with read/write/execute bits)
+  - Special files: Type indicators (d=dir, l=link, c=char device, b=block device, s=socket, p=pipe)
+
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
@@ -137,3 +205,14 @@ As a user navigating through directories, I want to see disk space information (
 - **SC-009**: System correctly identifies mount points for 95% of Linux/macOS filesystems
 - **SC-010**: Disk space updates within 100ms when user navigates to different drive/partition
 - **SC-011**: Graceful fallback ("N/A") shown for 100% of inaccessible or special filesystems (network, virtual, etc.)
+
+**User Story 3 (Detailed Column View)**:
+- **SC-012**: All 7 columns (icon, name, ext, size, mod date, create date, perms) display correctly in 95% of terminal sizes (>80 cols)
+- **SC-013**: File extensions extracted correctly for 100% of common file types (.txt, .rs, .tar.gz, etc.)
+- **SC-014**: Dates format consistently across all entries (within 2ms rendering time per entry)
+- **SC-015**: Windows permissions (RHSA) display correctly for 100% of Windows files
+- **SC-016**: Unix permissions (rwx) display correctly for 100% of Unix files and special files
+- **SC-017**: Column alignment (left/right) correct for 100% of entries
+- **SC-018**: Column widths recalculate within 50ms on terminal resize
+- **SC-019**: Truncation with ellipsis works correctly for long names (>50 chars) in 100% of cases
+- **SC-020**: View remains readable in minimum terminal width (80 columns)

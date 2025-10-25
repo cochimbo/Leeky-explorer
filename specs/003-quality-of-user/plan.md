@@ -382,3 +382,141 @@ Cargo.toml               # Modified later: Update to version 0.3.0 when ready
 - What format for very large drives (10TB+)? (Recommendation: show as TB with 1 decimal: "8.5TB / 12.0TB")
 - Should we show filesystem type (NTFS, ext4, APFS)? (Recommendation: No, space info is sufficient)
 - How to handle btrfs/ZFS with complex volume management? (Recommendation: Show space for current mount point)
+
+---
+
+### User Story 3: Detailed Column View
+
+#### Phase 10: Data Model Enhancement
+**Goal**: Add missing data to FileEntry model
+
+1. **Modify `src/models/file_entry.rs`**
+   - Add `pub created: Option<SystemTime>` field to FileEntry struct
+   - Update constructor to initialize created field
+   - Add `pub extension: Option<String>` field (extracted from name)
+   
+2. **Modify `src/fs/navigator.rs`**
+   - In `read_dir()` function, query creation time from metadata
+   - Windows: Use `metadata.created()` (available)
+   - Unix: Use `metadata.created()` where available, fallback to `modified` if not
+   - Extract file extension: split on last '.', handle special cases (.tar.gz, no extension, dotfiles)
+
+3. **Error Handling**
+   - If creation time unavailable: use modified time as fallback
+   - If modified time also unavailable: use None
+   - Document platform limitations in code comments
+
+#### Phase 11: Column Layout Module
+**Goal**: Calculate dynamic column widths and alignment
+
+1. **Create `src/ui/column_layout.rs`**
+   ```rust
+   // Core structure:
+   - pub struct ColumnLayout {
+       pub icon_width: u16,     // Fixed: 2 chars
+       pub mark_width: u16,     // Fixed: 1 char
+       pub name_width: u16,     // Dynamic: remaining space
+       pub ext_width: u16,      // Fixed or dynamic: 8 chars
+       pub size_width: u16,     // Fixed: 10 chars (e.g. "1.23 GB")
+       pub modified_width: u16, // Fixed: 16 chars (YYYY-MM-DD HH:MM)
+       pub created_width: u16,  // Fixed: 16 chars
+       pub perms_width: u16,    // Fixed: 10 chars (Windows) or 9 chars (Unix)
+   }
+   
+   - pub fn calculate_layout(available_width: u16, entries: &[FileEntry]) -> ColumnLayout
+   - fn calculate_name_width(total: u16, fixed_cols: u16, max_name_len: usize) -> u16
+   - fn should_hide_column(available: u16, min_required: u16) -> bool
+   ```
+
+2. **Dynamic Width Logic**
+   - Minimum terminal width: 80 columns
+   - Priority order (hide columns if space limited):
+     1. Icon, Mark, Name (always visible)
+     2. Size, Modified (hide if <100 cols)
+     3. Extension, Created, Permissions (hide if <120 cols)
+   - Name column gets remaining space after fixed columns
+   - Truncate with "..." if name exceeds available width
+
+3. **Column Alignment**
+   - Left-aligned: Icon, Mark, Name, Extension
+   - Right-aligned: Size
+   - Center-aligned: Modified, Created, Permissions
+
+#### Phase 12: Formatting Utilities
+**Goal**: Format file metadata for display
+
+1. **Create `src/ui/formatters.rs`**
+   ```rust
+   // Core structure:
+   - pub fn format_extension(name: &str) -> String // Extract and format extension
+   - pub fn format_size(bytes: u64) -> String // "1.23 GB", "456 KB", etc.
+   - pub fn format_date(time: Option<SystemTime>) -> String // "2025-01-26 14:30" or "N/A"
+   - pub fn format_permissions(entry: &FileEntry) -> String // Platform-specific
+   ```
+
+2. **Extension Extraction**
+   - Split on last '.' character
+   - Handle multi-part extensions (.tar.gz → "tar.gz")
+   - Dotfiles without extension (.gitignore → show as name, no ext)
+   - Directories: show empty string or "DIR"
+
+3. **Date Formatting**
+   - ISO format: "YYYY-MM-DD HH:MM"
+   - Use local timezone
+   - Handle Option<SystemTime>: show "N/A" if None
+   - Consider chrono crate for formatting (optional, can use manual formatting)
+
+4. **Permissions Formatting**
+   - Windows: "RHSA" format (Readonly, Hidden, System, Archive)
+     - Example: "R--A" (readonly and archive), "RH--" (readonly and hidden)
+     - Use 4 characters: R/-, H/-, S/-, A/-
+   - Unix: "rwxr-xr-x" format (user, group, other)
+     - Example: "rwxr-xr-x", "rw-r--r--", "drwxr-xr-x" (directory)
+     - Prefix: d (directory), l (symlink), - (file)
+     - Use 10 characters total
+
+#### Phase 13: Panel Rendering Update
+**Goal**: Replace simple list with columnar view
+
+1. **Modify `src/ui/panel_widget.rs`**
+   - Replace current rendering loop with column-based rendering
+   - Use `ColumnLayout::calculate_layout()` to get widths
+   - Render header row with column titles:
+     - "Icon | Name | Ext | Size | Modified | Created | Perms"
+   - Render each file entry as a row with formatted columns
+   - Apply correct alignment for each column (left/right/center)
+   - Highlight selected row with different background color
+
+2. **Header Row**
+   - Separate header row with border (─ characters)
+   - Use bold or different color for column titles
+   - Align titles to match data alignment
+
+3. **Data Rows**
+   - Use padding/spacing between columns (1-2 spaces)
+   - Truncate long names with "..." if needed
+   - Use icon from existing `get_icon()` function
+   - Show mark indicator (space or '*' for marked files)
+   - Apply selection highlighting
+
+#### Phase 14: Testing
+**Goal**: Verify all scenarios from spec
+
+1. **Unit Tests** (`tests/unit/column_layout_test.rs`)
+   - Test `calculate_layout()` with various terminal widths
+   - Test column hiding logic (<80, <100, <120 cols)
+   - Test `format_extension()` with various filenames
+   - Test `format_date()` with valid and None SystemTime
+   - Test `format_permissions()` on Windows and Unix
+
+2. **Manual Testing**
+   - Test with files of various name lengths
+   - Test with files with multiple extensions (.tar.gz)
+   - Test with dotfiles (.gitignore, .bashrc)
+   - Test with very long filenames (>50 chars)
+   - Test with directories vs regular files
+   - Test on Windows: verify RHSA permissions
+   - Test on Unix: verify rwx permissions
+   - Test terminal resize: verify columns adapt
+   - Test in minimum width (80 cols): verify essential columns visible
+   - Test in wide terminal (200+ cols): verify all columns visible
