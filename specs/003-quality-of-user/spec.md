@@ -102,6 +102,43 @@ As a Windows user navigating between different drives (C:, D:, E:), or as a Unix
 
 ---
 
+### User Story 5 - Customizable Color Themes (Priority: P5)
+
+As a user working in different terminal emulators with varying background colors, I want to customize the application's color scheme (panel backgrounds, text colors, borders, highlights), so that I can ensure optimal readability and visual comfort regardless of my terminal's appearance.
+
+**Why this priority**: Visual accessibility and user preference. Current hardcoded colors (especially black backgrounds) blend with some terminal themes, reducing readability. Allowing theme customization improves user experience across diverse environments and personal preferences.
+
+**Independent Test**: Can be tested by opening theme selector (F11), choosing different themes, and verifying all UI elements update colors appropriately. Works independently of other features.
+
+**Acceptance Scenarios**:
+
+1. **Given** application is running, **When** user presses F11 key, **Then** theme selector dialog appears with list of available themes
+2. **Given** theme selector is open, **When** dialog renders, **Then** shows preview of each theme with sample colors
+3. **Given** theme selector displays themes, **When** user navigates with Up/Down keys, **Then** preview updates to show selected theme
+4. **Given** theme selector has a theme selected, **When** user presses Enter, **Then** application applies theme immediately to all UI elements
+5. **Given** custom theme is applied, **When** viewing panels, **Then** panel background color uses theme's panel_bg color
+6. **Given** custom theme is applied, **When** viewing file list, **Then** directories use theme's dir_color, files use theme's file_color
+7. **Given** custom theme is applied, **When** active panel shown, **Then** border uses theme's active_border color
+8. **Given** custom theme is applied, **When** inactive panel shown, **Then** border uses theme's inactive_border color
+9. **Given** custom theme is applied, **When** item is selected, **Then** highlight uses theme's highlight_bg and highlight_fg colors
+10. **Given** custom theme is applied, **When** marquee text scrolls, **Then** marquee uses theme's marquee_color (if different from normal text)
+11. **Given** custom theme is applied, **When** footer renders, **Then** footer uses theme's footer_bg and footer_fg colors
+12. **Given** custom theme is applied, **When** user exits and relaunches, **Then** previously selected theme persists from config file
+13. **Given** theme selector is open, **When** user presses Escape, **Then** dialog closes without changing theme
+14. **Given** application footer, **When** rendered, **Then** shows "F11 :Theme" keybinding hint
+
+**Built-in Themes**:
+- **Classic**: Current color scheme (black background, cyan borders, blue highlight)
+- **Light**: Light backgrounds for light terminals (white/light gray panels, dark text)
+- **Dark**: Enhanced dark theme (dark gray panels, bright accents)
+- **High Contrast**: Maximum contrast (black/white only, bold borders)
+- **Nord**: Popular Nord color palette (blue-gray aesthetic)
+- **Dracula**: Popular Dracula theme (purple/pink accents)
+- **Solarized Dark**: Solarized dark palette
+- **Solarized Light**: Solarized light palette
+
+---
+
 ### Edge Cases
 
 **User Story 1 (Welcome Screen)**:
@@ -139,6 +176,16 @@ As a Windows user navigating between different drives (C:, D:, E:), or as a Unix
 - What about Unix symbolic links in /media or /mnt? (Follow links to actual mount points)
 - How to handle permission errors when reading drive info? (Show drive but indicate access denied)
 - What if terminal is too small for dialog? (Show scrollable list or minimum viable dialog)
+
+**User Story 5 (Color Themes)**:
+- What if config file contains invalid color values? (Fall back to default Classic theme)
+- How to handle custom RGB colors not supported by terminal? (Map to closest available color)
+- What about terminal emulators with limited color support (8 colors vs 256)? (Gracefully degrade to basic colors)
+- How to preview theme without fully applying it? (Show mini preview in theme selector dialog)
+- What if user creates theme with very similar foreground/background? (Warn about low contrast or prevent)
+- How to handle theme switching while dialogs are open? (Close dialogs and reopen with new theme, or update in place)
+- What about text that becomes invisible with certain theme combinations? (Validate minimum contrast ratios)
+- How to export/import custom themes? (Support JSON theme files in config directory)
 
 ## Requirements *(mandatory)*
 
@@ -191,6 +238,24 @@ As a Windows user navigating between different drives (C:, D:, E:), or as a Unix
 - **FR-038**: Dialog MUST show footer with count of available drives
 - **FR-039**: Footer MUST display "F10 :Drive" keybinding hint in blue color
 - **FR-040**: System MUST handle drives with unavailable space info by showing drive without space details
+
+**User Story 5 (Color Themes)**:
+- **FR-041**: System MUST provide F11 hotkey to open theme selector dialog
+- **FR-042**: Theme selector MUST display as centered modal dialog showing available themes
+- **FR-043**: System MUST include at least 8 built-in themes: Classic, Light, Dark, High Contrast, Nord, Dracula, Solarized Dark, Solarized Light
+- **FR-044**: Each theme MUST define colors for: panel_bg, panel_fg, active_border, inactive_border, highlight_bg, highlight_fg, dir_color, file_color, symlink_color, executable_color, marked_bg, footer_bg, footer_fg, dialog_bg, dialog_fg, error_color, warning_color
+- **FR-045**: Theme selector MUST show preview of each theme with sample UI elements
+- **FR-046**: Dialog MUST support Up/Down and j/k keys for navigation between themes
+- **FR-047**: Pressing Enter MUST apply selected theme immediately to all UI elements
+- **FR-048**: System MUST update all panels, borders, dialogs, and footer when theme changes
+- **FR-049**: System MUST save selected theme to config file (~/.config/leeky/config.json or Windows equivalent)
+- **FR-050**: System MUST load and apply saved theme on application startup
+- **FR-051**: Pressing Escape MUST close theme selector without changing theme
+- **FR-052**: Footer MUST display "F11 :Theme" keybinding hint
+- **FR-053**: Theme data structure MUST support RGB colors (r, g, b values 0-255) for 256-color terminals
+- **FR-054**: System MUST gracefully degrade theme colors for terminals with limited color support
+- **FR-055**: Theme MUST apply to marquee scrolling text without color conflicts
+- **FR-056**: System MUST validate theme definitions and fallback to Classic theme on invalid data
 
 ### Key Entities
 
@@ -256,6 +321,34 @@ As a Windows user navigating between different drives (C:, D:, E:), or as a Unix
   - Bounds checking: Wrap or stop at list edges
   - Action: Enter to apply, Escape to cancel
 
+**User Story 5**:
+- **Color Theme**: Complete color scheme definition for UI
+  - Components: 17+ color properties covering all UI elements
+  - Format: JSON structure with RGB values (0-255) or named colors
+  - Storage: Saved in config file (~/.config/leeky/config.json)
+  - Built-in themes: 8 predefined themes (Classic, Light, Dark, etc.)
+
+- **Theme Selector Dialog**: Modal interface for theme selection and preview
+  - Display: Centered dialog showing theme list
+  - Components: Theme name, color preview squares, instructions
+  - Preview: Live sample showing panel bg, borders, highlight, dir/file colors
+  - Trigger: F11 key press
+  - Dismissal: Enter (apply) or Escape (cancel)
+
+- **Theme Definition**: Structure containing all color properties
+  - Core colors: panel_bg, panel_fg, active_border, inactive_border
+  - Highlight: highlight_bg, highlight_fg
+  - Entry types: dir_color, file_color, symlink_color, executable_color
+  - UI elements: marked_bg, footer_bg, footer_fg, dialog_bg, dialog_fg
+  - Status: error_color, warning_color, info_color
+  - Optional: marquee_color (defaults to panel_fg if not specified)
+
+- **Theme Manager**: System component managing theme loading and application
+  - Responsibilities: Load themes, validate definitions, apply to UI, persist selection
+  - Validation: Check all required color properties exist, ensure valid RGB values
+  - Fallback: Default to Classic theme on invalid/missing theme data
+  - Hot-swap: Apply theme changes immediately without restart
+
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
@@ -297,4 +390,21 @@ As a Windows user navigating between different drives (C:, D:, E:), or as a Unix
 - **SC-028**: System handles 100% of unavailable drives gracefully (shows without crashing)
 - **SC-029**: Footer displays "F10 :Drive" hint in 100% of application states
 - **SC-030**: Drive enumeration completes within 500ms even with 10+ drives
+
+**User Story 5 (Color Themes)**:
+- **SC-031**: F11 key opens theme selector dialog in 100% of cases when not in other modal state
+- **SC-032**: All 8 built-in themes load successfully in 100% of application launches
+- **SC-033**: Theme applies to all UI elements (panels, borders, dialogs, footer) within 100ms
+- **SC-034**: Theme preview in selector accurately represents actual theme appearance for 100% of themes
+- **SC-035**: Selected theme persists across application restarts in 100% of cases
+- **SC-036**: Theme selector displays correctly in 95% of terminal sizes (>80x24)
+- **SC-037**: Theme validation detects 100% of invalid color definitions
+- **SC-038**: System falls back to Classic theme in 100% of invalid theme configurations
+- **SC-039**: Color contrast between text and background maintains minimum 3:1 ratio for 100% of built-in themes
+- **SC-040**: Theme switching completes without visual artifacts in 95% of cases
+- **SC-041**: Marquee text remains visible with 100% of built-in themes
+- **SC-042**: Footer displays "F11 :Theme" hint in 100% of application states
+- **SC-043**: Theme changes reflect in all open dialogs immediately in 100% of cases
+- **SC-044**: Terminal color degradation (256→16→8 colors) maintains readability for 90% of themes
+- **SC-045**: Theme loading from config file completes within 50ms
 
