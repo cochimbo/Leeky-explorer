@@ -137,7 +137,7 @@ pub fn render_dialog_if_present(frame: &mut Frame, app: &AppState) {
     }
 }
 
-pub fn render_header(frame: &mut Frame, app: &mut AppState, area: Rect) {
+pub fn render_header(frame: &mut Frame, app: &mut AppState, left_area: Rect, right_area: Rect) {
     // T070-T074: Show disk space information instead of redundant paths
     // T080: Use cached disk space to prevent UI lag
     
@@ -157,18 +157,29 @@ pub fn render_header(frame: &mut Frame, app: &mut AppState, area: Rect) {
         "Space: N/A".to_string()
     };
 
-    let content = Line::from(vec![
+    // Render left header
+    let left_content = Line::from(vec![
         Span::styled(format!(" {} ", left_space), Style::default().fg(Color::Cyan)),
-        Span::raw(" | "),
-        Span::styled(format!(" {} ", right_space), Style::default().fg(Color::Cyan)),
     ]);
-
-    let block = Block::default()
+    
+    let left_block = Block::default()
         .borders(Borders::ALL)
         .style(Style::default());
+    
+    let left_paragraph = Paragraph::new(left_content).block(left_block);
+    frame.render_widget(left_paragraph, left_area);
 
-    let paragraph = Paragraph::new(content).block(block);
-    frame.render_widget(paragraph, area);
+    // Render right header
+    let right_content = Line::from(vec![
+        Span::styled(format!(" {} ", right_space), Style::default().fg(Color::Cyan)),
+    ]);
+    
+    let right_block = Block::default()
+        .borders(Borders::ALL)
+        .style(Style::default());
+    
+    let right_paragraph = Paragraph::new(right_content).block(right_block);
+    frame.render_widget(right_paragraph, right_area);
 }
 
 pub fn render_footer(frame: &mut Frame, area: Rect) {

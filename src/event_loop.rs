@@ -407,8 +407,8 @@ fn render_ui<B: ratatui::backend::Backend>(
 
         let layout = ui::layout::create_layout(f.area());
         
-        // Render header (T080: needs &mut for caching)
-        ui::render_header(f, app, layout.header);
+        // Render headers (T075-T076: two separate blocks aligned with panels)
+        ui::render_header(f, app, layout.left_header, layout.right_header);
         
         // Render panels
         ui::render_panels(f, app, &layout);
