@@ -22,9 +22,39 @@ pub struct FileEntry {
     pub extension: Option<String>,
     pub permissions: Permissions,
     pub path: PathBuf,
+    
+    // Windows file attributes (FILE_ATTRIBUTE_*)
+    #[cfg(windows)]
+    pub file_attributes: Option<u32>,
 }
 
 impl FileEntry {
+    #[cfg(windows)]
+    pub fn new(
+        name: String,
+        entry_type: EntryType,
+        size: u64,
+        modified: SystemTime,
+        created: Option<SystemTime>,
+        extension: Option<String>,
+        permissions: Permissions,
+        path: PathBuf,
+        file_attributes: Option<u32>,
+    ) -> Self {
+        Self {
+            name,
+            entry_type,
+            size,
+            modified,
+            created,
+            extension,
+            permissions,
+            path,
+            file_attributes,
+        }
+    }
+    
+    #[cfg(not(windows))]
     pub fn new(
         name: String,
         entry_type: EntryType,

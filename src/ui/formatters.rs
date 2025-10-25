@@ -92,14 +92,31 @@ pub fn format_date(time: Option<SystemTime>) -> String {
 pub fn format_permissions(entry: &FileEntry) -> String {
     #[cfg(windows)]
     {
-        // Windows file attributes
-        // Since we only have Permissions, we'll show a simplified format
-        // Full RHSA requires metadata.file_attributes()
+        // Windows file attributes (FILE_ATTRIBUTE_*)
+        // https://docs.microsoft.com/en-us/windows/win32/fileio/file-attribute-constants
+        const FILE_ATTRIBUTE_READONLY: u32 = 0x00000001;
+        const FILE_ATTRIBUTE_HIDDEN: u32 = 0x00000002;
+        const FILE_ATTRIBUTE_SYSTEM: u32 = 0x00000004;
+        const FILE_ATTRIBUTE_ARCHIVE: u32 = 0x00000020;
         
-        let readonly = entry.permissions.readonly();
-        
-        // Simplified Windows format (we only have readonly info from Permissions)
-        format!("{}-", if readonly { "R" } else { "-" })
+        if let Some(attrs) = entry.file_attributes {
+            let readonly = attrs & FILE_ATTRIBUTE_READONLY != 0;
+            let hidden = attrs & FILE_ATTRIBUTE_HIDDEN != 0;
+            let system = attrs & FILE_ATTRIBUTE_SYSTEM != 0;
+            let archive = attrs & FILE_ATTRIBUTE_ARCHIVE != 0;
+            
+            format!(
+                "{}{}{}{}",
+                if readonly { 'R' } else { '-' },
+                if hidden { 'H' } else { '-' },
+                if system { 'S' } else { '-' },
+                if archive { 'A' } else { '-' }
+            )
+        } else {
+            // Fallback if attributes unavailable
+            let readonly = entry.permissions.readonly();
+            format!("{}-", if readonly { "R" } else { "-" })
+        }
     }
     
     #[cfg(not(windows))]
@@ -240,6 +257,8 @@ mod tests {
             extension,
             permissions,
             PathBuf::from(name),
+            #[cfg(windows)]
+            Some(0x00000020), // FILE_ATTRIBUTE_ARCHIVE by default for tests
         )
     }
 

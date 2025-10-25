@@ -35,6 +35,8 @@ fn create_test_entries() -> Vec<FileEntry> {
             Some("txt".to_string()),
             perms.clone(),
             PathBuf::from("/test/document.txt"),
+            #[cfg(windows)]
+            Some(0x00000020), // FILE_ATTRIBUTE_ARCHIVE
         ),
         FileEntry::new(
             "image.png".to_string(),
@@ -45,6 +47,8 @@ fn create_test_entries() -> Vec<FileEntry> {
             Some("png".to_string()),
             perms.clone(),
             PathBuf::from("/test/image.png"),
+            #[cfg(windows)]
+            Some(0x00000020),
         ),
         FileEntry::new(
             "test_file.rs".to_string(),
@@ -55,6 +59,8 @@ fn create_test_entries() -> Vec<FileEntry> {
             Some("rs".to_string()),
             perms.clone(),
             PathBuf::from("/test/test_file.rs"),
+            #[cfg(windows)]
+            Some(0x00000020),
         ),
         FileEntry::new(
             "main.rs".to_string(),
@@ -65,6 +71,8 @@ fn create_test_entries() -> Vec<FileEntry> {
             Some("rs".to_string()),
             perms.clone(),
             PathBuf::from("/test/main.rs"),
+            #[cfg(windows)]
+            Some(0x00000020),
         ),
         FileEntry::new(
             "README.md".to_string(),
@@ -75,6 +83,8 @@ fn create_test_entries() -> Vec<FileEntry> {
             Some("md".to_string()),
             perms,
             PathBuf::from("/test/README.md"),
+            #[cfg(windows)]
+            Some(0x00000020),
         ),
     ]
 }
@@ -269,6 +279,8 @@ fn test_glob_pattern_with_question_mark() -> Result<()> {
             Some("txt".to_string()),
             perms.clone(),
             PathBuf::from("/test/file1.txt"),
+            #[cfg(windows)]
+            Some(0x00000020),
         ),
         FileEntry::new(
             "file2.txt".to_string(),
@@ -279,6 +291,8 @@ fn test_glob_pattern_with_question_mark() -> Result<()> {
             Some("txt".to_string()),
             perms.clone(),
             PathBuf::from("/test/file2.txt"),
+            #[cfg(windows)]
+            Some(0x00000020),
         ),
         FileEntry::new(
             "file10.txt".to_string(),
@@ -289,6 +303,8 @@ fn test_glob_pattern_with_question_mark() -> Result<()> {
             Some("txt".to_string()),
             perms,
             PathBuf::from("/test/file10.txt"),
+            #[cfg(windows)]
+            Some(0x00000020),
         ),
     ];
     

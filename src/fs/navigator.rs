@@ -32,6 +32,13 @@ pub fn read_dir(path: &Path) -> Result<Vec<FileEntry>> {
         // Extract file extension using FileEntry helper
         let extension = FileEntry::extract_extension(&file_name, entry_type == EntryType::Dir);
 
+        // Get Windows file attributes if on Windows
+        #[cfg(windows)]
+        let file_attributes = {
+            use std::os::windows::fs::MetadataExt;
+            Some(metadata.file_attributes())
+        };
+
         let file_entry = FileEntry::new(
             file_name,
             entry_type,
@@ -41,6 +48,8 @@ pub fn read_dir(path: &Path) -> Result<Vec<FileEntry>> {
             extension,
             metadata.permissions(),
             entry.path(),
+            #[cfg(windows)]
+            file_attributes,
         );
 
         entries.push(file_entry);
