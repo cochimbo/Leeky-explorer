@@ -11,6 +11,8 @@ pub struct PersistedState {
     pub left_panel_path: PathBuf,
     pub right_panel_path: PathBuf,
     pub active_panel: ActivePanel,
+    #[serde(default)]
+    pub theme_name: Option<String>, // US5: Saved theme name
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -44,6 +46,7 @@ impl Default for PersistedState {
             left_panel_path: home_dir.clone(),
             right_panel_path: home_dir,
             active_panel: ActivePanel::Left,
+            theme_name: None, // US5: Default to None (will use Classic)
         }
     }
 }

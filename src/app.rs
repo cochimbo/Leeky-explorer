@@ -36,6 +36,8 @@ pub struct AppState {
     pub show_welcome: bool,
     // T077: Disk space cache with 5-second TTL
     pub disk_space_cache: HashMap<PathBuf, (crate::fs::disk_info::DiskSpaceInfo, Instant)>,
+    // US5: Current theme
+    pub theme: crate::ui::theme::Theme,
 }
 
 #[derive(Debug, Clone)]
@@ -94,6 +96,11 @@ pub enum DialogState {
     // US4: Drive selector dialog (Windows drive letters)
     DriveSelector {
         drives: Vec<(String, String)>, // (letter like "C:", label like "Local Disk")
+        selected: usize,
+    },
+    // US5: Theme selector dialog
+    ThemeSelector {
+        themes: Vec<crate::ui::theme::Theme>,
         selected: usize,
     },
 }
@@ -157,6 +164,12 @@ impl AppState {
         let persisted = crate::config::state::PersistedState::load()
             .unwrap_or_default();
 
+        // US5: Load theme from persisted state or use default
+        let theme = persisted.theme_name
+            .as_ref()
+            .and_then(|name| crate::ui::theme::Theme::by_name(name))
+            .unwrap_or_default();
+
         Ok(Self {
             left_panel: Panel::new(persisted.left_panel_path),
             right_panel: Panel::new(persisted.right_panel_path),
@@ -172,6 +185,7 @@ impl AppState {
             preview_state: None,
             show_welcome: true,
             disk_space_cache: HashMap::new(),
+            theme, // US5: Set loaded theme
         })
     }
 
@@ -181,6 +195,7 @@ impl AppState {
             left_panel_path: self.left_panel.current_path.clone(),
             right_panel_path: self.right_panel.current_path.clone(),
             active_panel: self.active_panel.into(),
+            theme_name: Some(self.theme.name.clone()), // US5: Save theme name
         };
         
         state.save()
@@ -674,6 +689,7 @@ impl Default for AppState {
                 preview_state: None,
                 show_welcome: true,
                 disk_space_cache: HashMap::new(),
+                theme: crate::ui::theme::Theme::default(), // US5: Default theme
             }
         })
     }

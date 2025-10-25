@@ -9,6 +9,7 @@ pub mod welcome_screen;
 pub mod column_layout;
 pub mod formatters;
 pub mod drive_selector;
+pub mod theme_selector; // US5: Theme selector widget
 
 use crate::app::{AppState, PanelSide, DialogState};
 use ratatui::{
