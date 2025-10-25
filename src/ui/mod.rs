@@ -7,6 +7,7 @@ pub mod preview_modal;
 pub mod file_icons;
 pub mod welcome_screen;
 pub mod column_layout;
+pub mod formatters;
 
 use crate::app::{AppState, PanelSide, DialogState};
 use ratatui::{

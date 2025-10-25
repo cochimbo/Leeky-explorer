@@ -254,27 +254,27 @@
 
 ### Module Creation
 
-- [ ] T112 Create `src/ui/column_layout.rs` file
-- [ ] T113 Define ColumnLayout struct with 8 width fields (icon, mark, name, ext, size, modified, created, perms)
-- [ ] T114 Implement `calculate_layout(available_width, entries)` function
-- [ ] T115 Add exports to `src/ui/mod.rs`
+- [x] T112 Create `src/ui/column_layout.rs` file ✅
+- [x] T113 Define ColumnLayout struct with 8 width fields (icon, mark, name, ext, size, modified, created, perms) ✅
+- [x] T114 Implement `calculate_layout(available_width, entries)` function ✅
+- [x] T115 Add exports to `src/ui/mod.rs` ✅
 
 ### Width Calculation Logic
 
-- [ ] T116 Implement fixed width allocation (icon: 2, mark: 1, size: 10, dates: 16 each)
-- [ ] T117 Calculate permissions width based on platform (Windows: 4, Unix: 10)
-- [ ] T118 Implement dynamic name width calculation (remaining space after fixed cols)
-- [ ] T119 Implement column hiding logic for narrow terminals (<100, <120 cols)
-- [ ] T120 Add minimum width validation (ensure name column ≥20 chars)
+- [x] T116 Implement fixed width allocation (icon: 2, mark: 1, size: 10, dates: 16 each) ✅
+- [x] T117 Calculate permissions width based on platform (Windows: 4, Unix: 10) ✅
+- [x] T118 Implement dynamic name width calculation (remaining space after fixed cols) ✅
+- [x] T119 Implement column hiding logic for narrow terminals (<100, <120 cols) ✅
+- [x] T120 Add minimum width validation (ensure name column ≥20 chars) ✅
 
 ### Alignment Configuration
 
-- [ ] T121 Define alignment enum (Left, Right, Center)
-- [ ] T122 Configure left-alignment for icon, mark, name, extension
-- [ ] T123 Configure right-alignment for size
-- [ ] T124 Configure center-alignment for dates and permissions
+- [x] T121 Define alignment enum (Left, Right, Center) ✅
+- [x] T122 Configure left-alignment for icon, mark, name, extension ✅
+- [x] T123 Configure right-alignment for size ✅
+- [x] T124 Configure center-alignment for dates and permissions ✅
 
-**Deliverable**: Column layout calculator with dynamic width adjustment
+**Deliverable**: Column layout calculator with dynamic width adjustment ✅
 
 ---
 
