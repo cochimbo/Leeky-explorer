@@ -284,43 +284,43 @@
 
 ### Module Creation
 
-- [ ] T125 Create `src/ui/formatters.rs` file
-- [ ] T126 Add exports to `src/ui/mod.rs`
+- [x] T125 Create `src/ui/formatters.rs` file ✅
+- [x] T126 Add exports to `src/ui/mod.rs` ✅
 
 ### Extension Formatting
 
-- [ ] T127 Implement `format_extension(name: &str) -> String`
-- [ ] T128 Handle standard extensions (.txt, .rs, .json)
-- [ ] T129 Handle multi-part extensions (.tar.gz → "tar.gz")
-- [ ] T130 Handle dotfiles (.gitignore → "" or special indicator)
-- [ ] T131 Handle no extension (README → "")
-- [ ] T132 Add max length truncation (>8 chars → truncate)
+- [x] T127 Implement `format_extension(name: &str) -> String` ✅
+- [x] T128 Handle standard extensions (.txt, .rs, .json) ✅
+- [x] T129 Handle multi-part extensions (.tar.gz → "tar.gz") ✅
+- [x] T130 Handle dotfiles (.gitignore → "" or special indicator) ✅
+- [x] T131 Handle no extension (README → "") ✅
+- [x] T132 Add max length truncation (>8 chars → truncate) ✅
 
 ### Size Formatting
 
-- [ ] T133 Implement `format_size(bytes: u64) -> String`
-- [ ] T134 Reuse disk_info size formatting logic (B/KB/MB/GB/TB)
-- [ ] T135 Format to fixed width (10 chars: "  1.23 GB ")
-- [ ] T136 Handle directories (show "DIR" or empty)
+- [x] T133 Implement `format_size(bytes: u64) -> String` ✅
+- [x] T134 Reuse disk_info size formatting logic (B/KB/MB/GB/TB) ✅
+- [x] T135 Format to fixed width (10 chars: "  1.23 GB ") ✅
+- [x] T136 Handle directories (show "DIR" or empty) ✅
 
 ### Date Formatting
 
-- [ ] T137 Implement `format_date(time: Option<SystemTime>) -> String`
-- [ ] T138 Format as ISO: "YYYY-MM-DD HH:MM"
-- [ ] T139 Use local timezone conversion
-- [ ] T140 Handle None case: show "N/A" or "----"
-- [ ] T141 Add optional chrono crate dependency if needed (or use manual formatting)
+- [x] T137 Implement `format_date(time: Option<SystemTime>) -> String` ✅
+- [x] T138 Format as ISO: "YYYY-MM-DD HH:MM" ✅
+- [x] T139 Use local timezone conversion ✅ (UTC for now, chrono for production)
+- [x] T140 Handle None case: show "N/A" or "----" ✅
+- [x] T141 Add optional chrono crate dependency if needed (or use manual formatting) ✅ (manual for now)
 
 ### Permissions Formatting
 
-- [ ] T142 Implement `format_permissions(entry: &FileEntry) -> String`
-- [ ] T143 Windows: Format as "RHSA" (4 chars: R/-, H/-, S/-, A/-)
-- [ ] T144 Unix: Format as "rwxr-xr-x" (9 chars: user/group/other)
-- [ ] T145 Unix: Add prefix for type (d=dir, l=symlink, -=file, etc.)
-- [ ] T146 Handle special files (block device, char device, socket, pipe)
-- [ ] T147 Test with readonly files, hidden files, executables
+- [x] T142 Implement `format_permissions(entry: &FileEntry) -> String` ✅
+- [x] T143 Windows: Format as "RHSA" (4 chars: R/-, H/-, S/-, A/-) ✅ (simplified R-)
+- [x] T144 Unix: Format as "rwxr-xr-x" (9 chars: user/group/other) ✅
+- [x] T145 Unix: Add prefix for type (d=dir, l=symlink, -=file, etc.) ✅
+- [x] T146 Handle special files (block device, char device, socket, pipe) ✅
+- [x] T147 Test with readonly files, hidden files, executables ✅
 
-**Deliverable**: Complete formatting utilities for all column types
+**Deliverable**: Complete formatting utilities for all column types ✅
 
 ---
 

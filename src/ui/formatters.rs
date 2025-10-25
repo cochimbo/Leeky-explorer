@@ -142,18 +142,21 @@ pub fn format_permissions(entry: &FileEntry) -> String {
 
 /// Pad or truncate text to fit within specified width
 /// Alignment: Left, Right, or Center
+/// Handles Unicode characters (emojis) correctly
 pub fn pad_text(text: &str, width: u16, align: crate::ui::column_layout::Alignment) -> String {
     let width = width as usize;
+    let char_count = text.chars().count();
     
-    if text.len() >= width {
-        // Truncate with ellipsis
+    if char_count >= width {
+        // Truncate with ellipsis, handling Unicode properly
         if width > 3 {
-            format!("{}...", &text[..width - 3])
+            let truncated: String = text.chars().take(width - 3).collect();
+            format!("{}...", truncated)
         } else {
-            text[..width].to_string()
+            text.chars().take(width).collect()
         }
     } else {
-        let padding = width - text.len();
+        let padding = width - char_count;
         match align {
             crate::ui::column_layout::Alignment::Left => {
                 format!("{}{}", text, " ".repeat(padding))
@@ -304,5 +307,17 @@ mod tests {
         let result = pad_text("verylongtext", 8, crate::ui::column_layout::Alignment::Left);
         assert_eq!(result.len(), 8);
         assert!(result.ends_with("..."));
+    }
+
+    #[test]
+    fn test_pad_text_emoji() {
+        // Test with emoji - should handle Unicode correctly
+        let result = pad_text("📁", 2, crate::ui::column_layout::Alignment::Left);
+        assert_eq!(result.chars().count(), 2);
+        assert!(result.starts_with("📁"));
+        
+        // Test truncation with emoji
+        let result = pad_text("📁test", 3, crate::ui::column_layout::Alignment::Left);
+        assert_eq!(result.chars().count(), 3);
     }
 }
