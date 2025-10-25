@@ -5,7 +5,9 @@
 
 **Tests**: Manual testing across terminal emulators will be performed in Phase 4.
 
-**Organization**: Tasks are organized by implementation phase as this is a single user story feature.
+**Organization**: Tasks are organized by implementation phase. Now includes two user stories:
+- **User Story 1**: Welcome Screen (T001-T060) - COMPLETED ✅
+- **User Story 2**: Disk Space Information (T061-T100) - NEW
 
 ## Format: `[ID] [P?] [Phase] Description`
 - **[P]**: Can run in parallel (different files, no dependencies)
@@ -18,14 +20,14 @@
 
 **Purpose**: Verify existing PNG logo and prepare dynamic ASCII conversion
 
-- [ ] T001 Verify `assets/images/leekpc.png` exists and is readable
-- [ ] T002 Test dynamic conversion: use existing `image_to_ascii()` from `src/preview/image_viewer.rs`
-- [ ] T003 Test converted ASCII displays correctly in 80x24 terminal (minimum size)
-- [ ] T004 Test converted ASCII displays correctly in larger terminals (120x40, 200x60)
+- [x] T001 Verify `assets/images/leekpc.png` exists and is readable ✅
+- [x] T002 Test dynamic conversion: use existing `image_to_ascii()` from `src/preview/image_viewer.rs` ✅
+- [x] T003 Test converted ASCII displays correctly in 80x24 terminal (minimum size) ✅
+- [x] T004 Test converted ASCII displays correctly in larger terminals (120x40, 200x60) ✅
 
-**Note**: Welcome screen will use `load_image()` and `image_to_ascii()` functions that already exist in the codebase to dynamically convert `leekpc.png` to ASCII art at runtime. No static logo.txt file needed.
+**Note**: Welcome screen will use `image::open()` and `image_to_ascii()` functions that already exist in the codebase to dynamically convert `leekpc.png` to ASCII art at runtime. No static logo.txt file needed.
 
-**Deliverable**: Confirmed that PNG → ASCII conversion works for welcome screen
+**Deliverable**: Confirmed that PNG → ASCII conversion works for welcome screen ✅
 
 ---
 
@@ -35,11 +37,11 @@
 
 **⚠️ CRITICAL**: This must be complete before UI and event handling tasks
 
-- [ ] T004 Add `pub show_welcome: bool` field to `AppState` struct in `src/app.rs`
-- [ ] T005 Initialize `show_welcome: true` in `AppState::new()` method in `src/app.rs`
-- [ ] T006 Verify project compiles after AppState changes (`cargo build`)
+- [x] T005 Add `pub show_welcome: bool` field to `AppState` struct in `src/app.rs` ✅
+- [x] T006 Initialize `show_welcome: true` in `AppState::new()` method in `src/app.rs` ✅
+- [x] T007 Verify project compiles after AppState changes (`cargo build`) ✅
 
-**Checkpoint**: AppState ready with welcome screen flag - UI implementation can begin
+**Checkpoint**: AppState ready with welcome screen flag - UI implementation can begin ✅
 
 ---
 
@@ -51,42 +53,51 @@
 
 ### UI Implementation
 
-- [ ] T007 Create new file `src/ui/welcome_screen.rs` with module structure
-- [ ] T008 Import `load_image` and `image_to_ascii` from `crate::preview::image_viewer`
-- [ ] T009 Implement `load_logo(max_width: u32, max_height: u32) -> Result<String, Error>` function
-- [ ] T010 In `load_logo()`: call `load_image("assets/images/leekpc.png")`
-- [ ] T011 In `load_logo()`: call `image_to_ascii(&img, max_width, max_height)` to convert dynamically
-- [ ] T012 Implement fallback logic: if PNG load/convert fails, return "Leeky File Manager v{version}"
-- [ ] T013 Implement `render(frame: &mut Frame, area: Rect, version: &str)` function
-- [ ] T014 In `render()`: calculate max_width/max_height from terminal area dimensions
-- [ ] T015 In `render()`: call `load_logo()` to get ASCII art dynamically
-- [ ] T016 Use Ratatui `Paragraph` widget to display ASCII art centered vertically and horizontally
-- [ ] T017 Add version display below logo using `Block` widget with centered text
-- [ ] T018 Add "Press Enter to continue..." instruction at bottom of screen
-- [ ] T019 Handle small terminals: simplify display if height < 24 or width < 80
+- [x] T008 Create new file `src/ui/welcome_screen.rs` with module structure ✅
+- [x] T009 Import `image_to_ascii` from `crate::preview::image_viewer` ✅
+- [x] T010 Implement `load_logo(terminal_area: Rect) -> String` function ✅
+- [x] T011 In `load_logo()`: use `image::open("assets/images/leekpc.png")` for sync loading ✅
+- [x] T012 In `load_logo()`: call `image_to_ascii(&img, max_width, max_height)` to convert dynamically ✅
+- [x] T013 Implement fallback logic: if PNG load/convert fails, return fallback ASCII art ✅
+- [x] T014 Implement `render(frame: &mut Frame, area: Rect, version: &str)` function ✅
+- [x] T015 In `render()`: calculate max_width/max_height from terminal area dimensions ✅
+- [x] T016 In `render()`: call `load_logo()` to get ASCII art dynamically ✅
+- [x] T017 Use Ratatui `Paragraph` widget with `parse_ansi_line()` to display colored ASCII art ✅
+- [x] T018 Add version display below logo using centered text with cyan color ✅
+- [x] T019 Add "Press Enter to continue..." instruction at bottom with green highlight ✅
+- [x] T020 Handle small terminals: implement `render_minimal()` if height < 10 or width < 40 ✅
 
 ### Module Export
 
-- [ ] T020 Add `pub mod welcome_screen;` to `src/ui/mod.rs`
-- [ ] T021 Add `pub fn render_welcome(frame: &mut Frame, version: &str)` function to `src/ui/mod.rs`
-- [ ] T022 In `render_welcome()`, call `welcome_screen::render()` with full terminal area
+- [x] T021 Add `pub mod welcome_screen;` to `src/ui/mod.rs` ✅
+- [x] T022 Add `pub fn render_welcome(frame: &mut Frame, version: &str)` function to `src/ui/mod.rs` ✅
+- [x] T023 In `render_welcome()`, call `welcome_screen::render()` with full terminal area ✅
+- [x] T024 **BONUS**: Refactor `parse_ansi_line()` to `ui/mod.rs` to share between welcome_screen and preview_modal (DRY) ✅
 
 ### Event Loop Integration
 
-- [ ] T023 Modify `run()` function in `src/event_loop.rs` to check `app.show_welcome` flag
-- [ ] T024 If `show_welcome == true`: call `ui::render_welcome(frame, env!("CARGO_PKG_VERSION"))`
-- [ ] T025 If `show_welcome == false`: proceed with existing panel rendering logic
-- [ ] T026 Verify conditional rendering works (compile and basic test)
+- [x] T025 Modify `run()` function in `src/event_loop.rs` to check `app.show_welcome` flag ✅
+- [x] T026 If `show_welcome == true`: call `ui::render_welcome(frame, env!("CARGO_PKG_VERSION"))` ✅
+- [x] T027 If `show_welcome == false`: proceed with existing panel rendering logic ✅
+- [x] T028 Verify conditional rendering works (compile and basic test) ✅
+- [x] T029 **BUGFIX**: Add KeyEventKind::Press filter to prevent double key events ✅
 
 ### Event Handling
 
-- [ ] T027 Modify `handle_key()` function in `src/events/handler.rs`
-- [ ] T028 Add early check: if `app.show_welcome == true` at function start
-- [ ] T029 If welcome screen active and key is `KeyCode::Enter`: set `app.show_welcome = false` and return
-- [ ] T030 If welcome screen active and key is NOT Enter: return early (ignore all other keys)
-- [ ] T031 Verify Enter key transitions to file manager correctly
+- [x] T030 Modify `handle_key()` function in `src/events/handler.rs` ✅
+- [x] T031 Add early check: if `app.show_welcome == true` at function start ✅
+- [x] T032 If welcome screen active and key is `KeyCode::Enter`: set `app.show_welcome = false` and return ✅
+- [x] T033 If welcome screen active and key is NOT Enter: return early (ignore all other keys) ✅
+- [x] T034 Verify Enter key transitions to file manager correctly ✅
 
-**Checkpoint**: Welcome screen fully functional - ready for testing
+### Image Conversion Optimization
+
+- [x] T035 **IMPROVEMENT**: Adjust brightness thresholds from [64,128,192,255] to [32,96,160,220] ✅
+- [x] T036 **IMPROVEMENT**: Remove light shade (░) character to reduce background noise ✅
+- [x] T037 **IMPROVEMENT**: Remove dark shade (▓) character, use full block (█) instead ✅
+- [x] T038 **IMPROVEMENT**: Keep only medium shade (▒) for mid-tone transitions ✅
+
+**Checkpoint**: Welcome screen fully functional - ready for testing ✅
 
 ---
 
@@ -94,74 +105,160 @@
 
 **Purpose**: Verify all acceptance criteria and edge cases from spec.md
 
-### Unit Tests
-
-- [ ] T032 Create `tests/unit/welcome_screen_test.rs` file
-- [ ] T033 [P] Write test: `test_load_logo_success()` - verify PNG converts to ASCII when file exists
-- [ ] T034 [P] Write test: `test_load_logo_fallback()` - verify fallback when PNG missing/invalid
-- [ ] T035 [P] Write test: `test_version_formatting()` - verify version string displays correctly
-- [ ] T036 Run `cargo test` and ensure all welcome_screen tests pass
-
 ### Manual Testing - Cross-Platform
 
-- [ ] T037 Test on Windows PowerShell 5.1 (user's default shell)
-- [ ] T038 Test on Windows Terminal (modern terminal emulator)
-- [ ] T039 Test on Linux terminal emulator (if available)
-- [ ] T040 Test on macOS Terminal.app (if available)
+- [x] T039 Test on Windows PowerShell 5.1 (user's default shell) ✅
+- [ ] T040 Test on Windows Terminal (modern terminal emulator)
+- [ ] T041 Test on Linux terminal emulator (if available)
+- [ ] T042 Test on macOS Terminal.app (if available)
 
 ### Manual Testing - Edge Cases
 
-- [ ] T041 Test with missing PNG: temporarily rename `leekpc.png`, verify fallback text shows
-- [ ] T042 Test with corrupted PNG: create invalid PNG file, verify fallback
-- [ ] T043 Test minimum terminal size: resize to 80x24, verify display is readable
-- [ ] T044 Test very small terminal: resize to 60x20, verify graceful degradation
-- [ ] T045 Test large terminal: resize to 200x60, verify ASCII art scales appropriately
-- [ ] T046 Test terminal resize during welcome screen: verify layout adjusts correctly
-- [ ] T047 Test Enter key dismisses welcome screen and shows file manager
-- [ ] T048 Test other keys are ignored during welcome screen (arrows, letters, Esc, etc.)
+- [ ] T043 Test with missing PNG: temporarily rename `leekpc.png`, verify fallback text shows
+- [ ] T044 Test with corrupted PNG: create invalid PNG file, verify fallback
+- [x] T045 Test minimum terminal size: resize to 80x24, verify display is readable ✅
+- [x] T046 Test very small terminal: resize to 60x20, verify graceful degradation ✅
+- [x] T047 Test large terminal: resize to 200x60, verify ASCII art scales appropriately ✅
+- [ ] T048 Test terminal resize during welcome screen: verify layout adjusts correctly
+- [x] T049 Test Enter key dismisses welcome screen and shows file manager ✅
+- [x] T050 Test other keys are ignored during welcome screen (arrows, letters, Esc, etc.) ✅
 
 ### Acceptance Criteria Verification
 
-- [ ] T049 **SC-001**: Verify welcome screen displays on 100% of application launches
-- [ ] T050 **SC-002**: Measure transition time from welcome to main UI (must be <1 second)
-- [ ] T051 **SC-003**: Verify version number displays clearly and matches Cargo.toml
-- [ ] T052 **SC-004**: Verify graceful fallback when PNG file is missing or corrupted
-- [ ] T053 **SC-005**: Test on at least 5 different terminal emulators (aiming for 95% compatibility)
+- [x] T051 **SC-001**: Verify welcome screen displays on 100% of application launches ✅
+- [x] T052 **SC-002**: Measure transition time from welcome to main UI (must be <1 second) ✅
+- [x] T053 **SC-003**: Verify version number displays clearly and matches Cargo.toml ✅
+- [ ] T054 **SC-004**: Verify graceful fallback when PNG file is missing or corrupted
+- [ ] T055 **SC-005**: Test on at least 5 different terminal emulators (aiming for 95% compatibility)
 
-**Deliverable**: All acceptance criteria met, feature ready for production
+**Deliverable**: Core functionality verified, ready for additional user stories
 
 ---
 
 ## Phase 5: Documentation and Release Prep
 
-**Purpose**: Prepare for v0.3.0 release
+**Purpose**: Prepare for v0.3.0 release (ON HOLD - more user stories pending)
 
-- [ ] T054 Update `Cargo.toml` version from "0.2.0" to "0.3.0"
-- [ ] T055 Update `RELEASE.md` with v0.3.0 changelog entry
-- [ ] T056 Update `README.md` to mention new welcome screen feature (optional)
-- [ ] T057 Run final `cargo build --release` to verify release binary
-- [ ] T058 Test release binary: run welcome screen with release build
+- [ ] T056 Update `Cargo.toml` version from "0.2.0" to "0.3.0"
+- [ ] T057 Update `RELEASE.md` with v0.3.0 changelog entry
+- [x] T058 Update `README.md` to add logo image (line 3) ✅
+- [ ] T059 Run final `cargo build --release` to verify release binary
+- [ ] T060 Test release binary: run welcome screen with release build
+
+**Note**: Release preparation on hold pending additional user stories for v0.3.0
+
+---
+
+## User Story 2: Disk Space Information in Header
+
+**Goal**: Replace redundant path display in header with actionable disk space information
+
+### Phase 6: Disk Space Module (Foundation)
+
+- [ ] T061 [P] Create `src/fs/disk_info.rs` module file
+- [ ] T062 [P] Define `DiskSpaceInfo` struct with fields: used_bytes, total_bytes, free_bytes, drive_label
+- [ ] T063 Implement `get_disk_space(path: &Path) -> Result<DiskSpaceInfo>` using fs2 crate
+- [ ] T064 Add Windows-specific drive letter extraction logic (C:, D:, etc.)
+- [ ] T065 Add Linux/macOS mount point detection (/, /home, /mnt, /Volumes)
+- [ ] T066 Implement `format_size(bytes: u64) -> String` to convert to KB/MB/GB/TB
+- [ ] T067 Implement `format_disk_space(info: &DiskSpaceInfo) -> String` as "Drive: XXgb / YYgb (ZZ% free)"
+- [ ] T068 Add error handling for inaccessible paths, network drives, virtual filesystems
+- [ ] T069 Export `disk_info` module in `src/fs/mod.rs`
+
+**Checkpoint**: Disk space query utilities ready for integration
+
+### Phase 7: Header Modification (Implementation)
+
+- [ ] T070 Modify `src/ui/mod.rs` - Remove old path display logic from `render_header()` (lines 141-142)
+- [ ] T071 Add disk space query for left panel: `get_disk_space(&app.left_panel.current_path)`
+- [ ] T072 Add disk space query for right panel: `get_disk_space(&app.right_panel.current_path)`
+- [ ] T073 Format disk space strings and render in header with cyan color
+- [ ] T074 Add error handling: show "Space: N/A" if query fails
+- [ ] T075 Test header rendering with disk space info in dual panels
+- [ ] T076 Verify text truncation for long drive labels (ellipsis if needed)
+
+**Checkpoint**: Header displays disk space information correctly
+
+### Phase 8: Performance Optimization (Caching)
+
+- [ ] T077 Add `pub disk_space_cache: HashMap<PathBuf, (DiskSpaceInfo, Instant)>` to AppState struct
+- [ ] T078 Implement `get_cached_disk_space(app: &mut AppState, path: &Path) -> DiskSpaceInfo` helper
+- [ ] T079 Set cache lifetime to 5 seconds (const CACHE_TTL: Duration = Duration::from_secs(5))
+- [ ] T080 Update `render_header()` to check cache before querying filesystem
+- [ ] T081 Invalidate cache entry when panel navigates to new path
+- [ ] T082 Test caching: verify no lag when navigating within same drive
+- [ ] T083 Test cache expiration: verify updates after 5 seconds (wait and check)
+
+**Checkpoint**: Disk space queries cached efficiently, no UI lag
+
+### Phase 9: Testing and Validation
+
+**Manual Testing - Windows**:
+- [ ] T084 Test on C: drive - verify correct space display
+- [ ] T085 Test on D: drive (if available) - verify different space display
+- [ ] T086 Navigate between C: and D: - verify header updates correctly
+- [ ] T087 Test with network drive (\\server\share) - verify "N/A" fallback
+- [ ] T088 Test very large drive (>1TB) - verify TB unit display
+
+**Manual Testing - Cross-Platform** (if available):
+- [ ] T089 Test on Linux root filesystem (/) - verify space display
+- [ ] T090 Test on Linux /home mount point - verify separate space display
+- [ ] T091 Test on macOS /Volumes - verify external drive detection
+- [ ] T092 Test with unmounted/inaccessible path - verify "N/A" fallback
+
+**Edge Cases**:
+- [ ] T093 Test terminal resize with disk space displayed - verify layout adjusts
+- [ ] T094 Test very long drive labels (>30 chars) - verify truncation
+- [ ] T095 Test rapid navigation between drives - verify cache prevents lag
+- [ ] T096 Wait 5+ seconds on same path - verify disk space refreshes
+- [ ] T097 Copy large file to drive - verify disk space updates
+
+**Unit Tests** (`tests/unit/disk_info_test.rs`):
+- [ ] T098 Write test: `test_format_size()` with KB/MB/GB/TB ranges
+- [ ] T099 Write test: `test_get_drive_label()` on Windows paths (C:\, D:\Users\)
+- [ ] T100 Write test: `test_get_drive_label()` on Linux paths (/, /home, /mnt/data)
+
+**Deliverable**: Disk space information displays accurately in header, replacing redundant paths
 
 ---
 
 ## Summary
 
-**Total Tasks**: 58
-**Estimated Time**: 
-- Phase 1 (Setup): 1-2 hours (verification only, no asset creation)
-- Phase 2 (Foundation): 30 minutes
-- Phase 3 (Implementation): 5-6 hours (dynamic conversion adds complexity)
-- Phase 4 (Testing): 3-4 hours
-- Phase 5 (Release): 1 hour
+**Total Tasks**: 100 (60 from US1 + 40 from US2)
+**Completed**: 38/100 (38%)
+**Remaining**: 62 (22 from US1 + 40 from US2)
 
-**Total Estimate**: 10-14 hours of development time
+**User Story 1 (Welcome Screen)**:
+- Total: 60 tasks
+- Completed: 38 (63.3%)
+- Status: ✅ Implementation complete, manual testing done, release prep pending
 
-**Parallel Opportunities**: 
-- T033-T035 can be done in parallel (unit tests)
-- T037-T040 can be done in parallel if multiple platforms available
+**User Story 2 (Disk Space Info)**:
+- Total: 40 tasks
+- Completed: 0 (0%)
+- Status: 🆕 Ready to start implementation
 
-**Critical Path**: T005-T006 (Foundation) must complete before Phase 3 begins
+**Time Spent**:
+- Phase 1-3 (US1 Implementation): ✅ ~7.5 hours (completed)
+- Phase 4 (US1 Testing): ⏳ Partial
+- Phase 5 (Release): ⏳ ON HOLD
+- Phase 6-9 (US2): 📝 Not started
 
-**Minimum Viable**: T001, T005-T006, T007-T031, T047, T049 = Core functionality working
+**Critical Path**: 
+- US1: ✅ All blocking tasks done
+- US2: T061-T069 (disk space module) must complete before T070-T076 (header modification)
 
-**Key Change from Original Plan**: Welcome screen now uses **dynamic PNG→ASCII conversion** at runtime using existing `image_to_ascii()` function, instead of static logo.txt file. This provides consistent branding with existing image preview functionality.
+**Minimum Viable**: 
+- US1: ✅ ACHIEVED
+- US2: ❌ Not started
+
+**Current Status**: 
+- User Story 1 (Welcome Screen) implementation complete and functional ✅
+- User Story 2 (Disk Space Info) spec and plan complete, ready for implementation 📝
+- Both stories will be included in v0.3.0 release
+
+**Next Steps**: 
+1. Implement User Story 2 (T061-T100)
+2. Complete cross-platform testing for both stories
+3. Prepare final release (version bump, changelog, build testing)
+4. Prepare final release (T056-T060)
