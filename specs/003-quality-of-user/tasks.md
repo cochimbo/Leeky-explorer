@@ -356,6 +356,27 @@
 
 **Deliverable**: Panel displays files in detailed columnar format ✅
 
+### Text Scrolling Animation (Marquee Effect)
+
+- [x] T165 Add scroll offset fields to Panel struct (text, ext, size, modified, created, perms) ✅
+- [x] T166 Add scroll pause timer field `scroll_pause_until: Option<Instant>` ✅
+- [x] T167 Implement `update_text_scroll()` method for continuous animation ✅
+- [x] T168 Apply scroll to name column when content exceeds width ✅
+- [x] T169 Apply scroll to extension column when content exceeds width ✅
+- [x] T170 Apply scroll to size column when content exceeds width ✅
+- [x] T171 Apply scroll to modified column when content exceeds width ✅
+- [x] T172 Apply scroll to created column when content exceeds width ✅
+- [x] T173 Apply scroll to permissions column when content exceeds width ✅
+- [x] T174 Implement 200ms scroll speed for smooth animation ✅
+- [x] T175 Add 2-second pause when scroll loop completes before restart ✅
+- [x] T176 Reset scroll offsets on cursor movement ✅
+- [x] T177 Update event loop to call `update_text_scroll()` each iteration ✅
+- [x] T178 Fix Unicode emoji alignment in scroll (use visual width) ✅
+- [x] T179 Fix pad_text truncation bug (>= to >) for exact-width content ✅
+- [x] T180 Remove premature truncation in formatters (let scroll handle it) ✅
+
+**Deliverable**: Smooth marquee-style scrolling for selected item in all columns ✅
+
 ---
 
 ## Phase 14: Testing and Validation (User Story 3)
@@ -364,26 +385,26 @@
 
 ### Unit Tests
 
-- [ ] T165 Create `tests/unit/column_layout_test.rs`
-- [ ] T166 Test `calculate_layout()` with 80 cols (minimum)
-- [ ] T167 Test `calculate_layout()` with 120 cols (comfortable)
-- [ ] T168 Test `calculate_layout()` with 200 cols (wide)
-- [ ] T169 Test column hiding logic at various widths
-- [ ] T170 Create `tests/unit/formatters_test.rs`
-- [ ] T171 Test `format_extension()` with standard files
-- [ ] T172 Test `format_extension()` with multi-part extensions
-- [ ] T173 Test `format_extension()` with dotfiles
-- [ ] T174 Test `format_date()` with valid SystemTime
-- [ ] T175 Test `format_date()` with None
-- [ ] T176 Test `format_permissions()` on Windows (mock RHSA)
-- [ ] T177 Test `format_permissions()` on Unix (mock rwx)
+- [x] T181 Create `tests/unit/column_layout_test.rs` ✅
+- [x] T182 Test `calculate_layout()` with 80 cols (minimum) ✅
+- [x] T183 Test `calculate_layout()` with 120 cols (comfortable) ✅
+- [x] T184 Test `calculate_layout()` with 200 cols (wide) ✅
+- [x] T185 Test column hiding logic at various widths ✅
+- [x] T186 Create `tests/unit/formatters_test.rs` ✅
+- [x] T187 Test `format_extension()` with standard files ✅
+- [x] T188 Test `format_extension()` with multi-part extensions ✅
+- [x] T189 Test `format_extension()` with dotfiles ✅
+- [x] T190 Test `format_date()` with valid SystemTime ✅
+- [x] T191 Test `format_date()` with None ✅
+- [x] T192 Test `format_permissions()` on Windows (mock RHSA) ✅
+- [x] T193 Test `format_permissions()` on Unix (mock rwx) ✅
 
 ### Manual Testing - Windows
 
-- [ ] T178 Test with various file types (.txt, .rs, .json, .tar.gz)
-- [ ] T179 Test with long filenames (>50 chars) - verify truncation
-- [ ] T180 Test with dotfiles (.gitignore, .bashrc)
-- [ ] T181 Test with directories and regular files
+- [ ] T194 Test with various file types (.txt, .rs, .json, .tar.gz)
+- [ ] T195 Test with long filenames (>50 chars) - verify marquee scrolling
+- [ ] T196 Test with dotfiles (.gitignore, .bashrc)
+- [ ] T197 Test with directories and regular files
 - [ ] T182 Test with readonly files - verify "R---" permissions
 - [ ] T183 Test with hidden files - verify "-H--" permissions
 - [ ] T184 Test terminal resize from 80 to 200 cols - verify layout adapts
@@ -406,6 +427,9 @@
 - [ ] T195 Test with special files (if applicable: pipes, sockets)
 - [ ] T196 Test scrolling performance with 1000+ files in columnar view
 - [ ] T197 Test with unicode filenames - verify display and truncation
+- [ ] T198 Test marquee scroll animation with long filenames
+- [ ] T199 Test marquee 2-second pause between loops
+- [ ] T200 Test scroll reset when changing selection
 
 **Deliverable**: Comprehensive columnar view working across platforms
 
@@ -413,9 +437,9 @@
 
 ## Summary
 
-**Total Tasks**: 197 (60 from US1 + 40 from US2 + 97 from US3)
-**Completed**: 123/197 (62.4%)
-**Remaining**: 74 (22 from US1 + 15 from US2 + 37 from US3)
+**Total Tasks**: 200 (60 from US1 + 40 from US2 + 100 from US3)
+**Completed**: 139/200 (69.5%)
+**Remaining**: 61 (22 from US1 + 15 from US2 + 24 from US3)
 
 **User Story 1 (Welcome Screen)**:
 - Total: 60 tasks
@@ -428,9 +452,9 @@
 - Status: ✅ Core implementation complete, some edge case testing pending
 
 **User Story 3 (Detailed Column View)**:
-- Total: 97 tasks
-- Completed: 60 (61.9%)
-- Status: 🎉 Phase 10-13 complete! Ready for testing phase
+- Total: 100 tasks
+- Completed: 76 (76.0%)
+- Status: 🎉 Phase 10-13 complete with marquee animation! Ready for final testing
 
 **Time Spent**:
 - Phase 1-3 (US1 Implementation): ✅ ~7.5 hours (completed)
@@ -438,12 +462,12 @@
 - Phase 5 (Release): ⏳ ON HOLD
 - Phase 6-8 (US2 Implementation): ✅ ~3 hours (completed)
 - Phase 9 (US2 Testing): ⏳ Partial - core functionality verified
-- Phase 10-13 (US3 Implementation): ✅ ~2 hours (JUST COMPLETED!)
+- Phase 10-13 (US3 Implementation): ✅ ~4 hours (COMPLETED with marquee!)
 
 **Critical Path**: 
 - US1: ✅ All blocking tasks done
 - US2: ✅ MVP achieved, some edge cases remain
-- US3: 🎯 Implementation complete! Now ready for Phase 14 testing (T165-T197)
+- US3: � Implementation complete! Marquee scrolling working on all columns
 - US2: ✅ All blocking tasks done (T061-T080)
 
 **Minimum Viable**: 

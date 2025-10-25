@@ -29,9 +29,9 @@ impl ColumnLayout {
     /// Comfortable width: 120 columns (all columns visible)
     pub fn calculate(available_width: u16, _entries: &[FileEntry]) -> Self {
         // Fixed column widths
-        let icon_width = 2;
+        let icon_width = 2;  // Emoji takes exactly 2 visual cells
         let mark_width = 1;
-        let ext_width = 8;
+        let ext_width = 5;   // Reduced from 8 - most extensions are 3-4 chars (.rs, .txt, .json)
         let size_width = 10;
         let modified_width = 16; // "YYYY-MM-DD HH:MM"
         let created_width = 16;

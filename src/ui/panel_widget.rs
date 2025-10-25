@@ -83,10 +83,27 @@ pub fn render_panel(
             
             // Check if this is the selected item
             let is_selected = idx == panel.cursor;
-            let scroll_offset = if is_selected { panel.text_scroll_offset } else { 0 };
+            let name_scroll = if is_selected { panel.text_scroll_offset } else { 0 };
+            let ext_scroll = if is_selected { panel.ext_scroll_offset } else { 0 };
+            let size_scroll = if is_selected { panel.size_scroll_offset } else { 0 };
+            let modified_scroll = if is_selected { panel.modified_scroll_offset } else { 0 };
+            let created_scroll = if is_selected { panel.created_scroll_offset } else { 0 };
+            let perms_scroll = if is_selected { panel.perms_scroll_offset } else { 0 };
             
             // Build columnar row
-            let line = build_data_row(entry, &layout, is_marked, is_selected, scroll_offset, style);
+            let line = build_data_row(
+                entry,
+                &layout,
+                is_marked,
+                is_selected,
+                name_scroll,
+                ext_scroll,
+                size_scroll,
+                modified_scroll,
+                created_scroll,
+                perms_scroll,
+                style,
+            );
             all_items.push(ListItem::new(line));
         }
         
@@ -216,7 +233,12 @@ fn build_data_row(
     layout: &ColumnLayout,
     is_marked: bool,
     is_selected: bool,
-    scroll_offset: usize,
+    name_scroll_offset: usize,
+    ext_scroll_offset: usize,
+    size_scroll_offset: usize,
+    modified_scroll_offset: usize,
+    created_scroll_offset: usize,
+    perms_scroll_offset: usize,
     style: Style,
 ) -> Line<'static> {
     let mut spans = Vec::new();
@@ -238,11 +260,11 @@ fn build_data_row(
     spans.push(Span::raw("  "));
     
     // Name column (truncate if too long, or scroll if selected)
-    let name = if is_selected && scroll_offset > 0 {
+    let name = if is_selected && name_scroll_offset > 0 {
         // Apply scroll offset for selected item
         let chars: Vec<char> = entry.name.chars().collect();
-        if scroll_offset < chars.len() {
-            chars[scroll_offset..].iter().collect()
+        if name_scroll_offset < chars.len() {
+            chars[name_scroll_offset..].iter().collect()
         } else {
             entry.name.clone()
         }
@@ -256,9 +278,21 @@ fn build_data_row(
     ));
     spans.push(Span::raw("  "));
     
-    // Extension column (if visible)
+    // Extension column (if visible, with scroll support)
     if layout.show_extension {
-        let ext = formatters::format_extension(entry);
+        let ext_full = formatters::format_extension(entry);
+        let ext = if is_selected && ext_scroll_offset > 0 && !ext_full.is_empty() {
+            // Apply scroll offset for selected item's extension
+            let chars: Vec<char> = ext_full.chars().collect();
+            if ext_scroll_offset < chars.len() {
+                chars[ext_scroll_offset..].iter().collect()
+            } else {
+                ext_full.clone()
+            }
+        } else {
+            ext_full
+        };
+        
         spans.push(Span::styled(
             formatters::pad_text(&ext, layout.ext_width, Alignment::Left),
             style,
@@ -266,35 +300,75 @@ fn build_data_row(
         spans.push(Span::raw("  "));
     }
     
-    // Size column
-    let size = formatters::format_size(entry);
+    // Size column (with scroll support)
+    let size_full = formatters::format_size(entry);
+    let size = if is_selected && size_scroll_offset > 0 && !size_full.is_empty() {
+        let chars: Vec<char> = size_full.chars().collect();
+        if size_scroll_offset < chars.len() {
+            chars[size_scroll_offset..].iter().collect()
+        } else {
+            size_full.clone()
+        }
+    } else {
+        size_full
+    };
     spans.push(Span::styled(
         formatters::pad_text(&size, layout.size_width, Alignment::Right),
         style,
     ));
     spans.push(Span::raw("  "));
     
-    // Modified column
-    let modified = formatters::format_date(Some(entry.modified));
+    // Modified column (with scroll support)
+    let modified_full = formatters::format_date(Some(entry.modified));
+    let modified = if is_selected && modified_scroll_offset > 0 && !modified_full.is_empty() {
+        let chars: Vec<char> = modified_full.chars().collect();
+        if modified_scroll_offset < chars.len() {
+            chars[modified_scroll_offset..].iter().collect()
+        } else {
+            modified_full.clone()
+        }
+    } else {
+        modified_full
+    };
     spans.push(Span::styled(
         formatters::pad_text(&modified, layout.modified_width, Alignment::Center),
         style,
     ));
     
-    // Created column (if visible)
+    // Created column (if visible, with scroll support)
     if layout.show_created {
         spans.push(Span::raw("  "));
-        let created = formatters::format_date(entry.created);
+        let created_full = formatters::format_date(entry.created);
+        let created = if is_selected && created_scroll_offset > 0 && !created_full.is_empty() {
+            let chars: Vec<char> = created_full.chars().collect();
+            if created_scroll_offset < chars.len() {
+                chars[created_scroll_offset..].iter().collect()
+            } else {
+                created_full.clone()
+            }
+        } else {
+            created_full
+        };
         spans.push(Span::styled(
             formatters::pad_text(&created, layout.created_width, Alignment::Center),
             style,
         ));
     }
     
-    // Permissions column (if visible)
+    // Permissions column (if visible, with scroll support)
     if layout.show_permissions {
         spans.push(Span::raw("  "));
-        let perms = formatters::format_permissions(entry);
+        let perms_full = formatters::format_permissions(entry);
+        let perms = if is_selected && perms_scroll_offset > 0 && !perms_full.is_empty() {
+            let chars: Vec<char> = perms_full.chars().collect();
+            if perms_scroll_offset < chars.len() {
+                chars[perms_scroll_offset..].iter().collect()
+            } else {
+                perms_full.clone()
+            }
+        } else {
+            perms_full
+        };
         spans.push(Span::styled(
             formatters::pad_text(&perms, layout.perms_width, Alignment::Center),
             style,

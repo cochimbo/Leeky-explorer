@@ -11,16 +11,10 @@ fn visual_width(s: &str) -> usize {
 
 /// Format file extension for display
 /// Returns the extension or empty string for directories/files without extension
+/// Note: Does NOT truncate - let the scroll system handle long extensions
 pub fn format_extension(entry: &FileEntry) -> String {
     match &entry.extension {
-        Some(ext) => {
-            // Truncate if too long (max 8 chars)
-            if ext.len() > 8 {
-                format!("{}...", &ext[..5])
-            } else {
-                ext.clone()
-            }
-        }
+        Some(ext) => ext.clone(),
         None => {
             if entry.is_dir() {
                 "".to_string()
@@ -154,7 +148,7 @@ pub fn pad_text(text: &str, width: u16, align: crate::ui::column_layout::Alignme
     let width = width as usize;
     let visual_len = visual_width(text);
     
-    if visual_len >= width {
+    if visual_len > width {
         // Truncate with ellipsis, handling Unicode properly
         if width > 3 {
             // Find where to truncate based on visual width
@@ -259,8 +253,8 @@ mod tests {
     fn test_format_extension_long() {
         let entry = create_test_entry("file.verylongext", Some("verylongext".to_string()), 100, false);
         let formatted = format_extension(&entry);
-        assert!(formatted.len() <= 8);
-        assert!(formatted.ends_with("..."));
+        // No truncation - scroll system will handle display
+        assert_eq!(formatted, "verylongext");
     }
 
     #[test]
