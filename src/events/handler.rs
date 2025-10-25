@@ -7,6 +7,16 @@ use crate::events::keybindings::{map_key_to_action, map_key_to_input_action, Act
 use crate::models::operation::Operation;
 
 pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
+    // Handle welcome screen - only Enter key dismisses it
+    if app.show_welcome {
+        use crossterm::event::KeyCode;
+        if key.code == KeyCode::Enter {
+            app.show_welcome = false;
+        }
+        // Ignore all other keys during welcome screen
+        return Ok(Action::None);
+    }
+
     // T627: Special handling for preview mode
     if app.has_preview() {
         return handle_preview_mode(app, key);

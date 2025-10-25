@@ -8,73 +8,7 @@ use ratatui::{
     widgets::{Block, Borders, Clear, Paragraph, Wrap},
     Frame,
 };
-
-/// Parse ANSI escape codes and convert to Ratatui Spans
-fn parse_ansi_line(line: &str) -> Line<'static> {
-    let mut spans = Vec::new();
-    let mut current_text = String::new();
-    let mut chars = line.chars().peekable();
-    let mut current_color: Option<Color> = None;
-    
-    while let Some(ch) = chars.next() {
-        if ch == '\x1b' && chars.peek() == Some(&'[') {
-            // Found ANSI escape sequence
-            // Save current text if any
-            if !current_text.is_empty() {
-                let style = if let Some(color) = current_color {
-                    Style::default().fg(color)
-                } else {
-                    Style::default()
-                };
-                spans.push(Span::styled(current_text.clone(), style));
-                current_text.clear();
-            }
-            
-            // Parse escape sequence
-            chars.next(); // consume '['
-            let mut code = String::new();
-            while let Some(&ch) = chars.peek() {
-                if ch == 'm' {
-                    chars.next(); // consume 'm'
-                    break;
-                }
-                if let Some(ch) = chars.next() {
-                    code.push(ch);
-                }
-            }
-            
-            // Parse RGB color code (38;2;R;G;B)
-            if code.starts_with("38;2;") {
-                let parts: Vec<&str> = code.split(';').collect();
-                if parts.len() >= 5
-                    && let (Ok(r), Ok(g), Ok(b)) = (
-                        parts[2].parse::<u8>(),
-                        parts[3].parse::<u8>(),
-                        parts[4].parse::<u8>(),
-                    ) {
-                        current_color = Some(Color::Rgb(r, g, b));
-                    }
-            } else if code == "0" {
-                // Reset
-                current_color = None;
-            }
-        } else {
-            current_text.push(ch);
-        }
-    }
-    
-    // Add remaining text
-    if !current_text.is_empty() {
-        let style = if let Some(color) = current_color {
-            Style::default().fg(color)
-        } else {
-            Style::default()
-        };
-        spans.push(Span::styled(current_text, style));
-    }
-    
-    Line::from(spans)
-}
+use super::parse_ansi_line;
 
 /// Render the text preview modal
 pub fn render_preview_modal(f: &mut Frame, preview_state: &PreviewState) {

@@ -106,6 +106,12 @@ pub async fn run<B: ratatui::backend::Backend>(
         // Handle input
         if event::poll(Duration::from_millis(50))?
             && let Event::Key(key) = event::read()? {
+                // Only process key press events, ignore release and repeat
+                use crossterm::event::KeyEventKind;
+                if key.kind != KeyEventKind::Press {
+                    continue;
+                }
+                
                 // T955: Check if user pressed Esc during progress dialog to cancel
                 if let Some(DialogState::Progress { .. }) = &app.dialog_state
                     && matches!(key.code, crossterm::event::KeyCode::Esc) {
@@ -393,6 +399,12 @@ fn render_ui<B: ratatui::backend::Backend>(
     app: &AppState,
 ) -> Result<()> {
     terminal.draw(|f| {
+        // Show welcome screen if flag is set
+        if app.show_welcome {
+            ui::render_welcome(f, env!("CARGO_PKG_VERSION"));
+            return;
+        }
+
         let layout = ui::layout::create_layout(f.area());
         
         // Render header

@@ -31,6 +31,7 @@ pub struct AppState {
     pub right_all_entries: Vec<FileEntry>,
     pub selection_state: SelectionState,
     pub preview_state: Option<PreviewState>,
+    pub show_welcome: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -160,6 +161,7 @@ impl AppState {
             right_all_entries: Vec::new(),
             selection_state: SelectionState::new(),
             preview_state: None,
+            show_welcome: true,
         })
     }
 
@@ -638,6 +640,7 @@ impl Default for AppState {
                 right_all_entries: Vec::new(),
                 selection_state: SelectionState::new(),
                 preview_state: None,
+                show_welcome: true,
             }
         })
     }

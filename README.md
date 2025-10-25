@@ -1,5 +1,7 @@
 # 🗂️ Leeky Explorer
 
+![Leeky Explorer Logo](assets/images/leekpc.png)
+
 A fast, dual-pane terminal file manager built with Rust and Ratatui.
 
 [![Rust](https://img.shields.io/badge/rust-1.70%2B-orange.svg)](https://www.rust-lang.org/)
