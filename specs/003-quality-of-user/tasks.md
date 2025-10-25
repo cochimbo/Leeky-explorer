@@ -5,9 +5,11 @@
 
 **Tests**: Manual testing across terminal emulators will be performed in Phase 4.
 
-**Organization**: Tasks are organized by implementation phase. Now includes two user stories:
+**Organization**: Tasks are organized by implementation phase. Now includes four user stories:
 - **User Story 1**: Welcome Screen (T001-T060) - COMPLETED ✅
-- **User Story 2**: Disk Space Information (T061-T100) - NEW
+- **User Story 2**: Disk Space Information (T061-T100) - COMPLETED ✅
+- **User Story 3**: Detailed Column View (T101-T200) - COMPLETED ✅
+- **User Story 4**: Drive Selector (T201-T260) - COMPLETED ✅ 🆕
 
 ## Format: `[ID] [P?] [Phase] Description`
 - **[P]**: Can run in parallel (different files, no dependencies)
@@ -488,3 +490,185 @@
 2. Or proceed to release preparation (version bump, changelog, final testing)
 3. Merge to master and create v0.3.0 release
 4. Prepare final release (T056-T060)
+
+---
+
+## Phase 15: User Story 4 - Drive Selector Dialog (Priority: P4) 🎯
+
+**Goal**: Implement F10 drive selector for cross-platform drive/volume switching
+**Spontaneous Request**: User requested this feature for Windows drive navigation
+**Commit**: b6e5c14 - "feat: add F10 drive selector for cross-platform drive switching"
+
+### Dialog State & Data Model
+
+- [x] T201 Add `DriveSelector { drives: Vec<(String, String)>, selected: usize }` variant to `DialogState` enum in `src/app.rs` ✅
+- [x] T202 Add `OpenDriveSelector` action to keybindings in `src/events/keybindings.rs` ✅
+- [x] T203 Map F10 key to `Action::OpenDriveSelector` in `src/events/keybindings.rs` ✅
+
+### Drive Enumeration (Cross-Platform)
+
+- [x] T204 Create `get_available_drives()` function in `src/fs/disk_info.rs` ✅
+- [x] T205 Implement Windows version: scan drive letters A-Z using `fs::metadata()` ✅
+- [x] T206 Implement Unix version: list common mount points (/, /home, /media, /mnt, /Volumes) ✅
+- [x] T207 Format drive info with free space: "C: (573.8 GB free)" ✅
+- [x] T208 Return `Vec<(drive_path, display_label)>` for dialog rendering ✅
+- [x] T209 Handle drives with unavailable space info gracefully ✅
+
+### Drive Selector Widget
+
+- [x] T210 Create `src/ui/drive_selector.rs` module ✅
+- [x] T211 Export module in `src/ui/mod.rs` ✅
+- [x] T212 Implement `render()` function with centered dialog (60% width x 70% height) ✅
+- [x] T213 Add header with instructions: "Use ↑↓ to navigate, Enter to select, Esc to cancel" ✅
+- [x] T214 Render drive list with selection indicator "►" ✅
+- [x] T215 Add footer showing count of available drives ✅
+- [x] T216 Use `theme::ACTIVE_BORDER` for border color ✅
+- [x] T217 Use `Color::Black` for dialog background ✅
+- [x] T218 Implement `centered_rect()` helper for dialog positioning ✅
+
+### Event Handling
+
+- [x] T219 Add drive selector dialog check in main `handle_key()` function in `src/events/handler.rs` ✅
+- [x] T220 Implement `OpenDriveSelector` action handler: call `get_available_drives()` and create dialog ✅
+- [x] T221 Create `handle_drive_selector_dialog()` function in `src/events/handler.rs` ✅
+- [x] T222 Handle Up/Down keys for navigation with bounds checking ✅
+- [x] T223 Handle j/k keys for Vim-style navigation ✅
+- [x] T224 Handle Enter key: navigate panel to selected drive, refresh entries, reset cursor ✅
+- [x] T225 Handle Escape key: close dialog without action ✅
+- [x] T226 Fix panel navigation: use `panel.current_path = new_path; panel.refresh_entries()?; panel.cursor = 0;` ✅
+
+### Dialog Rendering Integration
+
+- [x] T227 Add `DriveSelector` case in `render_dialog()` in `src/ui/dialog.rs` ✅
+- [x] T228 Call `drive_selector::render()` with drives list and selected index ✅
+
+### Footer Update
+
+- [x] T229 Add `("F10", "Drive", Color::Blue)` to footer keybindings in `src/ui/mod.rs` ✅
+- [x] T230 Verify F10 hint displays correctly in footer bar ✅
+
+### Compilation & Bug Fixes
+
+- [x] T231 Fix theme constants: `theme::DIALOG_BG` → `Color::Black` ✅
+- [x] T232 Fix theme constants: `theme::HIGHLIGHT` → `theme::HIGHLIGHT_BG` ✅
+- [x] T233 Remove unused imports (Line, Span) from drive_selector.rs ✅
+- [x] T234 Fix `navigate_to()` method: use manual navigation instead ✅
+- [x] T235 Fix unused variable warning: `{ selected, drives }` → `{ selected, .. }` ✅
+- [x] T236 Run `cargo build` - verify no errors or warnings ✅
+
+### Testing
+
+- [x] T237 Run `cargo test` - verify all 83 tests pass ✅
+- [x] T238 Manual test: Press F10 and verify dialog opens ✅
+- [x] T239 Manual test: Navigate with Up/Down and j/k keys ✅
+- [x] T240 Manual test: Select drive with Enter and verify panel changes ✅
+- [x] T241 Manual test: Press Escape and verify dialog closes without action ✅
+- [x] T242 Manual test: Verify F10 hint shows in footer ✅
+- [x] T243 Manual test on Windows: Verify drive letters (C:, D:) display with space info ✅
+- [x] T244 Test dialog centering on different terminal sizes ✅
+
+### Documentation & Commit
+
+- [x] T245 Create comprehensive commit message documenting all changes ✅
+- [x] T246 Commit with `git commit` - commit b6e5c14 ✅
+- [x] T247 Verify commit includes all 7 modified files + 1 new file ✅
+- [x] T248 Add User Story 4 to spec.md with acceptance scenarios ✅
+- [x] T249 Add FR-027 through FR-040 functional requirements to spec.md ✅
+- [x] T250 Add SC-021 through SC-030 success criteria to spec.md ✅
+- [x] T251 Add drive selector edge cases to spec.md ✅
+- [x] T252 Add drive selector key entities to spec.md ✅
+- [x] T253 Add Phase 15 tasks (T201-T260) to tasks.md ✅
+- [x] T254 Mark all User Story 4 tasks as completed ✅
+
+### Future Enhancements (Optional)
+
+- [ ] T255 Add CD/DVD drive detection with "no media" indication
+- [ ] T256 Add network drive support (Windows UNC paths with drive letters)
+- [ ] T257 Add drive labels/names in addition to letters
+- [ ] T258 Add scrollable list for systems with >10 drives
+- [ ] T259 Add drive type indicators (HDD, SSD, USB, Network)
+- [ ] T260 Add mount/unmount functionality for Unix systems
+
+**Deliverable**: Complete F10 drive selector for Windows/Unix drive switching ✅
+
+**Implementation Time**: ~2 hours (all phases complete)
+
+**Status**: ✅ FULLY IMPLEMENTED AND TESTED
+
+---
+
+## Updated Summary
+
+**Total Tasks**: 260 (60 from US1 + 40 from US2 + 100 from US3 + 60 from US4)
+**Completed**: 193/260 (74.2%)
+**Remaining**: 67 (22 from US1 + 15 from US2 + 24 from US3 + 6 from US4 optional)
+
+**User Story 1 (Welcome Screen)**:
+- Total: 60 tasks
+- Completed: 38 (63.3%)
+- Status: ✅ Implementation complete, manual testing done, release prep pending
+
+**User Story 2 (Disk Space Info)**:
+- Total: 40 tasks
+- Completed: 25 (62.5%)
+- Status: ✅ Core implementation complete, some edge case testing pending
+
+**User Story 3 (Detailed Column View)**:
+- Total: 100 tasks
+- Completed: 76 (76.0%)
+- Status: 🎉 Phase 10-13 complete with marquee animation! Ready for final testing
+
+**User Story 4 (Drive Selector)**: 🆕
+- Total: 60 tasks (54 core + 6 optional future enhancements)
+- Completed: 54/54 core tasks (100%)
+- Status: ✅ FULLY IMPLEMENTED! F10 drive selector working on Windows/Unix
+- Commit: b6e5c14
+- Note: Spontaneous user request, not in original plan
+
+**Time Spent**:
+- Phase 1-3 (US1 Implementation): ✅ ~7.5 hours (completed)
+- Phase 4 (US1 Testing): ⏳ Partial
+- Phase 5 (Release): ⏳ ON HOLD
+- Phase 6-8 (US2 Implementation): ✅ ~3 hours (completed)
+- Phase 9 (US2 Testing): ⏳ Partial - core functionality verified
+- Phase 10-13 (US3 Implementation): ✅ ~4 hours (COMPLETED with marquee!)
+- Phase 15 (US4 Implementation): ✅ ~2 hours (COMPLETED!)
+
+**Critical Path**: 
+- US1: ✅ All blocking tasks done
+- US2: ✅ All blocking tasks done (T061-T080)
+- US3: ✅ Implementation complete! Marquee scrolling working on all columns
+- US4: ✅ All core tasks done (T201-T254) - Feature complete!
+
+**Minimum Viable**: 
+- US1: ✅ ACHIEVED
+- US2: ✅ ACHIEVED - Header shows disk space with dual-block layout
+- US3: ✅ ACHIEVED - Detailed column view with marquee scrolling
+- US4: ✅ ACHIEVED - F10 drive selector fully functional
+
+**Current Status**: 
+- User Story 1 (Welcome Screen) implementation complete and functional ✅
+- User Story 2 (Disk Space Info) core implementation complete ✅
+  - Dual-block header layout aligned with panels
+  - Cross-platform support (Windows/Linux/macOS)
+  - 5-second caching for performance
+  - Unit tests passing (3/3)
+- User Story 3 (Detailed Column View) implementation complete ✅
+  - All 6 columns rendering with proper alignment
+  - Marquee scrolling with 2-second pause
+  - Windows RHSA permissions working
+  - Unicode handling correct
+- User Story 4 (Drive Selector) implementation complete ✅ 🆕
+  - F10 hotkey opens centered dialog
+  - Cross-platform drive enumeration (Windows A-Z, Unix mount points)
+  - Up/Down/j/k navigation working
+  - Enter selects and navigates to drive
+  - Escape cancels dialog
+  - Footer shows F10:Drive hint
+  - All 83 tests passing
+
+**Next Steps**: 
+1. Continue with remaining testing tasks for US1-US3 if needed
+2. Or proceed to release preparation (version bump, changelog, final testing)
+3. Merge to master and create v0.3.0 release
+

@@ -79,6 +79,29 @@ As a user browsing files, I want to see detailed information in a columnar forma
 
 ---
 
+### User Story 4 - Drive Selector for Cross-Platform Navigation (Priority: P4)
+
+As a Windows user navigating between different drives (C:, D:, E:), or as a Unix user switching between mount points, I want a quick way to select and navigate to available drives/volumes without manually typing paths, so I can efficiently work across different storage locations.
+
+**Why this priority**: Addresses spontaneous user request for drive switching capability. Windows users especially need this for navigating between C:, D:, and other drives. While not critical for MVP, it significantly improves navigation efficiency for multi-drive systems.
+
+**Independent Test**: Can be tested by pressing F10 in either panel, selecting a different drive from the dialog using arrow keys, pressing Enter, and verifying the panel navigates to the selected drive. Works independently of other features.
+
+**Acceptance Scenarios**:
+
+1. **Given** application is running, **When** user presses F10 key, **Then** drive selector dialog appears centered on screen
+2. **Given** drive selector is open on Windows, **When** dialog renders, **Then** shows list of available drives (A: through Z:) with free space information
+3. **Given** drive selector is open on Unix, **When** dialog renders, **Then** shows list of common mount points (/, /home, /media, /mnt, /Volumes)
+4. **Given** drive selector displays drives, **When** shown, **Then** each drive shows format "C: (123.4 GB free)" or similar
+5. **Given** drive selector is open, **When** user presses Up/Down or j/k keys, **Then** selection indicator (►) moves between available drives
+6. **Given** drive selector has a drive selected, **When** user presses Enter, **Then** active panel navigates to selected drive root
+7. **Given** drive selector has a drive selected, **When** panel changes drive, **Then** cursor resets to first entry and entries refresh
+8. **Given** drive selector is open, **When** user presses Escape key, **Then** dialog closes without changing current location
+9. **Given** drive selector is open, **When** no drives available (edge case), **Then** shows message "No drives detected"
+10. **Given** application footer, **When** rendered, **Then** shows "F10 :Drive" keybinding hint in blue color
+
+---
+
 ### Edge Cases
 
 **User Story 1 (Welcome Screen)**:
@@ -105,6 +128,17 @@ As a user browsing files, I want to see detailed information in a columnar forma
 - How to handle very large file sizes (>1TB)? (Use TB unit with decimal places)
 - What about special files (devices, sockets, pipes) on Unix? (Show type indicator in permissions: c, b, s, p)
 - How wide should each column be on different terminal sizes? (Dynamic calculation based on available width)
+
+**User Story 4 (Drive Selector)**:
+- What if no drives are available (system limitation)? (Show "No drives detected" message in dialog)
+- How to handle drives that become unavailable after dialog opens? (Show error message and revert to previous location)
+- What about network drives on Windows (\\server\share)? (Include if they have drive letter mapping, exclude UNC paths)
+- How to handle very long volume labels? (Truncate label with ellipsis, keep drive letter visible)
+- What if drive space calculation fails for a drive? (Show drive letter without space info: "D: (space unavailable)")
+- How to handle CD/DVD drives with no media? (Include in list but show "E: (no media)")
+- What about Unix symbolic links in /media or /mnt? (Follow links to actual mount points)
+- How to handle permission errors when reading drive info? (Show drive but indicate access denied)
+- What if terminal is too small for dialog? (Show scrollable list or minimum viable dialog)
 
 ## Requirements *(mandatory)*
 
@@ -141,6 +175,22 @@ As a user browsing files, I want to see detailed information in a columnar forma
 - **FR-024**: System MUST handle terminal width constraints by adapting or truncating columns gracefully
 - **FR-025**: Marked entries MUST show "*" prefix before icon
 - **FR-026**: Column widths MUST recalculate on terminal resize to maintain readability
+
+**User Story 4 (Drive Selector)**:
+- **FR-027**: System MUST provide F10 hotkey to open drive selector dialog
+- **FR-028**: Drive selector MUST display as centered modal dialog (60% width, 70% height)
+- **FR-029**: On Windows, system MUST scan drive letters A-Z and detect available drives
+- **FR-030**: On Unix/Linux/macOS, system MUST list common mount points (/, /home, /media, /mnt, /Volumes)
+- **FR-031**: Each drive MUST display with format "DriveLetter: (FreeSpace GB free)" or "MountPoint (FreeSpace GB free)"
+- **FR-032**: Dialog MUST support Up/Down and j/k keys for navigation between drives
+- **FR-033**: Dialog MUST show selection indicator (►) next to currently selected drive
+- **FR-034**: Pressing Enter MUST navigate active panel to root of selected drive
+- **FR-035**: System MUST reset panel cursor to 0 and refresh entries after drive change
+- **FR-036**: Pressing Escape MUST close dialog without changing current location
+- **FR-037**: Dialog MUST show header with instructions "Use ↑↓ to navigate, Enter to select, Esc to cancel"
+- **FR-038**: Dialog MUST show footer with count of available drives
+- **FR-039**: Footer MUST display "F10 :Drive" keybinding hint in blue color
+- **FR-040**: System MUST handle drives with unavailable space info by showing drive without space details
 
 ### Key Entities
 
@@ -187,6 +237,25 @@ As a user browsing files, I want to see detailed information in a columnar forma
   - Unix: rwxr-xr-x format (user/group/other with read/write/execute bits)
   - Special files: Type indicators (d=dir, l=link, c=char device, b=block device, s=socket, p=pipe)
 
+**User Story 4**:
+- **Drive Selector Dialog**: Modal interface for drive/volume selection
+  - Display: Centered dialog (60% width x 70% height)
+  - Components: Header (instructions), Drive list, Footer (count)
+  - Trigger: F10 key press
+  - Dismissal: Enter (select) or Escape (cancel)
+
+- **Available Drives**: List of accessible storage locations
+  - Windows: Drive letters A-Z that exist and are accessible
+  - Unix: Common mount points (/, /home, /media/*, /mnt/*, /Volumes/*)
+  - Information: Drive path + free space (e.g., "C: (573.8 GB free)")
+  - Detection: Filesystem metadata check for existence and space
+
+- **Drive Selection State**: Current user selection within dialog
+  - Selection indicator: "►" character
+  - Navigation: Up/Down or j/k keys
+  - Bounds checking: Wrap or stop at list edges
+  - Action: Enter to apply, Escape to cancel
+
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
@@ -216,3 +285,16 @@ As a user browsing files, I want to see detailed information in a columnar forma
 - **SC-018**: Column widths recalculate within 50ms on terminal resize
 - **SC-019**: Truncation with ellipsis works correctly for long names (>50 chars) in 100% of cases
 - **SC-020**: View remains readable in minimum terminal width (80 columns)
+
+**User Story 4 (Drive Selector)**:
+- **SC-021**: F10 key opens drive selector dialog in 100% of cases when not in other modal state
+- **SC-022**: Windows: System detects 100% of available drive letters (C:, D:, etc.) correctly
+- **SC-023**: Unix: System lists common mount points with 95% coverage of typical user setups
+- **SC-024**: Dialog displays free space information accurately (within 1% margin) for 95% of drives
+- **SC-025**: Drive selection navigation responds to key presses within 50ms
+- **SC-026**: Panel navigates to selected drive within 200ms after pressing Enter
+- **SC-027**: Dialog centers correctly in 95% of terminal sizes (>80x24)
+- **SC-028**: System handles 100% of unavailable drives gracefully (shows without crashing)
+- **SC-029**: Footer displays "F10 :Drive" hint in 100% of application states
+- **SC-030**: Drive enumeration completes within 500ms even with 10+ drives
+
