@@ -1,5 +1,6 @@
 // Panel data structure
 use std::path::PathBuf;
+use std::time::Instant;
 use super::file_entry::FileEntry;
 use anyhow::Result;
 use glob::Pattern;
@@ -13,6 +14,10 @@ pub struct Panel {
     pub filter: Option<String>,
     pub last_quick_jump_char: Option<char>,  // T128c: Track last character for cyclic navigation
     pub last_quick_jump_index: usize,        // T128d: Track last position for cycling
+    // US3: Text scrolling for long filenames in highlight
+    pub text_scroll_offset: usize,           // Horizontal scroll offset for selected item's text
+    pub text_scroll_direction: i8,           // 1 = right, -1 = left, 0 = paused
+    pub text_scroll_timer: Instant,          // Last time text scroll was updated
 }
 
 impl Panel {
@@ -25,6 +30,9 @@ impl Panel {
             filter: None,
             last_quick_jump_char: None,
             last_quick_jump_index: 0,
+            text_scroll_offset: 0,
+            text_scroll_direction: 0,
+            text_scroll_timer: Instant::now(),
         }
     }
 
@@ -39,21 +47,25 @@ impl Panel {
     pub fn move_cursor_up(&mut self) {
         if self.cursor > 0 {
             self.cursor -= 1;
+            self.reset_text_scroll();
         }
     }
 
     pub fn move_cursor_down(&mut self) {
         if self.cursor < self.entries.len().saturating_sub(1) {
             self.cursor += 1;
+            self.reset_text_scroll();
         }
     }
 
     pub fn move_cursor_to_top(&mut self) {
         self.cursor = 0;
+        self.reset_text_scroll();
     }
 
     pub fn move_cursor_to_bottom(&mut self) {
         self.cursor = self.entries.len().saturating_sub(1);
+        self.reset_text_scroll();
     }
 
     // T128f: Page Down - move 5 positions down
@@ -239,5 +251,82 @@ impl Panel {
     pub fn get_filter(&self) -> Option<&str> {
         self.filter.as_deref()
     }
-}
 
+    // US3: Reset text scroll when cursor changes
+    pub fn reset_text_scroll(&mut self) {
+        self.text_scroll_offset = 0;
+        self.text_scroll_direction = 0;
+        self.text_scroll_timer = Instant::now();
+    }
+
+    // US3: Update text scroll animation for selected item
+    // Returns true if screen needs refresh
+    pub fn update_text_scroll(&mut self, max_visible_chars: usize) -> bool {
+        // Get selected entry name length
+        let name_len = self.selected_entry()
+            .map(|e| e.name.chars().count())
+            .unwrap_or(0);
+
+        // Only scroll if text is longer than visible area
+        if name_len <= max_visible_chars {
+            return false;
+        }
+
+        let now = Instant::now();
+        let elapsed = now.duration_since(self.text_scroll_timer).as_millis();
+
+        // Update every 150ms for smooth scrolling
+        if elapsed < 150 {
+            return false;
+        }
+
+        self.text_scroll_timer = now;
+
+        // Start scrolling after 1 second of selection
+        if self.text_scroll_direction == 0 && self.text_scroll_offset == 0 {
+            // Initial delay passed, start scrolling right
+            self.text_scroll_direction = 1;
+        }
+
+        // Calculate max scroll offset (show last chars + ellipsis)
+        let max_offset = name_len.saturating_sub(max_visible_chars) + 3; // +3 for "..."
+
+        match self.text_scroll_direction {
+            1 => {
+                // Scrolling right
+                self.text_scroll_offset += 1;
+                if self.text_scroll_offset >= max_offset {
+                    // Reached end, pause for 1 second, then go back
+                    self.text_scroll_direction = 0; // Pause
+                    self.text_scroll_timer = Instant::now();
+                }
+            }
+            -1 => {
+                // Scrolling left (back to start)
+                if self.text_scroll_offset > 0 {
+                    self.text_scroll_offset -= 1;
+                } else {
+                    // Back to start, pause before repeating
+                    self.text_scroll_direction = 0;
+                    self.text_scroll_timer = Instant::now();
+                }
+            }
+            0 => {
+                // Paused, check if pause duration elapsed
+                if elapsed >= 1000 {
+                    // 1 second pause
+                    if self.text_scroll_offset == 0 {
+                        // At start, begin scrolling right
+                        self.text_scroll_direction = 1;
+                    } else {
+                        // At end, begin scrolling left
+                        self.text_scroll_direction = -1;
+                    }
+                }
+            }
+            _ => {}
+        }
+
+        true // Need refresh
+    }
+}

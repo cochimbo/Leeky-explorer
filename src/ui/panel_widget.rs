@@ -70,7 +70,7 @@ pub fn render_panel(
         ))));
         
         // Data rows
-        for entry in &panel.entries {
+        for (idx, entry) in panel.entries.iter().enumerate() {
             let mut style = theme::get_entry_style(&entry.entry_type);
             
             // T558: Show "*" prefix and alternate background for marked items
@@ -81,8 +81,12 @@ pub fn render_panel(
                 style = style.bg(theme::MARKED_BG);
             }
             
+            // Check if this is the selected item
+            let is_selected = idx == panel.cursor;
+            let scroll_offset = if is_selected { panel.text_scroll_offset } else { 0 };
+            
             // Build columnar row
-            let line = build_data_row(entry, &layout, is_marked, style);
+            let line = build_data_row(entry, &layout, is_marked, is_selected, scroll_offset, style);
             all_items.push(ListItem::new(line));
         }
         
@@ -211,6 +215,8 @@ fn build_data_row(
     entry: &crate::models::file_entry::FileEntry,
     layout: &ColumnLayout,
     is_marked: bool,
+    is_selected: bool,
+    scroll_offset: usize,
     style: Style,
 ) -> Line<'static> {
     let mut spans = Vec::new();
@@ -231,10 +237,21 @@ fn build_data_row(
     ));
     spans.push(Span::raw("  "));
     
-    // Name column (truncate if too long)
-    let name = &entry.name;
+    // Name column (truncate if too long, or scroll if selected)
+    let name = if is_selected && scroll_offset > 0 {
+        // Apply scroll offset for selected item
+        let chars: Vec<char> = entry.name.chars().collect();
+        if scroll_offset < chars.len() {
+            chars[scroll_offset..].iter().collect()
+        } else {
+            entry.name.clone()
+        }
+    } else {
+        entry.name.clone()
+    };
+    
     spans.push(Span::styled(
-        formatters::pad_text(name, layout.name_width, Alignment::Left),
+        formatters::pad_text(&name, layout.name_width, Alignment::Left),
         style,
     ));
     spans.push(Span::raw("  "));

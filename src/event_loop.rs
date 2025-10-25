@@ -100,6 +100,13 @@ pub async fn run<B: ratatui::backend::Backend>(
         // Start new operation if one is queued
         start_queued_operation(app, &mut operation_task, &progress_tx, &mut current_cancel_tx);
         
+        // US3: Update text scroll animation for active panel
+        let active_panel = app.active_panel_mut();
+        let term_size = terminal.size()?;
+        let panel_width = (term_size.width / 2).saturating_sub(4); // Account for borders, half screen
+        let column_layout = ui::column_layout::ColumnLayout::calculate(panel_width, &active_panel.entries);
+        let _needs_refresh = active_panel.update_text_scroll(column_layout.name_width as usize);
+        
         // Draw UI
         render_ui(terminal, app)?;
         
