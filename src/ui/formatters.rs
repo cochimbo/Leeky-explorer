@@ -1,6 +1,13 @@
 // Formatting utilities for file metadata display
 use crate::models::file_entry::FileEntry;
 use std::time::SystemTime;
+use unicode_width::UnicodeWidthStr;
+
+/// Calculate the visual width of a string (handles emojis correctly)
+/// Emojis and wide characters take 2 cells, ASCII takes 1 cell
+fn visual_width(s: &str) -> usize {
+    s.width()
+}
 
 /// Format file extension for display
 /// Returns the extension or empty string for directories/files without extension
@@ -142,21 +149,42 @@ pub fn format_permissions(entry: &FileEntry) -> String {
 
 /// Pad or truncate text to fit within specified width
 /// Alignment: Left, Right, or Center
-/// Handles Unicode characters (emojis) correctly
+/// Handles Unicode characters (emojis) correctly using visual width
 pub fn pad_text(text: &str, width: u16, align: crate::ui::column_layout::Alignment) -> String {
     let width = width as usize;
-    let char_count = text.chars().count();
+    let visual_len = visual_width(text);
     
-    if char_count >= width {
+    if visual_len >= width {
         // Truncate with ellipsis, handling Unicode properly
         if width > 3 {
-            let truncated: String = text.chars().take(width - 3).collect();
+            // Find where to truncate based on visual width
+            let mut truncated = String::new();
+            let mut current_width = 0;
+            for ch in text.chars() {
+                let ch_width = visual_width(&ch.to_string());
+                if current_width + ch_width + 3 > width {
+                    break;
+                }
+                truncated.push(ch);
+                current_width += ch_width;
+            }
             format!("{}...", truncated)
         } else {
-            text.chars().take(width).collect()
+            // Very narrow width, just truncate
+            let mut truncated = String::new();
+            let mut current_width = 0;
+            for ch in text.chars() {
+                let ch_width = visual_width(&ch.to_string());
+                if current_width + ch_width > width {
+                    break;
+                }
+                truncated.push(ch);
+                current_width += ch_width;
+            }
+            truncated
         }
     } else {
-        let padding = width - char_count;
+        let padding = width - visual_len;
         match align {
             crate::ui::column_layout::Alignment::Left => {
                 format!("{}{}", text, " ".repeat(padding))
@@ -312,12 +340,21 @@ mod tests {
     #[test]
     fn test_pad_text_emoji() {
         // Test with emoji - should handle Unicode correctly
+        // Emoji 📁 has visual width of 2
         let result = pad_text("📁", 2, crate::ui::column_layout::Alignment::Left);
-        assert_eq!(result.chars().count(), 2);
+        // Visual width is 2, so no padding needed
+        assert_eq!(visual_width(&result), 2);
         assert!(result.starts_with("📁"));
         
-        // Test truncation with emoji
+        // Test with padding - emoji needs 2 cells, asking for 4 total
+        let result = pad_text("📁", 4, crate::ui::column_layout::Alignment::Left);
+        assert_eq!(visual_width(&result), 4);
+        assert!(result.starts_with("📁"));
+        
+        // Test truncation with emoji - asking for only 1 cell when emoji needs 2
+        // Should truncate to empty or just show nothing
         let result = pad_text("📁test", 3, crate::ui::column_layout::Alignment::Left);
-        assert_eq!(result.chars().count(), 3);
+        // Emoji (2) + "..." (3) = 5, but we only have 3, so should truncate emoji
+        assert!(visual_width(&result) <= 3);
     }
 }

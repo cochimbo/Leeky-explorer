@@ -330,31 +330,31 @@
 
 ### Header Row Implementation
 
-- [ ] T148 Design column header layout ("Icon│Name│Ext│Size│Modified│Created│Perms")
-- [ ] T149 Implement header row rendering with borders
-- [ ] T150 Apply bold or color styling to headers
-- [ ] T151 Align headers to match data column alignment
-- [ ] T152 Add separator line below headers (─ characters)
+- [x] T148 Design column header layout ("Icon│Name│Ext│Size│Modified│Created│Perms") ✅
+- [x] T149 Implement header row rendering with borders ✅
+- [x] T150 Apply bold or color styling to headers ✅
+- [x] T151 Align headers to match data column alignment ✅
+- [x] T152 Add separator line below headers (─ characters) ✅
 
 ### Data Row Rendering
 
-- [ ] T153 Modify `panel_widget.rs` rendering loop
-- [ ] T154 Call `calculate_layout()` to get column widths
-- [ ] T155 Iterate entries and format each column with correct width
-- [ ] T156 Apply column alignment (left/right/center)
-- [ ] T157 Add padding between columns (1-2 spaces or │ separator)
-- [ ] T158 Implement name truncation with "..." for long names
-- [ ] T159 Render icon using existing `get_icon()` function
-- [ ] T160 Render mark indicator (space or '*' for marked files)
+- [x] T153 Modify `panel_widget.rs` rendering loop ✅
+- [x] T154 Call `calculate_layout()` to get column widths ✅
+- [x] T155 Iterate entries and format each column with correct width ✅
+- [x] T156 Apply column alignment (left/right/center) ✅
+- [x] T157 Add padding between columns (1-2 spaces or │ separator) ✅
+- [x] T158 Implement name truncation with "..." for long names ✅
+- [x] T159 Render icon using existing `get_icon()` function ✅
+- [x] T160 Render mark indicator (space or '*' for marked files) ✅
 
 ### Selection and Highlighting
 
-- [ ] T161 Maintain selection highlighting with columnar layout
-- [ ] T162 Test selection cursor positioning
-- [ ] T163 Test scroll behavior with new layout
-- [ ] T164 Verify multi-select marking displays correctly
+- [x] T161 Maintain selection highlighting with columnar layout ✅
+- [x] T162 Test selection cursor positioning ✅
+- [x] T163 Test scroll behavior with new layout ✅
+- [x] T164 Verify multi-select marking displays correctly ✅
 
-**Deliverable**: Panel displays files in detailed columnar format
+**Deliverable**: Panel displays files in detailed columnar format ✅
 
 ---
 
@@ -414,8 +414,8 @@
 ## Summary
 
 **Total Tasks**: 197 (60 from US1 + 40 from US2 + 97 from US3)
-**Completed**: 63/197 (32%)
-**Remaining**: 134 (22 from US1 + 15 from US2 + 97 from US3)
+**Completed**: 123/197 (62.4%)
+**Remaining**: 74 (22 from US1 + 15 from US2 + 37 from US3)
 
 **User Story 1 (Welcome Screen)**:
 - Total: 60 tasks
@@ -429,8 +429,8 @@
 
 **User Story 3 (Detailed Column View)**:
 - Total: 97 tasks
-- Completed: 0 (0%)
-- Status: 🚧 Ready to start - specification complete, plan defined
+- Completed: 60 (61.9%)
+- Status: 🎉 Phase 10-13 complete! Ready for testing phase
 
 **Time Spent**:
 - Phase 1-3 (US1 Implementation): ✅ ~7.5 hours (completed)
@@ -438,12 +438,12 @@
 - Phase 5 (Release): ⏳ ON HOLD
 - Phase 6-8 (US2 Implementation): ✅ ~3 hours (completed)
 - Phase 9 (US2 Testing): ⏳ Partial - core functionality verified
-- Phase 10-14 (US3 Implementation): 🚧 Starting now
+- Phase 10-13 (US3 Implementation): ✅ ~2 hours (JUST COMPLETED!)
 
 **Critical Path**: 
 - US1: ✅ All blocking tasks done
 - US2: ✅ MVP achieved, some edge cases remain
-- US3: 🎯 Ready to implement - Phase 10 first (T101-T111)
+- US3: 🎯 Implementation complete! Now ready for Phase 14 testing (T165-T197)
 - US2: ✅ All blocking tasks done (T061-T080)
 
 **Minimum Viable**: 

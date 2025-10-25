@@ -36,6 +36,8 @@ bzip2 = "0.6.1"
 sevenz-rust = "0.6.1"
 # T845: Disk space checking
 fs2 = "0.4"
+# US3: Unicode width calculation for proper emoji alignment
+unicode-width = "0.2.0"
 
 [dev-dependencies]
 tempfile = "3.8"
