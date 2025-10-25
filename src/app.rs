@@ -1,5 +1,7 @@
 // Application state management
 use std::path::{Path, PathBuf};
+use std::collections::HashMap;
+use std::time::Instant;
 
 use crate::models::file_entry::{FileEntry, EntryType};
 use crate::models::operation::Operation;
@@ -32,6 +34,8 @@ pub struct AppState {
     pub selection_state: SelectionState,
     pub preview_state: Option<PreviewState>,
     pub show_welcome: bool,
+    // T077: Disk space cache with 5-second TTL
+    pub disk_space_cache: HashMap<PathBuf, (crate::fs::disk_info::DiskSpaceInfo, Instant)>,
 }
 
 #[derive(Debug, Clone)]
@@ -162,6 +166,7 @@ impl AppState {
             selection_state: SelectionState::new(),
             preview_state: None,
             show_welcome: true,
+            disk_space_cache: HashMap::new(),
         })
     }
 
@@ -194,6 +199,28 @@ impl AppState {
         match self.active_panel {
             PanelSide::Left => &self.right_panel,
             PanelSide::Right => &self.left_panel,
+        }
+    }
+
+    /// T078: Get disk space info with caching (5-second TTL)
+    pub fn get_cached_disk_space(&mut self, path: &Path) -> Option<crate::fs::disk_info::DiskSpaceInfo> {
+        const CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(5);
+        
+        // Check if we have a cached entry
+        if let Some((info, timestamp)) = self.disk_space_cache.get(path) {
+            if timestamp.elapsed() < CACHE_TTL {
+                // Cache is still valid
+                return Some(info.clone());
+            }
+        }
+        
+        // Cache miss or expired - query filesystem
+        if let Ok(info) = crate::fs::disk_info::get_disk_space(path) {
+            // Store in cache
+            self.disk_space_cache.insert(path.to_path_buf(), (info.clone(), Instant::now()));
+            Some(info)
+        } else {
+            None
         }
     }
 
@@ -641,6 +668,7 @@ impl Default for AppState {
                 selection_state: SelectionState::new(),
                 preview_state: None,
                 show_welcome: true,
+                disk_space_cache: HashMap::new(),
             }
         })
     }

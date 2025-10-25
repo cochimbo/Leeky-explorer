@@ -155,41 +155,41 @@
 
 ### Phase 6: Disk Space Module (Foundation)
 
-- [ ] T061 [P] Create `src/fs/disk_info.rs` module file
-- [ ] T062 [P] Define `DiskSpaceInfo` struct with fields: used_bytes, total_bytes, free_bytes, drive_label
-- [ ] T063 Implement `get_disk_space(path: &Path) -> Result<DiskSpaceInfo>` using fs2 crate
-- [ ] T064 Add Windows-specific drive letter extraction logic (C:, D:, etc.)
-- [ ] T065 Add Linux/macOS mount point detection (/, /home, /mnt, /Volumes)
-- [ ] T066 Implement `format_size(bytes: u64) -> String` to convert to KB/MB/GB/TB
-- [ ] T067 Implement `format_disk_space(info: &DiskSpaceInfo) -> String` as "Drive: XXgb / YYgb (ZZ% free)"
-- [ ] T068 Add error handling for inaccessible paths, network drives, virtual filesystems
-- [ ] T069 Export `disk_info` module in `src/fs/mod.rs`
+- [x] T061 [P] Create `src/fs/disk_info.rs` module file ✅
+- [x] T062 [P] Define `DiskSpaceInfo` struct with fields: used_bytes, total_bytes, free_bytes, drive_label ✅
+- [x] T063 Implement `get_disk_space(path: &Path) -> Result<DiskSpaceInfo>` using fs2 crate ✅
+- [x] T064 Add Windows-specific drive letter extraction logic (C:, D:, etc.) ✅
+- [x] T065 Add Linux/macOS mount point detection (/, /home, /mnt, /Volumes) ✅
+- [x] T066 Implement `format_size(bytes: u64) -> String` to convert to KB/MB/GB/TB ✅
+- [x] T067 Implement `format_disk_space(info: &DiskSpaceInfo) -> String` as "Drive: XXgb / YYgb (ZZ% free)" ✅
+- [x] T068 Add error handling for inaccessible paths, network drives, virtual filesystems ✅
+- [x] T069 Export `disk_info` module in `src/fs/mod.rs` ✅
 
-**Checkpoint**: Disk space query utilities ready for integration
+**Checkpoint**: Disk space query utilities ready for integration ✅
 
 ### Phase 7: Header Modification (Implementation)
 
-- [ ] T070 Modify `src/ui/mod.rs` - Remove old path display logic from `render_header()` (lines 141-142)
-- [ ] T071 Add disk space query for left panel: `get_disk_space(&app.left_panel.current_path)`
-- [ ] T072 Add disk space query for right panel: `get_disk_space(&app.right_panel.current_path)`
-- [ ] T073 Format disk space strings and render in header with cyan color
-- [ ] T074 Add error handling: show "Space: N/A" if query fails
+- [x] T070 Modify `src/ui/mod.rs` - Remove old path display logic from `render_header()` (lines 141-142) ✅
+- [x] T071 Add disk space query for left panel: `get_disk_space(&app.left_panel.current_path)` ✅
+- [x] T072 Add disk space query for right panel: `get_disk_space(&app.right_panel.current_path)` ✅
+- [x] T073 Format disk space strings and render in header with cyan color ✅
+- [x] T074 Add error handling: show "Space: N/A" if query fails ✅
 - [ ] T075 Test header rendering with disk space info in dual panels
 - [ ] T076 Verify text truncation for long drive labels (ellipsis if needed)
 
-**Checkpoint**: Header displays disk space information correctly
+**Checkpoint**: Header displays disk space information correctly ⏳
 
 ### Phase 8: Performance Optimization (Caching)
 
-- [ ] T077 Add `pub disk_space_cache: HashMap<PathBuf, (DiskSpaceInfo, Instant)>` to AppState struct
-- [ ] T078 Implement `get_cached_disk_space(app: &mut AppState, path: &Path) -> DiskSpaceInfo` helper
-- [ ] T079 Set cache lifetime to 5 seconds (const CACHE_TTL: Duration = Duration::from_secs(5))
-- [ ] T080 Update `render_header()` to check cache before querying filesystem
+- [x] T077 Add `pub disk_space_cache: HashMap<PathBuf, (DiskSpaceInfo, Instant)>` to AppState struct ✅
+- [x] T078 Implement `get_cached_disk_space(app: &mut AppState, path: &Path) -> DiskSpaceInfo` helper ✅
+- [x] T079 Set cache lifetime to 5 seconds (const CACHE_TTL: Duration = Duration::from_secs(5)) ✅
+- [x] T080 Update `render_header()` to check cache before querying filesystem ✅
 - [ ] T081 Invalidate cache entry when panel navigates to new path
 - [ ] T082 Test caching: verify no lag when navigating within same drive
 - [ ] T083 Test cache expiration: verify updates after 5 seconds (wait and check)
 
-**Checkpoint**: Disk space queries cached efficiently, no UI lag
+**Checkpoint**: Disk space queries cached efficiently, no UI lag ⏳
 
 ### Phase 9: Testing and Validation
 

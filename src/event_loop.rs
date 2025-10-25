@@ -396,7 +396,7 @@ fn cancel_operation(operation_task: &mut Option<tokio::task::JoinHandle<Result<(
 /// Render the UI
 fn render_ui<B: ratatui::backend::Backend>(
     terminal: &mut Terminal<B>,
-    app: &AppState,
+    app: &mut AppState,
 ) -> Result<()> {
     terminal.draw(|f| {
         // Show welcome screen if flag is set
@@ -407,7 +407,7 @@ fn render_ui<B: ratatui::backend::Backend>(
 
         let layout = ui::layout::create_layout(f.area());
         
-        // Render header
+        // Render header (T080: needs &mut for caching)
         ui::render_header(f, app, layout.header);
         
         // Render panels

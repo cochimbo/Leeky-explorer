@@ -137,14 +137,30 @@ pub fn render_dialog_if_present(frame: &mut Frame, app: &AppState) {
     }
 }
 
-pub fn render_header(frame: &mut Frame, app: &AppState, area: Rect) {
-    let left_path = format!(" Left: {} ", app.left_panel.current_path.display());
-    let right_path = format!(" Right: {} ", app.right_panel.current_path.display());
+pub fn render_header(frame: &mut Frame, app: &mut AppState, area: Rect) {
+    // T070-T074: Show disk space information instead of redundant paths
+    // T080: Use cached disk space to prevent UI lag
+    
+    // Clone paths to avoid borrow checker issues
+    let left_path = app.left_panel.current_path.clone();
+    let right_path = app.right_panel.current_path.clone();
+    
+    let left_space = if let Some(info) = app.get_cached_disk_space(&left_path) {
+        crate::fs::disk_info::format_disk_space(&info)
+    } else {
+        "Space: N/A".to_string()
+    };
+    
+    let right_space = if let Some(info) = app.get_cached_disk_space(&right_path) {
+        crate::fs::disk_info::format_disk_space(&info)
+    } else {
+        "Space: N/A".to_string()
+    };
 
     let content = Line::from(vec![
-        Span::styled(left_path, Style::default().fg(Color::Cyan)),
+        Span::styled(format!(" {} ", left_space), Style::default().fg(Color::Cyan)),
         Span::raw(" | "),
-        Span::styled(right_path, Style::default().fg(Color::Cyan)),
+        Span::styled(format!(" {} ", right_space), Style::default().fg(Color::Cyan)),
     ]);
 
     let block = Block::default()
