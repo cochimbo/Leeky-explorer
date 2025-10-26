@@ -1016,8 +1016,8 @@ fn test_adds_to_history() { ... }
 
 ---
 
-### TASK-025: Update footer with Ctrl+G shortcut ⬜
-**Priority**: P3 | **Time**: 5min | **Dependencies**: TASK-023
+### TASK-025: Update footer with Ctrl+G shortcut ✅
+**Priority**: P3 | **Time**: 5min | **Dependencies**: TASK-023 | **Completed**: Phase 4
 
 **Description**: Add Ctrl+G shortcut to footer help
 
@@ -1031,15 +1031,72 @@ fn test_adds_to_history() { ... }
 ```
 
 **Acceptance**:
-- [ ] Ctrl+G appears in footer
-- [ ] No layout issues
-- [ ] Visible in all themes
+- [x] Ctrl+G appears in footer
+- [x] No layout issues
+- [x] Visible in all themes
+
+---
+
+### TASK-026: Add shell-like autocomplete to Go To Path ✅
+**Priority**: P2 | **Time**: 2h | **Dependencies**: TASK-025 | **Completed**: Phase 4
+
+**Description**: Implement bash/zsh-style autocomplete with real-time suggestion list
+
+**Features**:
+- Real-time suggestion list showing subdirectories
+- Tab: autocomplete common prefix or unique match (adds trailing separator)
+- Enter: select highlighted suggestion and update input
+- Up/Down: navigate suggestions with circular wrap
+- Suggestions update dynamically as user types or deletes
+- Initialize input with current directory path
+- Fix Windows UNC path display (remove \\?\ prefix)
+
+**Files**:
+- `src/app.rs` - MODIFY (DialogState::GoToPath: add suggestions tracking)
+- `src/events/handler.rs` - MODIFY (Tab/Up/Down handlers, helper functions)
+- `src/ui/goto_dialog.rs` - MODIFY (render suggestions list)
+- `src/ui/dialog.rs` - MODIFY (pass suggestions to render)
+
+**Implementation**:
+```rust
+// In app.rs - DialogState::GoToPath
+suggestions: Vec<PathBuf>,
+selected_suggestion: usize,
+
+// New helper functions in handler.rs
+fn get_directory_children(path: &Path) -> Vec<PathBuf>
+fn get_suggestions_for_input(input: &str, current_dir: &Path) -> Vec<PathBuf>
+fn autocomplete_path(input: &str, suggestions: &[PathBuf]) -> String
+fn expand_path_variables_only(input: &str) -> String
+fn clean_windows_path(path: PathBuf) -> PathBuf  // Windows UNC fix
+```
+
+**UI Enhancements**:
+- Suggestion list widget below input with scroll
+- Highlight selected item with "►" indicator
+- Dynamic footer messages based on state
+- Green hint showing suggestion count and instructions
+- "No subdirectories" message when list is empty
+
+**Acceptance**:
+- [x] Tab autocompletes common prefix or full match
+- [x] Enter selects highlighted suggestion
+- [x] Up/Down navigate with wrap-around
+- [x] Suggestions update in real-time while typing
+- [x] Input initialized with current directory
+- [x] Windows UNC prefix (\\?\) removed from display
+- [x] Visual feedback with highlight and arrows
+- [x] Dynamic help messages
+- [x] All existing tests pass (111 tests)
+- [x] Code compiles without warnings
+
+**Commit**: `980b3d4` - "feat: Add shell-like autocomplete to Go To Path dialog (Ctrl+G)"
 
 ---
 
 ## Phase 5: Text Editor (P4) - Optional/Deferred
 
-### TASK-026: Create EditorBuffer struct ⬜
+### TASK-027: Create EditorBuffer struct ⬜
 **Priority**: P4 | **Time**: 2h | **Dependencies**: None
 
 **Description**: Buffer for text file content and cursor state. This will enhance the existing preview system to support editing.
@@ -1080,8 +1137,8 @@ impl EditorBuffer {
 
 ---
 
-### TASK-027: Create text editor UI widget ⬜
-**Priority**: P4 | **Time**: 3h | **Dependencies**: TASK-026
+### TASK-028: Create text editor UI widget ⬜
+**Priority**: P4 | **Time**: 3h | **Dependencies**: TASK-027
 
 **Description**: Modal editor widget with rendering (enhancement of preview modal)
 
@@ -1170,8 +1227,8 @@ pub enum EditorAction {
 
 ---
 
-### TASK-023: Add file type validation ⬜
-**Priority**: P4 | **Time**: 1h | **Dependencies**: TASK-022
+### TASK-029: Add file type validation ⬜
+**Priority**: P4 | **Time**: 1h | **Dependencies**: TASK-028
 
 **Description**: Prevent editing binary files and large files
 
@@ -1225,8 +1282,8 @@ Action::EditFile => {
 
 ---
 
-### TASK-024: Implement save and close handlers ⬜
-**Priority**: P4 | **Time**: 1h | **Dependencies**: TASK-023
+### TASK-030: Implement save and close handlers ⬜
+**Priority**: P4 | **Time**: 1h | **Dependencies**: TASK-029
 
 **Description**: Handle save operations and unsaved changes
 
@@ -1275,8 +1332,8 @@ EditorAction::ConfirmClose => {
 
 ---
 
-### TASK-025: Add editor edge case handling ⬜
-**Priority**: P4 | **Time**: 1h | **Dependencies**: TASK-024
+### TASK-031: Add editor edge case handling ⬜
+**Priority**: P4 | **Time**: 1h | **Dependencies**: TASK-030
 
 **Description**: Handle file permissions and concurrent modifications
 
@@ -1311,8 +1368,8 @@ impl EditorBuffer {
 
 ---
 
-### TASK-026: Write text editor tests ⬜
-**Priority**: P4 | **Time**: 2h | **Dependencies**: TASK-025
+### TASK-032: Write text editor tests ⬜
+**Priority**: P4 | **Time**: 2h | **Dependencies**: TASK-031
 
 **Description**: Integration tests for editor functionality
 
@@ -1356,7 +1413,7 @@ fn test_insert_and_delete() { ... }
 
 ## Documentation and Final Tasks
 
-### TASK-027: Update README with new features ⬜
+### TASK-033: Update README with new features ⬜
 **Priority**: P1 | **Time**: 0.5h | **Dependencies**: Completed phases
 
 **Description**: Document new keybindings and features
@@ -1385,8 +1442,8 @@ fn test_insert_and_delete() { ... }
 
 ---
 
-### TASK-028: Update CHANGELOG ⬜
-**Priority**: P1 | **Time**: 0.25h | **Dependencies**: TASK-027
+### TASK-034: Update CHANGELOG ⬜
+**Priority**: P1 | **Time**: 0.25h | **Dependencies**: TASK-033
 
 **Description**: Add v0.4.0 entry to CHANGELOG
 
@@ -1420,7 +1477,7 @@ fn test_insert_and_delete() { ... }
 
 ---
 
-### TASK-029: Run full test suite ⬜
+### TASK-035: Run full test suite ⬜
 **Priority**: P1 | **Time**: 0.5h | **Dependencies**: All implementation tasks
 
 **Description**: Verify all tests pass including new features
@@ -1442,7 +1499,7 @@ cargo build --release
 
 ---
 
-### TASK-030: Create checklist for requirements ⬜
+### TASK-036: Create checklist for requirements ⬜
 **Priority**: P2 | **Time**: 0.5h | **Dependencies**: Spec complete
 
 **Description**: Verification checklist for all functional requirements
@@ -1462,29 +1519,41 @@ cargo build --release
 
 ## Task Summary
 
-**Total Tasks**: 30
-**Estimated Time**: 32.5 hours (~4-5 work days)
+**Total Tasks**: 36  
+**Completed**: 26 tasks (TASK-001 through TASK-026) ✅  
+**Remaining**: 10 tasks (TASK-027 through TASK-036)  
+**Estimated Time**: 34.5 hours (~4-5 work days)
 
 ### By Phase:
-- **Phase 0** (Foundation): 5 tasks, 4.75h
-- **Phase 1** (Bookmarks): 5 tasks, 9.5h
-- **Phase 2** (Disk Usage): 5 tasks, 5.5h
-- **Phase 3** (History): 5 tasks, 5h
-- **Phase 4** (Editor): 6 tasks, 10h *(optional/deferred)*
-- **Documentation**: 4 tasks, 1.75h
+- **Phase 0** (Foundation): 5 tasks, 4.75h ✅
+- **Phase 1** (Bookmarks): 5 tasks, 9.5h ✅
+- **Phase 2** (Disk Usage): 3 tasks, 5.5h ✅
+- **Phase 3** (Navigation History): 5 tasks, 5h ✅
+- **Phase 4** (Go To Path): 6 tasks, 4.5h ✅
+- **Phase 5** (Text Editor): 6 tasks, 10h ⬜ *(optional/deferred)*
+- **Documentation**: 4 tasks, 1.75h ⬜
 
 ### By Priority:
-- **P1** (Critical): 15 tasks - Bookmarks, Foundation, Docs
-- **P2** (High): 9 tasks - Disk Usage, Edge Cases
-- **P3** (Medium): 5 tasks - Navigation History
+- **P1** (Critical): 18 tasks - Bookmarks, Foundation, Go To Path, Docs
+- **P2** (High): 10 tasks - Disk Usage, Edge Cases, Autocomplete
+- **P3** (Medium): 6 tasks - Navigation History, Go To Path
 - **P4** (Low): 6 tasks - Text Editor *(can be deferred)*
 
-### Recommended Execution:
-1. **Day 1**: TASK-001 through TASK-010 (Foundation + Bookmarks MVP) - 12h
-2. **Day 2**: TASK-011 through TASK-015 (Disk Usage) + TASK-027-029 (Docs) - 7.75h
-3. **Day 3**: TASK-016 through TASK-020 (Navigation History) - 5h
-4. **Day 4-5**: TASK-021 through TASK-026 (Editor) *(optional)* - 10h
+### Completed Work:
+1. ✅ **Phase 0-1**: TASK-001 through TASK-010 (Foundation + Bookmarks) - 12h
+2. ✅ **Phase 2**: TASK-011 through TASK-015 (Disk Usage) - 5.5h
+3. ✅ **Phase 3**: TASK-016 through TASK-020 (Navigation History) - 5h
+4. ✅ **Phase 4**: TASK-021 through TASK-026 (Go To Path + Autocomplete) - 4.5h
 
-**MVP Release** (v0.4.0): Complete Phase 0-2 = 20h (2.5 days)  
-**Enhanced Release** (v0.4.0): Add Phase 3 = 25h (3 days)  
-**Full Release** (v0.4.1): Add Phase 4 = 35h (4.5 days)
+**Current Status**: 
+- 27 commits on branch `004-quick-wins-bookmarks`
+- 111 tests passing (78 library + 33 integration)
+- All features fully functional
+
+### Remaining Work:
+- **Phase 5** (Text Editor): TASK-027 through TASK-032 - 10h *(optional)*
+- **Documentation**: TASK-033 through TASK-036 - 1.75h
+
+**Release Options**:
+- **MVP Release** (v0.4.0): Complete Phases 0-4 + Docs = 27h ✅ (CURRENT)
+- **Full Release** (v0.4.1): Add Phase 5 (Text Editor) = 37h
