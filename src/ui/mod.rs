@@ -221,6 +221,7 @@ pub fn render_footer(frame: &mut Frame, area: Rect, theme: &Theme) {
         ("F10", "Drive", Color::Blue),        // US4: Drive selector
         ("F12", "Theme", Color::Magenta),     // US5: Theme selector
         ("Ctrl+B", "Bookmarks", Color::Yellow), // Bookmark manager
+        ("Ctrl+G", "Go To", Color::Yellow),     // Go To Path
         ("Ctrl+H", "History", Color::Yellow),   // Navigation history
         ("Ctrl+Q", "Quit", Color::Gray),     // T128b: Changed from Q to Ctrl+Q
         ("Ctrl+A", "All", Color::Magenta),
