@@ -117,6 +117,11 @@ pub async fn run<B: ratatui::backend::Backend>(
         // Draw UI
         render_ui(terminal, app)?;
         
+        // Auto-refresh: Check if directories have changed externally (every 5 seconds)
+        if let Err(e) = app.check_and_refresh_panels() {
+            log::warn!("Auto-refresh error: {}", e);
+        }
+        
         // Handle input
         if event::poll(Duration::from_millis(50))?
             && let Event::Key(key) = event::read()? {

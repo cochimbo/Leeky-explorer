@@ -44,6 +44,8 @@ pub struct AppState {
     pub editor_state: Option<Box<crate::ui::text_editor::TextEditor<'static>>>,
     // TASK-040: Recursive search dialog
     pub search_dialog: Option<crate::ui::search_dialog::SearchDialog>,
+    // Auto-refresh: Last time we checked for directory changes
+    pub last_refresh_check: Instant,
 }
 
 #[derive(Debug, Clone)]
@@ -221,6 +223,7 @@ impl AppState {
             bookmarks, // TASK-004: Initialize bookmarks
             editor_state: None, // TASK-028: No editor open initially
             search_dialog: None, // TASK-040: No search dialog initially
+            last_refresh_check: Instant::now(), // Auto-refresh: Initialize timer
         })
     }
 
@@ -793,6 +796,37 @@ impl AppState {
 
         Ok(())
     }
+    
+    /// Auto-refresh: Check both panels for external changes every 5 seconds
+    pub fn check_and_refresh_panels(&mut self) -> anyhow::Result<()> {
+        use std::time::Duration;
+        
+        const REFRESH_INTERVAL: Duration = Duration::from_secs(5);
+        
+        // Check if enough time has passed
+        if self.last_refresh_check.elapsed() < REFRESH_INTERVAL {
+            return Ok(());
+        }
+        
+        // Update the check time
+        self.last_refresh_check = Instant::now();
+        
+        // Check and refresh both panels
+        let left_changed = self.left_panel.auto_refresh_if_changed()?;
+        let right_changed = self.right_panel.auto_refresh_if_changed()?;
+        
+        // If active panel changed, also update the all_entries cache
+        if (left_changed && self.active_panel == PanelSide::Left)
+            || (right_changed && self.active_panel == PanelSide::Right) {
+            let entries = self.active_panel().entries.clone();
+            self.store_all_entries(entries);
+            
+            // Clear selection state for the active panel
+            self.selection_state.clear(self.active_panel);
+        }
+        
+        Ok(())
+    }
 }
 
 impl Default for AppState {
@@ -817,6 +851,7 @@ impl Default for AppState {
                 bookmarks: crate::config::bookmarks::BookmarkManager::new(PathBuf::from("bookmarks.json")), // TASK-004: Fallback empty bookmarks
                 editor_state: None, // TASK-028: No editor open initially
                 search_dialog: None, // TASK-040: No search dialog initially
+                last_refresh_check: Instant::now(), // Auto-refresh: Initialize timer
             }
         })
     }

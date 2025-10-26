@@ -1,6 +1,6 @@
 // Panel data structure
 use std::path::PathBuf;
-use std::time::Instant;
+use std::time::{Instant, SystemTime};
 use super::file_entry::FileEntry;
 use anyhow::Result;
 use glob::Pattern;
@@ -78,6 +78,7 @@ pub struct Panel {
     pub text_scroll_timer: Instant,          // Last time text scroll was updated
     pub scroll_pause_until: Option<Instant>, // Pause scrolling until this time (for loop restart delay)
     pub history: NavigationHistory,          // Navigation history (last 20 dirs)
+    pub last_modified: Option<SystemTime>,   // Auto-refresh: Last modified time of current directory
 }
 
 impl Panel {
@@ -102,6 +103,7 @@ impl Panel {
             text_scroll_timer: Instant::now(),
             scroll_pause_until: None,
             history,
+            last_modified: None,
         }
     }
 
@@ -215,12 +217,64 @@ impl Panel {
         let entries = crate::fs::navigator::read_dir(&self.current_path)?;
         self.entries = entries;
         
+        // Update last_modified timestamp for auto-refresh
+        if let Ok(metadata) = std::fs::metadata(&self.current_path) {
+            if let Ok(modified) = metadata.modified() {
+                self.last_modified = Some(modified);
+            }
+        }
+        
         // Ensure cursor is within bounds after refresh
         if self.cursor >= self.entries.len() && !self.entries.is_empty() {
             self.cursor = self.entries.len() - 1;
         }
         
         Ok(())
+    }
+
+    /// Auto-refresh: Check if directory has been modified externally
+    pub fn has_directory_changed(&self) -> bool {
+        if let Ok(metadata) = std::fs::metadata(&self.current_path) {
+            if let Ok(modified) = metadata.modified() {
+                // Compare with stored timestamp
+                if let Some(last_mod) = self.last_modified {
+                    return modified > last_mod;
+                }
+                // No timestamp stored yet, consider it changed
+                return true;
+            }
+        }
+        false
+    }
+    
+    /// Auto-refresh: Refresh if directory changed, clearing cursor and selection
+    pub fn auto_refresh_if_changed(&mut self) -> Result<bool> {
+        if self.has_directory_changed() {
+            // Save current filename to try to restore cursor position
+            let current_file = self.selected_entry().map(|e| e.name.clone());
+            
+            // Refresh the entries
+            self.refresh_entries()?;
+            
+            // Try to restore cursor to same file
+            if let Some(filename) = current_file {
+                if let Some(idx) = self.entries.iter().position(|e| e.name == filename) {
+                    self.cursor = idx;
+                } else {
+                    // File no longer exists, reset cursor
+                    self.cursor = 0;
+                }
+            } else {
+                self.cursor = 0;
+            }
+            
+            // Reset scroll offset
+            self.scroll_offset = 0;
+            self.reset_text_scroll();
+            
+            return Ok(true);
+        }
+        Ok(false)
     }
 
     // T112b: Navigate up and position cursor on previous directory
