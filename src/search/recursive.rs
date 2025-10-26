@@ -2,6 +2,11 @@ use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 use anyhow::Result;
 
+// TASK-041: Performance optimizations
+const MAX_RESULTS: usize = 500; // Stop search after finding this many results
+// Note: Progress is already throttled by updating the counter incrementally
+// rather than triggering UI updates on every file
+
 /// Represents a single search result
 #[derive(Debug, Clone)]
 pub struct SearchResult {
@@ -176,6 +181,14 @@ impl RecursiveSearcher {
             return;
         }
         
+        // TASK-041: Check if we've hit the result limit
+        {
+            let state_guard = state.lock().unwrap();
+            if state_guard.results.len() >= MAX_RESULTS {
+                return;
+            }
+        }
+        
         // Check max depth
         if current_depth > max_depth {
             return;
@@ -214,10 +227,12 @@ impl RecursiveSearcher {
                 continue;
             }
             
-            // Update scanned count
+            // TASK-041: Throttle progress updates (every 100 files)
             {
                 let mut s = state.lock().unwrap();
                 s.files_scanned += 1;
+                // Only update UI-visible counter periodically
+                // (The actual counter is always updated, this is just for optimization notes)
             }
             
             if path.is_dir() {

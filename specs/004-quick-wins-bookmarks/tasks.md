@@ -1700,8 +1700,9 @@ impl SearchDialog {
 
 ---
 
-### TASK-040: Integrate search dialog with AppState ⬜
+### TASK-040: Integrate search dialog with AppState ✅
 **Priority**: P2 | **Time**: 1.5h | **Dependencies**: TASK-039
+**Status**: COMPLETE | **Commit**: 1ad5881
 
 **Description**: Wire search dialog into main application
 

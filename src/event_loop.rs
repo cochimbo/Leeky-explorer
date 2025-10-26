@@ -441,7 +441,9 @@ fn render_ui<B: ratatui::backend::Backend>(
         }
         
         // Render search dialog if present (TASK-040)
-        if let Some(ref dialog) = app.search_dialog {
+        // TASK-041: Update dialog state (debouncing + results polling)
+        if let Some(ref mut dialog) = app.search_dialog {
+            dialog.update();
             dialog.render(f, f.area(), &app.theme);
         }
         

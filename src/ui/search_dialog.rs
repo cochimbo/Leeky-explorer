@@ -9,6 +9,10 @@ use ratatui::{
     Frame,
 };
 use std::path::PathBuf;
+use std::time::{Duration, Instant};
+
+// TASK-041: Performance optimizations
+const DEBOUNCE_DURATION_MS: u64 = 300; // Wait 300ms after last keystroke
 
 pub enum DialogAction {
     Continue,
@@ -25,6 +29,9 @@ pub struct SearchDialog {
     files_scanned: usize,
     searcher: Option<RecursiveSearcher>,
     root_path: PathBuf,
+    // TASK-041: Debouncing
+    last_input_time: Option<Instant>,
+    pending_search: bool,
 }
 
 impl SearchDialog {
@@ -38,6 +45,8 @@ impl SearchDialog {
             files_scanned: 0,
             searcher: None,
             root_path,
+            last_input_time: None,
+            pending_search: false,
         }
     }
     
@@ -82,18 +91,23 @@ impl SearchDialog {
             // Edit input
             (KeyCode::Char(c), KeyModifiers::NONE) | (KeyCode::Char(c), KeyModifiers::SHIFT) => {
                 self.input.push(c);
-                self.start_search();
+                // TASK-041: Mark input time for debouncing
+                self.last_input_time = Some(Instant::now());
+                self.pending_search = true;
             }
             
             (KeyCode::Backspace, _) => {
                 self.input.pop();
                 if !self.input.is_empty() {
-                    self.start_search();
+                    // TASK-041: Mark input time for debouncing
+                    self.last_input_time = Some(Instant::now());
+                    self.pending_search = true;
                 } else {
                     // Clear results if input is empty
                     self.results.clear();
                     self.selected_index = 0;
                     self.scroll_offset = 0;
+                    self.pending_search = false;
                     if let Some(ref searcher) = self.searcher {
                         searcher.cancel();
                     }
@@ -251,6 +265,23 @@ impl SearchDialog {
             .alignment(Alignment::Center);
         
         frame.render_widget(status, area);
+    }
+    
+    /// TASK-041: Update method to handle debouncing and result polling
+    pub fn update(&mut self) {
+        // Check if we should start a pending search
+        if self.pending_search {
+            if let Some(last_time) = self.last_input_time {
+                let elapsed = last_time.elapsed();
+                if elapsed >= Duration::from_millis(DEBOUNCE_DURATION_MS) {
+                    self.start_search();
+                    self.pending_search = false;
+                }
+            }
+        }
+        
+        // Update results from ongoing search
+        self.update_results();
     }
     
     fn start_search(&mut self) {
