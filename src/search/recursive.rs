@@ -269,6 +269,13 @@ impl RecursiveSearcher {
                         if let Ok(result) = SearchResult::new(path.to_path_buf(), &root) {
                             let mut s = state.lock().unwrap();
                             s.results.push(result);
+                            
+                            // TASK-041: Stop search if we've hit the result limit
+                            if s.results.len() >= MAX_RESULTS {
+                                drop(s); // Release lock before setting cancel flag
+                                cancel.store(true, std::sync::atomic::Ordering::Relaxed);
+                                return;
+                            }
                         }
                     }
                 }
