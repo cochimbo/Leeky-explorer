@@ -11,8 +11,18 @@ pub fn read_dir(path: &Path) -> Result<Vec<FileEntry>> {
         .with_context(|| format!("Failed to read directory: {}", path.display()))?;
 
     for entry_result in dir_entries {
-        let entry = entry_result.context("Failed to read directory entry")?;
-        let metadata = entry.metadata().context("Failed to read metadata")?;
+        // Skip entries that cannot be read (permission denied, etc.)
+        let entry = match entry_result {
+            Ok(e) => e,
+            Err(_) => continue, // Skip entries we can't read
+        };
+
+        // Skip entries whose metadata cannot be read
+        let metadata = match entry.metadata() {
+            Ok(m) => m,
+            Err(_) => continue, // Skip entries with inaccessible metadata (permission denied, etc.)
+        };
+
         let file_name = entry
             .file_name()
             .to_string_lossy()
