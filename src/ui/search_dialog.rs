@@ -75,10 +75,6 @@ impl SearchDialog {
             (KeyCode::Up, _) => {
                 if self.selected_index > 0 {
                     self.selected_index -= 1;
-                    // Adjust scroll if needed
-                    if self.selected_index < self.scroll_offset {
-                        self.scroll_offset = self.selected_index;
-                    }
                 }
             }
             
@@ -123,7 +119,7 @@ impl SearchDialog {
         DialogAction::Continue
     }
     
-    pub fn render(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
+    pub fn render(&mut self, frame: &mut Frame, area: Rect, theme: &Theme) {
         // Center the dialog
         let dialog_width = area.width.saturating_sub(10).min(100);
         let dialog_height = area.height.saturating_sub(6).min(30);
@@ -174,7 +170,7 @@ impl SearchDialog {
         frame.render_widget(input, area);
     }
     
-    fn render_results_list(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
+    fn render_results_list(&mut self, frame: &mut Frame, area: Rect, theme: &Theme) {
         if self.results.is_empty() {
             let message = if self.input.is_empty() {
                 "Type to search recursively through subdirectories..."
@@ -199,13 +195,20 @@ impl SearchDialog {
         let visible_end = (visible_start + list_height).min(self.results.len());
         
         // Adjust scroll offset if selection is out of view
-        let _scroll_offset = if self.selected_index >= visible_end {
+        self.scroll_offset = if self.selected_index >= visible_end {
+            // Selected item is below visible area - scroll down
             self.selected_index.saturating_sub(list_height.saturating_sub(1))
         } else if self.selected_index < visible_start {
+            // Selected item is above visible area - scroll up
             self.selected_index
         } else {
+            // Selected item is visible - keep current offset
             self.scroll_offset
         };
+        
+        // Recalculate visible range with updated scroll offset
+        let visible_start = self.scroll_offset;
+        let visible_end = (visible_start + list_height).min(self.results.len());
         
         // Create list items
         let items: Vec<ListItem> = self.results[visible_start..visible_end]
