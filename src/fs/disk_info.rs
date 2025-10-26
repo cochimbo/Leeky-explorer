@@ -2,6 +2,14 @@
 use std::path::Path;
 use anyhow::{Result, Context};
 
+/// Usage level thresholds for disk space
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UsageLevel {
+    Normal,    // < 80%
+    Warning,   // 80-90%
+    Critical,  // >= 90%
+}
+
 /// Disk space information for a filesystem
 #[derive(Debug, Clone)]
 pub struct DiskSpaceInfo {
@@ -9,6 +17,28 @@ pub struct DiskSpaceInfo {
     pub total_bytes: u64,
     pub free_bytes: u64,
     pub drive_label: String,
+}
+
+impl DiskSpaceInfo {
+    /// Calculate disk usage percentage (0.0 - 100.0)
+    pub fn usage_percentage(&self) -> f64 {
+        if self.total_bytes == 0 {
+            return 0.0;
+        }
+        (self.used_bytes as f64 / self.total_bytes as f64) * 100.0
+    }
+    
+    /// Determine warning level based on usage percentage
+    pub fn warning_level(&self) -> UsageLevel {
+        let usage = self.usage_percentage();
+        if usage >= 90.0 {
+            UsageLevel::Critical
+        } else if usage >= 80.0 {
+            UsageLevel::Warning
+        } else {
+            UsageLevel::Normal
+        }
+    }
 }
 
 /// Get disk space information for the filesystem containing the given path
@@ -241,5 +271,83 @@ mod tests {
         assert!(formatted.contains("45"));
         assert!(formatted.contains("120"));
         assert!(formatted.contains("62% free")); // 75/120 = 62.5%
+    }
+    
+    #[test]
+    fn test_usage_percentage() {
+        // 50% usage
+        let info = DiskSpaceInfo {
+            used_bytes: 50 * 1024 * 1024 * 1024, // 50GB
+            total_bytes: 100 * 1024 * 1024 * 1024, // 100GB
+            free_bytes: 50 * 1024 * 1024 * 1024,
+            drive_label: "C:".to_string(),
+        };
+        assert_eq!(info.usage_percentage(), 50.0);
+        
+        // 80% usage
+        let info = DiskSpaceInfo {
+            used_bytes: 80 * 1024 * 1024 * 1024,
+            total_bytes: 100 * 1024 * 1024 * 1024,
+            free_bytes: 20 * 1024 * 1024 * 1024,
+            drive_label: "D:".to_string(),
+        };
+        assert_eq!(info.usage_percentage(), 80.0);
+        
+        // Zero division handling
+        let info = DiskSpaceInfo {
+            used_bytes: 0,
+            total_bytes: 0,
+            free_bytes: 0,
+            drive_label: "E:".to_string(),
+        };
+        assert_eq!(info.usage_percentage(), 0.0);
+    }
+    
+    #[test]
+    fn test_warning_level() {
+        // Normal: < 80%
+        let info = DiskSpaceInfo {
+            used_bytes: 70 * 1024 * 1024 * 1024,
+            total_bytes: 100 * 1024 * 1024 * 1024,
+            free_bytes: 30 * 1024 * 1024 * 1024,
+            drive_label: "C:".to_string(),
+        };
+        assert_eq!(info.warning_level(), UsageLevel::Normal);
+        
+        // Warning: 80-90%
+        let info = DiskSpaceInfo {
+            used_bytes: 85 * 1024 * 1024 * 1024,
+            total_bytes: 100 * 1024 * 1024 * 1024,
+            free_bytes: 15 * 1024 * 1024 * 1024,
+            drive_label: "D:".to_string(),
+        };
+        assert_eq!(info.warning_level(), UsageLevel::Warning);
+        
+        // Critical: >= 90%
+        let info = DiskSpaceInfo {
+            used_bytes: 95 * 1024 * 1024 * 1024,
+            total_bytes: 100 * 1024 * 1024 * 1024,
+            free_bytes: 5 * 1024 * 1024 * 1024,
+            drive_label: "E:".to_string(),
+        };
+        assert_eq!(info.warning_level(), UsageLevel::Critical);
+        
+        // Boundary: exactly 80%
+        let info = DiskSpaceInfo {
+            used_bytes: 80 * 1024 * 1024 * 1024,
+            total_bytes: 100 * 1024 * 1024 * 1024,
+            free_bytes: 20 * 1024 * 1024 * 1024,
+            drive_label: "F:".to_string(),
+        };
+        assert_eq!(info.warning_level(), UsageLevel::Warning);
+        
+        // Boundary: exactly 90%
+        let info = DiskSpaceInfo {
+            used_bytes: 90 * 1024 * 1024 * 1024,
+            total_bytes: 100 * 1024 * 1024 * 1024,
+            free_bytes: 10 * 1024 * 1024 * 1024,
+            drive_label: "G:".to_string(),
+        };
+        assert_eq!(info.warning_level(), UsageLevel::Critical);
     }
 }
