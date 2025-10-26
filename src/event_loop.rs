@@ -437,6 +437,11 @@ fn render_ui<B: ratatui::backend::Backend>(
         if let Some(preview) = &app.preview_state {
             ui::preview_modal::render_preview_modal(f, preview, &app.theme);
         }
+        
+        // Render text editor if present (TASK-030)
+        if let Some(ref mut editor) = app.editor_state {
+            editor.render(f, f.area(), &app.theme);
+        }
     })?;
     
     Ok(())

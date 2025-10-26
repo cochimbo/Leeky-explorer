@@ -23,6 +23,9 @@ pub enum Action {
     ClearSelection,   // T564: Esc to clear selection (when marks exist)
     OpenPreview,      // T625: F4 to open preview
     ClosePreview,     // T628: Esc/Q to close preview
+    OpenEditor,       // TASK-028: F3 to open text editor
+    CloseEditor,      // TASK-030: Esc to close editor
+    SaveEditor,       // TASK-030: Ctrl+S to save editor
     ExtractArchive,   // T838: F9 to extract archive
     CompressArchive,  // T937: Shift+F9 to compress archive
     OpenDriveSelector, // US4: F10 to open drive selector (Windows)
@@ -79,10 +82,11 @@ pub fn map_key_to_action(key: KeyEvent) -> Action {
         (KeyCode::F(6), _) => Action::Move,
         (KeyCode::F(7), _) => Action::CreateFolder,
         (KeyCode::F(8), _) => Action::Delete,
-        // F3 for search, Shift+F3 to clear search, F4 for preview (T626), F9 for extract (T839), Shift+F9 for compress (T938), F10 for drive selector (US4), F12 for theme selector (US5)
+        // F3 for search, Shift+F3 to clear search, F4 for preview (T626), Shift+F4 for editor (TASK-028), F9 for extract (T839), Shift+F9 for compress (T938), F10 for drive selector (US4), F12 for theme selector (US5)
         (KeyCode::F(3), KeyModifiers::NONE) => Action::Search,
         (KeyCode::F(3), KeyModifiers::SHIFT) => Action::ClearSearch,
-        (KeyCode::F(4), _) => Action::OpenPreview,
+        (KeyCode::F(4), KeyModifiers::NONE) => Action::OpenPreview,
+        (KeyCode::F(4), KeyModifiers::SHIFT) => Action::OpenEditor,
         (KeyCode::F(9), KeyModifiers::NONE) => Action::ExtractArchive,
         (KeyCode::F(9), KeyModifiers::SHIFT) => Action::CompressArchive,
         (KeyCode::F(10), _) => Action::OpenDriveSelector,

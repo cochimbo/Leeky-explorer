@@ -40,6 +40,8 @@ pub struct AppState {
     pub theme: crate::ui::theme::Theme,
     // TASK-004: Bookmark manager
     pub bookmarks: crate::config::bookmarks::BookmarkManager,
+    // TASK-028: Text editor state
+    pub editor_state: Option<Box<crate::ui::text_editor::TextEditor<'static>>>,
 }
 
 #[derive(Debug, Clone)]
@@ -173,6 +175,7 @@ pub enum ConfirmAction {
         dest: PathBuf,
         format: crate::archive::formats::ArchiveFormat,
     },
+    CloseEditor, // TASK-030: Confirm closing editor with unsaved changes
 }
 
 impl AppState {
@@ -214,6 +217,7 @@ impl AppState {
             disk_space_cache: HashMap::new(),
             theme, // US5: Set loaded theme
             bookmarks, // TASK-004: Initialize bookmarks
+            editor_state: None, // TASK-028: No editor open initially
         })
     }
 
@@ -496,6 +500,60 @@ impl AppState {
         self.preview_state.is_some()
     }
 
+    // TASK-028: Text editor management
+    pub fn open_editor(&mut self, file_path: PathBuf) -> anyhow::Result<()> {
+        // Validate file type (TASK-029)
+        if !Self::is_text_file(&file_path)? {
+            anyhow::bail!("File is not a text file or is binary");
+        }
+        
+        // Check file size (max 2MB for editor)
+        let metadata = std::fs::metadata(&file_path)?;
+        const MAX_EDITOR_SIZE: u64 = 2 * 1024 * 1024; // 2MB
+        if metadata.len() > MAX_EDITOR_SIZE {
+            anyhow::bail!("File is too large for editor (max 2MB)");
+        }
+        
+        // Create editor
+        let editor = crate::ui::text_editor::TextEditor::from_file(file_path, &self.theme)?;
+        self.editor_state = Some(Box::new(editor));
+        
+        Ok(())
+    }
+    
+    pub fn close_editor(&mut self) {
+        self.editor_state = None;
+    }
+    
+    pub fn has_editor(&self) -> bool {
+        self.editor_state.is_some()
+    }
+    
+    // TASK-029: Validate if file is text
+    fn is_text_file(path: &PathBuf) -> anyhow::Result<bool> {
+        // Check extension first
+        if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+            let text_extensions = [
+                "txt", "md", "rs", "toml", "json", "yaml", "yml", 
+                "xml", "html", "css", "js", "ts", "py", "sh", 
+                "c", "cpp", "h", "hpp", "java", "go", "rb",
+                "log", "ini", "cfg", "conf", "gitignore"
+            ];
+            
+            if text_extensions.contains(&ext.to_lowercase().as_str()) {
+                return Ok(true);
+            }
+        }
+        
+        // Check for null bytes in first 8KB
+        let mut file = std::fs::File::open(path)?;
+        let mut buffer = [0u8; 8192];
+        let bytes_read = std::io::Read::read(&mut file, &mut buffer)?;
+        
+        // If contains null bytes, likely binary
+        Ok(!buffer[..bytes_read].contains(&0))
+    }
+
     // T411: Activate search mode
     pub fn activate_search(&mut self) {
         self.search_mode = true;
@@ -719,6 +777,7 @@ impl Default for AppState {
                 disk_space_cache: HashMap::new(),
                 theme: crate::ui::theme::Theme::default(), // US5: Default theme
                 bookmarks: crate::config::bookmarks::BookmarkManager::new(PathBuf::from("bookmarks.json")), // TASK-004: Fallback empty bookmarks
+                editor_state: None, // TASK-028: No editor open initially
             }
         })
     }

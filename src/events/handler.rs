@@ -1,6 +1,6 @@
 // Event handler
 use anyhow::Result;
-use crossterm::event::KeyEvent;
+use crossterm::event::{KeyEvent, KeyCode, KeyEventKind, KeyEventState};
 
 use crate::app::{AppState, ConfirmAction, DialogState};
 use crate::events::keybindings::{map_key_to_action, map_key_to_input_action, Action};
@@ -9,7 +9,6 @@ use crate::models::operation::Operation;
 pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
     // Handle welcome screen - only Enter key dismisses it
     if app.show_welcome {
-        use crossterm::event::KeyCode;
         if key.code == KeyCode::Enter {
             app.show_welcome = false;
         }
@@ -20,6 +19,11 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
     // T627: Special handling for preview mode
     if app.has_preview() {
         return handle_preview_mode(app, key);
+    }
+    
+    // TASK-030: Special handling for editor mode
+    if app.has_editor() {
+        return handle_editor_mode(app, key);
     }
     
     // Special handling for search mode
@@ -193,6 +197,23 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
             // T625-T626: Open preview for current file
             // This needs to be async, so we'll handle it in main.rs
             return Ok(action);
+        }
+        Action::OpenEditor => {
+            // TASK-028: Open text editor for current file
+            let panel = app.active_panel();
+            
+            if let Some(selected_entry) = panel.selected_entry() {
+                if selected_entry.is_file() {
+                    match app.open_editor(selected_entry.path.clone()) {
+                        Ok(_) => {
+                            // Editor opened successfully
+                        }
+                        Err(e) => {
+                            app.error_message = Some(format!("Cannot open editor: {}", e));
+                        }
+                    }
+                }
+            }
         }
         Action::OpenDriveSelector => {
             // US4: Open drive selector dialog
@@ -384,6 +405,10 @@ fn handle_dialog_action(app: &mut AppState, action: Action) -> Result<Action> {
                     ConfirmAction::Delete => {
                         start_delete_operation(app)?;
                         // Don't close dialog - start_delete_operation sets progress dialog
+                    }
+                    ConfirmAction::CloseEditor => {
+                        app.close_editor();
+                        app.close_dialog();
                     }
                     ConfirmAction::ExtractArchive { .. } => {
                         // Return action to main.rs for async extraction
@@ -1566,6 +1591,127 @@ fn handle_preview_mode(app: &mut AppState, key: KeyEvent) -> Result<Action> {
             Ok(Action::None)
         }
         _ => Ok(Action::None),
+    }
+}
+
+/// Handle editor mode - TASK-030
+fn handle_editor_mode(app: &mut AppState, key: KeyEvent) -> Result<Action> {
+    use crossterm::event::{KeyCode, KeyModifiers};
+    use crate::ui::text_editor::EditorAction;
+    
+    if let Some(ref mut editor) = app.editor_state {
+        // Check if this is a special action (Save, Close)
+        let action = editor.handle_key(key.code, key.modifiers);
+        
+        match action {
+            EditorAction::Save => {
+                // Try to save
+                match editor.save() {
+                    Ok(_) => {
+                        // Clear any error message
+                        app.error_message = None;
+                    }
+                    Err(e) => {
+                        app.error_message = Some(format!("Failed to save: {}", e));
+                    }
+                }
+                Ok(Action::None)
+            }
+            EditorAction::Close => {
+                // Close editor
+                app.close_editor();
+                Ok(Action::None)
+            }
+            EditorAction::ConfirmClose => {
+                // Show unsaved changes dialog
+                app.dialog_state = Some(DialogState::Confirm {
+                    message: "File has unsaved changes. Close anyway?".to_string(),
+                    confirm_action: ConfirmAction::CloseEditor,
+                });
+                Ok(Action::None)
+            }
+            EditorAction::Continue => {
+                // Pass the key to textarea (only if not Ctrl+S or Esc)
+                if !matches!((key.code, key.modifiers), 
+                            (KeyCode::Char('s'), KeyModifiers::CONTROL) | 
+                            (KeyCode::Char('S'), KeyModifiers::CONTROL) |
+                            (KeyCode::Esc, _)) {
+                    // Convert our KeyEvent to ratatui's crossterm KeyEvent
+                    // We need to manually convert since they're different versions
+                    use ratatui::crossterm::event::{
+                        KeyCode as RKeyCode,
+                        KeyModifiers as RKeyModifiers,
+                        KeyEventKind as RKeyEventKind,
+                        KeyEventState as RKeyEventState,
+                    };
+                    
+                    // Convert KeyCode
+                    let rcode = match key.code {
+                        KeyCode::Backspace => RKeyCode::Backspace,
+                        KeyCode::Enter => RKeyCode::Enter,
+                        KeyCode::Left => RKeyCode::Left,
+                        KeyCode::Right => RKeyCode::Right,
+                        KeyCode::Up => RKeyCode::Up,
+                        KeyCode::Down => RKeyCode::Down,
+                        KeyCode::Home => RKeyCode::Home,
+                        KeyCode::End => RKeyCode::End,
+                        KeyCode::PageUp => RKeyCode::PageUp,
+                        KeyCode::PageDown => RKeyCode::PageDown,
+                        KeyCode::Tab => RKeyCode::Tab,
+                        KeyCode::BackTab => RKeyCode::BackTab,
+                        KeyCode::Delete => RKeyCode::Delete,
+                        KeyCode::Insert => RKeyCode::Insert,
+                        KeyCode::F(n) => RKeyCode::F(n),
+                        KeyCode::Char(c) => RKeyCode::Char(c),
+                        KeyCode::Null => RKeyCode::Null,
+                        KeyCode::Esc => RKeyCode::Esc,
+                        _ => RKeyCode::Null, // Default for unhandled keys
+                    };
+                    
+                    // Convert KeyModifiers
+                    let mut rmod = RKeyModifiers::empty();
+                    if key.modifiers.contains(KeyModifiers::SHIFT) {
+                        rmod |= RKeyModifiers::SHIFT;
+                    }
+                    if key.modifiers.contains(KeyModifiers::CONTROL) {
+                        rmod |= RKeyModifiers::CONTROL;
+                    }
+                    if key.modifiers.contains(KeyModifiers::ALT) {
+                        rmod |= RKeyModifiers::ALT;
+                    }
+                    
+                    // Convert KeyEventKind
+                    let rkind = match key.kind {
+                        KeyEventKind::Press => RKeyEventKind::Press,
+                        KeyEventKind::Repeat => RKeyEventKind::Repeat,
+                        KeyEventKind::Release => RKeyEventKind::Release,
+                    };
+                    
+                    // Convert KeyEventState
+                    let mut rstate = RKeyEventState::empty();
+                    if key.state.contains(KeyEventState::KEYPAD) {
+                        rstate |= RKeyEventState::KEYPAD;
+                    }
+                    if key.state.contains(KeyEventState::CAPS_LOCK) {
+                        rstate |= RKeyEventState::CAPS_LOCK;
+                    }
+                    if key.state.contains(KeyEventState::NUM_LOCK) {
+                        rstate |= RKeyEventState::NUM_LOCK;
+                    }
+                    
+                    let ratatui_key = ratatui::crossterm::event::KeyEvent {
+                        code: rcode,
+                        modifiers: rmod,
+                        kind: rkind,
+                        state: rstate,
+                    };
+                    editor.input_key(ratatui_key);
+                }
+                Ok(Action::None)
+            }
+        }
+    } else {
+        Ok(Action::None)
     }
 }
 
