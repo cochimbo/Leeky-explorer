@@ -1,18 +1,19 @@
 // US4: Drive selector dialog widget
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
     Frame,
 };
 
-use crate::ui::theme;
+use crate::ui::theme::Theme;
 
 /// Render the drive selector dialog
 pub fn render(
     frame: &mut Frame,
     drives: &[(String, String)],
     selected: usize,
+    theme: &Theme,
 ) {
     let area = centered_rect(60, 70, frame.area());
     
@@ -24,8 +25,8 @@ pub fn render(
         .title(" Select Drive ")
         .title_alignment(Alignment::Center)
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(theme::ACTIVE_BORDER))
-        .style(Style::default().bg(Color::Black));
+        .border_style(Style::default().fg(theme.active_border))
+        .style(Style::default().bg(theme.dialog_bg));
     
     frame.render_widget(block, area);
     
@@ -49,7 +50,7 @@ pub fn render(
     
     // Header
     let header = Paragraph::new("Use ↑↓ to navigate, Enter to select, Esc to cancel")
-        .style(Style::default().fg(Color::Gray))
+        .style(Style::default().fg(theme.info_color))
         .alignment(Alignment::Center);
     frame.render_widget(header, chunks[0]);
     
@@ -60,11 +61,11 @@ pub fn render(
         .map(|(i, (_, label))| {
             let style = if i == selected {
                 Style::default()
-                    .fg(Color::Black)
-                    .bg(theme::HIGHLIGHT_BG)
+                    .fg(theme.highlight_fg)
+                    .bg(theme.highlight_bg)
                     .add_modifier(Modifier::BOLD)
             } else {
-                Style::default().fg(Color::White)
+                Style::default().fg(theme.dialog_fg)
             };
             
             let content = if i == selected {
@@ -78,13 +79,13 @@ pub fn render(
         .collect();
     
     let list = List::new(items)
-        .style(Style::default().bg(Color::Black));
+        .style(Style::default().bg(theme.dialog_bg));
     
     frame.render_widget(list, chunks[1]);
     
     // Footer with count
     let footer = Paragraph::new(format!("{} drive(s) available", drives.len()))
-        .style(Style::default().fg(Color::Gray))
+        .style(Style::default().fg(theme.info_color))
         .alignment(Alignment::Center);
     frame.render_widget(footer, chunks[2]);
 }

@@ -42,11 +42,11 @@ pub fn render_dialog(frame: &mut Frame, dialog: &DialogState, area: Rect, theme:
         }
         // US4: Render drive selector dialog
         DialogState::DriveSelector { drives, selected } => {
-            crate::ui::drive_selector::render(frame, drives, *selected);
+            crate::ui::drive_selector::render(frame, drives, *selected, theme);
         }
         // US5: Render theme selector dialog
         DialogState::ThemeSelector { themes, selected } => {
-            crate::ui::theme_selector::render(frame, themes, *selected);
+            crate::ui::theme_selector::render(frame, themes, *selected, theme);
         }
     }
 }
