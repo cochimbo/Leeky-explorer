@@ -52,6 +52,11 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
         return handle_drive_selector_dialog(app, key);
     }
     
+    // US5: Special handling for theme selector
+    if let Some(DialogState::ThemeSelector { .. }) = &app.dialog_state {
+        return handle_theme_selector_dialog(app, key);
+    }
+    
     // Special handling for compress options dialog
     if let Some(DialogState::CompressOptions { .. }) = &app.dialog_state {
         return handle_compress_options_dialog(app, key);
@@ -163,6 +168,14 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
                     selected: 0,
                 });
             }
+        }
+        Action::OpenThemeSelector => {
+            // US5: Open theme selector dialog
+            let themes = crate::ui::theme::Theme::all_themes();
+            app.dialog_state = Some(DialogState::ThemeSelector {
+                themes,
+                selected: 0,
+            });
         }
         Action::ExtractArchive => {
             // T838-T839: Extract archive
@@ -1613,6 +1626,49 @@ fn handle_drive_selector_dialog(app: &mut AppState, key: KeyEvent) -> Result<Act
             app.close_dialog();
         }
         // Escape: cancel
+        (KeyCode::Esc, _) => {
+            app.close_dialog();
+        }
+        _ => {}
+    }
+    
+    Ok(Action::None)
+}
+
+// US5: Handle theme selector dialog key events
+fn handle_theme_selector_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
+    use crossterm::event::{KeyCode, KeyModifiers};
+    
+    match (key.code, key.modifiers) {
+        // Up: move selection up
+        (KeyCode::Up, _) | (KeyCode::Char('k'), KeyModifiers::NONE) => {
+            if let Some(DialogState::ThemeSelector { selected, .. }) = &mut app.dialog_state {
+                if *selected > 0 {
+                    *selected -= 1;
+                }
+            }
+        }
+        // Down: move selection down
+        (KeyCode::Down, _) | (KeyCode::Char('j'), KeyModifiers::NONE) => {
+            if let Some(DialogState::ThemeSelector { selected, themes }) = &mut app.dialog_state {
+                if *selected < themes.len().saturating_sub(1) {
+                    *selected += 1;
+                }
+            }
+        }
+        // Enter: apply selected theme
+        (KeyCode::Enter, _) => {
+            if let Some(DialogState::ThemeSelector { themes, selected }) = &app.dialog_state {
+                if let Some(theme) = themes.get(*selected).cloned() {
+                    // Apply theme immediately
+                    app.theme = theme;
+                    // Save state to persist theme selection
+                    let _ = app.save_state();
+                }
+            }
+            app.close_dialog();
+        }
+        // Escape: cancel without applying
         (KeyCode::Esc, _) => {
             app.close_dialog();
         }
