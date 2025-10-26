@@ -40,9 +40,6 @@ tar -xzf leeky-explorer-v0.3.0-linux-x86_64.tar.gz
 # Verify checksum (optional)
 sha256sum -c leeky-explorer-v0.3.0-linux-x86_64.tar.gz.sha256
 
-# Move to PATH
-sudo mv leeky-explorer /usr/local/bin/
-
 # Run
 leeky-explorer
 ```
@@ -53,7 +50,6 @@ leeky-explorer
 ```bash
 wget https://github.com/cochimbo/Leeky-explorer/releases/download/v0.3.0/leeky-explorer-v0.3.0-linux-arm64.tar.gz
 tar -xzf leeky-explorer-v0.3.0-linux-arm64.tar.gz
-sudo mv leeky-explorer /usr/local/bin/
 leeky-explorer
 ```
 
@@ -61,7 +57,6 @@ leeky-explorer
 ```bash
 wget https://github.com/cochimbo/Leeky-explorer/releases/download/v0.3.0/leeky-explorer-v0.3.0-linux-armv7.tar.gz
 tar -xzf leeky-explorer-v0.3.0-linux-armv7.tar.gz
-sudo mv leeky-explorer /usr/local/bin/
 leeky-explorer
 ```
 
@@ -76,7 +71,7 @@ Expand-Archive leeky-explorer.zip -DestinationPath .
 # Verify checksum (optional)
 Get-FileHash leeky-explorer.exe -Algorithm SHA256
 
-# Add to PATH or run directly
+# run directly
 .\leeky-explorer.exe
 ```
 
@@ -89,9 +84,6 @@ tar -xzf leeky-explorer.tar.gz
 # Verify checksum (optional)
 shasum -a 256 -c leeky-explorer-v0.3.0-macos-x86_64.tar.gz.sha256
 
-# Move to PATH
-sudo mv leeky-explorer /usr/local/bin/
-
 # Run (may need to allow in System Preferences > Security)
 leeky-explorer
 ```
@@ -101,9 +93,6 @@ leeky-explorer
 # Download and extract
 curl -L -o leeky-explorer.tar.gz https://github.com/cochimbo/Leeky-explorer/releases/download/v0.3.0/leeky-explorer-v0.3.0-macos-arm64.tar.gz
 tar -xzf leeky-explorer.tar.gz
-
-# Move to PATH
-sudo mv leeky-explorer /usr/local/bin/
 
 # Run
 leeky-explorer
