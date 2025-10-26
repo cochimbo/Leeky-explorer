@@ -80,19 +80,24 @@ pub fn render(
             let line = if let Some(info) = disk_info {
                 let usage_pct = info.usage_percentage();
                 let bar_width = 25; // Wider bar for better visibility
-                let (filled_bar, empty_bar) = create_gradient_usage_bar(usage_pct, bar_width);
                 
-                // Calculate gradient color based on percentage
-                let bar_color = calculate_gradient_color(usage_pct);
+                // Create gradient bar as multiple colored spans
+                let bar_spans = create_gradient_bar_spans(usage_pct, bar_width);
                 
-                Line::from(vec![
+                // Build complete line with all components
+                let mut spans = vec![
                     Span::styled(prefix, base_style),
                     Span::styled(format!("{:<10}", label), base_style),
-                    Span::styled(filled_bar, Style::default().fg(bar_color)),
-                    Span::styled(empty_bar, Style::default().fg(Color::DarkGray)),
-                    Span::styled(format!(" {:>3.0}% ", usage_pct), base_style),
-                    Span::styled(format!("({} free)", format_size(info.free_bytes)), base_style),
-                ])
+                ];
+                
+                // Add the gradient bar spans
+                spans.extend(bar_spans);
+                
+                // Add percentage and free space
+                spans.push(Span::styled(format!(" {:>3.0}% ", usage_pct), base_style));
+                spans.push(Span::styled(format!("({} free)", format_size(info.free_bytes)), base_style));
+                
+                Line::from(spans)
             } else {
                 // Fallback if disk info unavailable
                 Line::from(vec![
@@ -137,28 +142,42 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
         .split(popup_layout[1])[1]
 }
 
-/// Create a visual usage bar with separate filled and empty parts
+/// Create gradient usage bar as multiple colored spans
+/// Each character gets its own color in the gradient
 /// 
 /// # Arguments
 /// * `percentage` - Usage percentage (0.0 - 100.0)
 /// * `width` - Width of the bar in characters
 /// 
 /// # Returns
-/// Tuple of (filled_bar, empty_bar) as separate strings for different coloring
-fn create_gradient_usage_bar(percentage: f64, width: usize) -> (String, String) {
+/// Vector of Spans with gradient colors from green to yellow to red
+fn create_gradient_bar_spans(percentage: f64, width: usize) -> Vec<Span<'static>> {
     let filled_chars = ((percentage / 100.0) * width as f64).round() as usize;
-    let filled_chars = filled_chars.min(width); // Ensure we don't overflow
+    let filled_chars = filled_chars.min(width);
     
-    // If fully filled, only return filled bar
-    if filled_chars == width {
-        (format!("[{}]", "█".repeat(width)), String::new())
-    } else if filled_chars == 0 {
-        // If empty, only return empty bar
-        (String::new(), format!("[{}]", "░".repeat(width)))
-    } else {
-        // Return both parts without brackets for seamless joining
-        (format!("[{}", "█".repeat(filled_chars)), format!("{}]", "░".repeat(width.saturating_sub(filled_chars))))
+    let mut spans = Vec::new();
+    
+    // Opening bracket
+    spans.push(Span::styled("[", Style::default().fg(Color::White)));
+    
+    // Filled portion with gradient
+    for i in 0..filled_chars {
+        // Calculate percentage for this specific character
+        let char_pct = ((i + 1) as f64 / width as f64) * 100.0;
+        let color = calculate_gradient_color(char_pct);
+        spans.push(Span::styled("█", Style::default().fg(color)));
     }
+    
+    // Empty portion in dark gray
+    if filled_chars < width {
+        let empty_str = "░".repeat(width - filled_chars);
+        spans.push(Span::styled(empty_str, Style::default().fg(Color::DarkGray)));
+    }
+    
+    // Closing bracket
+    spans.push(Span::styled("]", Style::default().fg(Color::White)));
+    
+    spans
 }
 
 /// Calculate gradient color from green (0%) to red (100%)
