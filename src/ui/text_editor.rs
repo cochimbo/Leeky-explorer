@@ -222,7 +222,10 @@ impl<'a> TextEditor<'a> {
     /// Check if current content differs from original
     fn update_modified_status(&mut self) {
         let current_content = self.textarea.lines().join("\n");
-        self.modified = current_content != self.original_content;
+        // Normalize both sides: remove trailing newline for comparison
+        let original_normalized = self.original_content.trim_end_matches('\n');
+        let current_normalized = current_content.trim_end_matches('\n');
+        self.modified = current_normalized != original_normalized;
     }
     
     /// Save the file
