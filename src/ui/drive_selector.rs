@@ -8,7 +8,7 @@ use ratatui::{
 };
 
 use crate::ui::theme::Theme;
-use crate::fs::disk_info::{UsageLevel, format_size, get_disk_space};
+use crate::fs::disk_info::{format_size, get_disk_space};
 
 /// Render the drive selector dialog with usage bars
 pub fn render(
@@ -79,20 +79,17 @@ pub fn render(
             // Build the line with usage bar if disk info available
             let line = if let Some(info) = disk_info {
                 let usage_pct = info.usage_percentage();
-                let level = info.warning_level();
-                let bar = create_usage_bar(usage_pct, 20); // 20 char wide bar
+                let bar_width = 25; // Wider bar for better visibility
+                let (filled_bar, empty_bar) = create_gradient_usage_bar(usage_pct, bar_width);
                 
-                // Color based on usage level
-                let bar_color = match level {
-                    UsageLevel::Normal => Color::Green,
-                    UsageLevel::Warning => Color::Yellow,
-                    UsageLevel::Critical => Color::Red,
-                };
+                // Calculate gradient color based on percentage
+                let bar_color = calculate_gradient_color(usage_pct);
                 
                 Line::from(vec![
                     Span::styled(prefix, base_style),
                     Span::styled(format!("{:<10}", label), base_style),
-                    Span::styled(bar, Style::default().fg(bar_color)),
+                    Span::styled(filled_bar, Style::default().fg(bar_color)),
+                    Span::styled(empty_bar, Style::default().fg(Color::DarkGray)),
                     Span::styled(format!(" {:>3.0}% ", usage_pct), base_style),
                     Span::styled(format!("({} free)", format_size(info.free_bytes)), base_style),
                 ])
@@ -140,20 +137,51 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
         .split(popup_layout[1])[1]
 }
 
-/// Create a visual usage bar
+/// Create a visual usage bar with separate filled and empty parts
 /// 
 /// # Arguments
 /// * `percentage` - Usage percentage (0.0 - 100.0)
 /// * `width` - Width of the bar in characters
 /// 
 /// # Returns
-/// String representation of the usage bar (e.g., "[████████░░░░]")
-fn create_usage_bar(percentage: f64, width: usize) -> String {
+/// Tuple of (filled_bar, empty_bar) as separate strings for different coloring
+fn create_gradient_usage_bar(percentage: f64, width: usize) -> (String, String) {
     let filled_chars = ((percentage / 100.0) * width as f64).round() as usize;
     let filled_chars = filled_chars.min(width); // Ensure we don't overflow
     
-    let filled = "█".repeat(filled_chars);
-    let empty = "░".repeat(width.saturating_sub(filled_chars));
+    // If fully filled, only return filled bar
+    if filled_chars == width {
+        (format!("[{}]", "█".repeat(width)), String::new())
+    } else if filled_chars == 0 {
+        // If empty, only return empty bar
+        (String::new(), format!("[{}]", "░".repeat(width)))
+    } else {
+        // Return both parts without brackets for seamless joining
+        (format!("[{}", "█".repeat(filled_chars)), format!("{}]", "░".repeat(width.saturating_sub(filled_chars))))
+    }
+}
+
+/// Calculate gradient color from green (0%) to red (100%)
+/// 
+/// # Arguments
+/// * `percentage` - Usage percentage (0.0 - 100.0)
+/// 
+/// # Returns
+/// Color with smooth gradient from green through yellow to red
+fn calculate_gradient_color(percentage: f64) -> Color {
+    let pct = percentage.clamp(0.0, 100.0);
     
-    format!("[{}{}]", filled, empty)
+    if pct < 50.0 {
+        // Green to Yellow (0% - 50%)
+        let ratio = pct / 50.0;
+        let red = (255.0 * ratio) as u8;
+        let green = 255;
+        Color::Rgb(red, green, 0)
+    } else {
+        // Yellow to Red (50% - 100%)
+        let ratio = (pct - 50.0) / 50.0;
+        let red = 255;
+        let green = (255.0 * (1.0 - ratio)) as u8;
+        Color::Rgb(red, green, 0)
+    }
 }
