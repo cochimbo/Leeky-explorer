@@ -7,6 +7,11 @@ use crate::events::keybindings::{map_key_to_action, map_key_to_input_action, Act
 use crate::models::operation::Operation;
 
 pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
+    // Filter out non-Press events early (ignore Release and Repeat for most actions)
+    if key.kind != KeyEventKind::Press {
+        return Ok(Action::None);
+    }
+
     // Handle welcome screen - only Enter key dismisses it
     if app.show_welcome {
         if key.code == KeyCode::Enter {
@@ -50,13 +55,22 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
         return handle_compress_options_dialog(app, key);
     }
     
-    let action = map_key_to_action(key);
-
-    // Handle other dialog-specific actions (Confirm dialogs, Progress, Error)
-    if app.has_dialog() {
+    // Handle Confirm, Progress, Error dialogs before checking editor/preview
+    if let Some(DialogState::Confirm { .. }) = &app.dialog_state {
+        let action = map_key_to_action(key);
         return handle_dialog_action(app, action);
     }
-
+    
+    if let Some(DialogState::Progress { .. }) = &app.dialog_state {
+        let action = map_key_to_action(key);
+        return handle_dialog_action(app, action);
+    }
+    
+    if let Some(DialogState::Error { .. }) = &app.dialog_state {
+        let action = map_key_to_action(key);
+        return handle_dialog_action(app, action);
+    }
+    
     // T627: Special handling for preview mode (after dialogs)
     if app.has_preview() {
         return handle_preview_mode(app, key);
@@ -405,6 +419,7 @@ fn handle_dialog_action(app: &mut AppState, action: Action) -> Result<Action> {
                     ConfirmAction::CloseEditor => {
                         app.close_editor();
                         app.close_dialog();
+                        return Ok(Action::None);
                     }
                     ConfirmAction::ExtractArchive { .. } => {
                         // Return action to main.rs for async extraction
@@ -415,6 +430,7 @@ fn handle_dialog_action(app: &mut AppState, action: Action) -> Result<Action> {
         }
         Action::ConfirmNo | Action::Cancel => {
             app.close_dialog();
+            return Ok(Action::None);
         }
         Action::Quit => {
             // Allow quit even in dialog

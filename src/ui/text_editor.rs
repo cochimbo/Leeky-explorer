@@ -4,7 +4,7 @@ use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
-    widgets::{Block, Borders, Paragraph},
+    widgets::{Block, Borders, Clear, Paragraph},
     Frame,
 };
 use std::fs;
@@ -26,6 +26,7 @@ pub enum EditorAction {
 pub struct TextEditor<'a> {
     textarea: TextArea<'a>,
     file_path: PathBuf,
+    original_content: String,  // Original file content for change detection
     modified: bool,
     read_only: bool,
     last_error: Option<String>,
@@ -51,6 +52,7 @@ impl<'a> TextEditor<'a> {
         Ok(Self {
             textarea,
             file_path: path,
+            original_content: content,  // Store original for comparison
             modified: false,
             read_only,
             last_error: None,
@@ -62,19 +64,14 @@ impl<'a> TextEditor<'a> {
         // Line numbers
         textarea.set_line_number_style(Style::default().fg(theme.info_color));
         
-        // Cursor line background
-        textarea.set_cursor_line_style(
-            Style::default()
-                .bg(theme.highlight_bg)
-                .add_modifier(Modifier::BOLD)
-        );
+        // No cursor line highlight - just normal background
+        textarea.set_cursor_line_style(Style::default());
         
-        // Cursor itself
+        // Cursor itself - simple block cursor
         textarea.set_cursor_style(
             Style::default()
-                .fg(theme.highlight_fg)
-                .bg(theme.highlight_bg)
-                .add_modifier(Modifier::REVERSED)
+                .fg(theme.dialog_bg)
+                .bg(theme.highlight_fg)
         );
         
         // Block border
@@ -88,21 +85,20 @@ impl<'a> TextEditor<'a> {
     
     /// Render the text editor
     pub fn render(&mut self, frame: &mut Frame, area: Rect, theme: &Theme) {
-        // Create a centered area with padding (similar to preview modal)
-        let vertical_padding = area.height / 10;
-        let horizontal_padding = area.width / 10;
+        // Calculate modal size: 80% of screen (like preview)
+        let modal_width = (area.width as f32 * 0.8) as u16;
+        let modal_height = (area.height as f32 * 0.8) as u16;
         
+        // Center the modal
         let editor_area = Rect {
-            x: area.x + horizontal_padding,
-            y: area.y + vertical_padding,
-            width: area.width.saturating_sub(horizontal_padding * 2),
-            height: area.height.saturating_sub(vertical_padding * 2),
+            x: (area.width.saturating_sub(modal_width)) / 2,
+            y: (area.height.saturating_sub(modal_height)) / 2,
+            width: modal_width,
+            height: modal_height,
         };
         
-        // Render background overlay (semi-transparent effect)
-        let background = Block::default()
-            .style(Style::default().bg(theme.panel_bg));
-        frame.render_widget(background, area);
+        // Clear background behind editor (this creates the solid background effect)
+        frame.render_widget(Clear, editor_area);
         
         // Split editor area into main editor and status bar
         let chunks = Layout::default()
@@ -128,7 +124,7 @@ impl<'a> TextEditor<'a> {
             .title(title)
             .borders(Borders::ALL)
             .border_style(Style::default().fg(theme.active_border))
-            .style(Style::default().bg(theme.dialog_bg).fg(theme.panel_fg));
+            .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
         
         self.textarea.set_block(block);
         
@@ -218,8 +214,15 @@ impl<'a> TextEditor<'a> {
     pub fn input_key(&mut self, key: ratatui::crossterm::event::KeyEvent) {
         if !self.read_only {
             self.textarea.input(key);
-            self.modified = true;
+            // Check if content has actually changed
+            self.update_modified_status();
         }
+    }
+    
+    /// Check if current content differs from original
+    fn update_modified_status(&mut self) {
+        let current_content = self.textarea.lines().join("\n");
+        self.modified = current_content != self.original_content;
     }
     
     /// Save the file
@@ -229,7 +232,8 @@ impl<'a> TextEditor<'a> {
         }
         
         let content = self.textarea.lines().join("\n");
-        fs::write(&self.file_path, content)?;
+        fs::write(&self.file_path, &content)?;
+        self.original_content = content;  // Update original after save
         self.modified = false;
         Ok(())
     }
