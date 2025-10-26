@@ -38,6 +38,8 @@ pub struct AppState {
     pub disk_space_cache: HashMap<PathBuf, (crate::fs::disk_info::DiskSpaceInfo, Instant)>,
     // US5: Current theme
     pub theme: crate::ui::theme::Theme,
+    // TASK-004: Bookmark manager
+    pub bookmarks: crate::config::bookmarks::BookmarkManager,
 }
 
 #[derive(Debug, Clone)]
@@ -170,6 +172,16 @@ impl AppState {
             .and_then(|name| crate::ui::theme::Theme::by_name(name))
             .unwrap_or_default();
 
+        // TASK-004: Load bookmarks
+        let bookmarks_path = crate::config::paths::get_bookmarks_file_path()?;
+        let bookmarks = crate::config::bookmarks::BookmarkManager::load(bookmarks_path)
+            .unwrap_or_else(|_| {
+                // Fallback: create empty manager if loading fails
+                crate::config::bookmarks::BookmarkManager::new(
+                    crate::config::paths::get_bookmarks_file_path().unwrap_or_default()
+                )
+            });
+
         Ok(Self {
             left_panel: Panel::new(persisted.left_panel_path),
             right_panel: Panel::new(persisted.right_panel_path),
@@ -186,6 +198,7 @@ impl AppState {
             show_welcome: true,
             disk_space_cache: HashMap::new(),
             theme, // US5: Set loaded theme
+            bookmarks, // TASK-004: Initialize bookmarks
         })
     }
 
@@ -690,6 +703,7 @@ impl Default for AppState {
                 show_welcome: true,
                 disk_space_cache: HashMap::new(),
                 theme: crate::ui::theme::Theme::default(), // US5: Default theme
+                bookmarks: crate::config::bookmarks::BookmarkManager::new(PathBuf::from("bookmarks.json")), // TASK-004: Fallback empty bookmarks
             }
         })
     }

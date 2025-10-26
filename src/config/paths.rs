@@ -16,3 +16,8 @@ pub fn get_config_dir() -> Result<PathBuf> {
 pub fn get_state_file_path() -> Result<PathBuf> {
     Ok(get_config_dir()?.join("state.json"))
 }
+
+/// Get the full path to the bookmarks file (TASK-004)
+pub fn get_bookmarks_file_path() -> Result<PathBuf> {
+    Ok(get_config_dir()?.join("bookmarks.json"))
+}
