@@ -113,6 +113,11 @@ pub enum DialogState {
     HistoryViewer {
         state: crate::ui::history_dialog::HistoryDialogState,
     },
+    // TASK-021: Go To Path dialog
+    GoToPath {
+        input: String,
+        error_message: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone)]

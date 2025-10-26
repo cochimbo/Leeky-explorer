@@ -67,6 +67,11 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
         return handle_history_viewer_dialog(app, key);
     }
     
+    // TASK-021: Special handling for Go To Path dialog
+    if let Some(DialogState::GoToPath { .. }) = &app.dialog_state {
+        return handle_goto_dialog(app, key);
+    }
+    
     // Special handling for compress options dialog
     if let Some(DialogState::CompressOptions { .. }) = &app.dialog_state {
         return handle_compress_options_dialog(app, key);
@@ -224,6 +229,13 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
             // TASK-018: Open navigation history dialog
             let state = crate::ui::history_dialog::HistoryDialogState::new();
             app.dialog_state = Some(DialogState::HistoryViewer { state });
+        }
+        Action::ToggleGoToPath => {
+            // TASK-021: Open Go To Path dialog
+            app.dialog_state = Some(DialogState::GoToPath {
+                input: String::new(),
+                error_message: None,
+            });
         }
         Action::ExtractArchive => {
             // T838-T839: Extract archive
@@ -2042,6 +2054,24 @@ fn handle_history_viewer_dialog(app: &mut AppState, key: KeyEvent) -> Result<Act
             }
             // Escape: Close dialog
             (KeyCode::Esc, _) | (KeyCode::Char('h'), KeyModifiers::CONTROL) | (KeyCode::Char('H'), KeyModifiers::CONTROL) => {
+                app.close_dialog();
+            }
+            _ => {}
+        }
+    }
+    
+    Ok(Action::None)
+}
+
+// TASK-021: Handle Go To Path dialog events
+fn handle_goto_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
+    use crossterm::event::{KeyCode, KeyModifiers};
+    
+    // Will be implemented in TASK-023
+    if let Some(DialogState::GoToPath { .. }) = &mut app.dialog_state {
+        match (key.code, key.modifiers) {
+            // Escape: Close dialog
+            (KeyCode::Esc, _) | (KeyCode::Char('g'), KeyModifiers::CONTROL) | (KeyCode::Char('G'), KeyModifiers::CONTROL) => {
                 app.close_dialog();
             }
             _ => {}

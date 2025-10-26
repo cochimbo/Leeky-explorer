@@ -29,6 +29,7 @@ pub enum Action {
     OpenThemeSelector, // US5: F11 to open theme selector
     ToggleBookmarkManager, // TASK-005: Ctrl+B to toggle bookmark manager
     ToggleHistoryViewer, // TASK-018: Ctrl+H to toggle navigation history
+    ToggleGoToPath, // TASK-021: Ctrl+G to toggle Go To Path dialog
     ScrollPreviewUp,
     ScrollPreviewDown,
     PagePreviewUp,
@@ -93,6 +94,10 @@ pub fn map_key_to_action(key: KeyEvent) -> Action {
         // TASK-018: Ctrl+H for navigation history
         (KeyCode::Char('h'), KeyModifiers::CONTROL) | (KeyCode::Char('H'), KeyModifiers::CONTROL) => {
             Action::ToggleHistoryViewer
+        }
+        // TASK-021: Ctrl+G for Go To Path
+        (KeyCode::Char('g'), KeyModifiers::CONTROL) | (KeyCode::Char('G'), KeyModifiers::CONTROL) => {
+            Action::ToggleGoToPath
         }
         // T565-T566: Selection keybindings
         (KeyCode::Char(' '), KeyModifiers::NONE) => Action::ToggleSelection,

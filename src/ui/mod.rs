@@ -12,6 +12,7 @@ pub mod drive_selector;
 pub mod theme_selector; // US5: Theme selector widget
 pub mod bookmark_manager; // TASK-006: Bookmark manager widget
 pub mod history_dialog; // TASK-018: Navigation history dialog
+pub mod goto_dialog; // TASK-021: Go To Path dialog
 
 use crate::app::{AppState, PanelSide, DialogState};
 use crate::ui::theme::Theme;

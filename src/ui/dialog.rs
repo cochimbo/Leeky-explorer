@@ -57,6 +57,11 @@ pub fn render_dialog(frame: &mut Frame, dialog: &DialogState, area: Rect, theme:
             let panel = app.active_panel();
             crate::ui::history_dialog::render(frame, panel, state, theme);
         }
+        // TASK-021: Render Go To Path dialog (will be implemented in TASK-022)
+        DialogState::GoToPath { input, error_message } => {
+            // Stub for now - will be implemented in TASK-022
+            crate::ui::goto_dialog::render(frame, input, error_message, theme);
+        }
     }
 }
 
