@@ -263,8 +263,9 @@ pub fn render_footer(frame: &mut Frame, area: Rect, theme: &Theme) {
 /// # Arguments
 /// * `frame` - Ratatui frame for rendering
 /// * `version` - Application version string
-pub fn render_welcome(frame: &mut Frame, version: &str) {
+/// * `theme` - Theme to use for colors
+pub fn render_welcome(frame: &mut Frame, version: &str, theme: &Theme) {
     let area = frame.area();
-    welcome_screen::render(frame, area, version);
+    welcome_screen::render(frame, area, version, theme);
 }
 

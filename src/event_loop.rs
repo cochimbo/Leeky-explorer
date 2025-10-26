@@ -415,7 +415,7 @@ fn render_ui<B: ratatui::backend::Backend>(
     terminal.draw(|f| {
         // Show welcome screen if flag is set
         if app.show_welcome {
-            ui::render_welcome(f, env!("CARGO_PKG_VERSION"));
+            ui::render_welcome(f, env!("CARGO_PKG_VERSION"), &app.theme);
             return;
         }
 

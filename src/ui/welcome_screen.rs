@@ -12,6 +12,7 @@ use ratatui::{
 };
 
 use crate::preview::image_viewer::image_to_ascii;
+use crate::ui::theme::Theme;
 use super::parse_ansi_line;
 
 
@@ -62,10 +63,11 @@ fn fallback_logo() -> String {
 /// * `frame` - Ratatui frame for rendering
 /// * `area` - Full terminal area
 /// * `version` - Application version string (e.g., "0.3.0")
-pub fn render(frame: &mut Frame, area: Rect, version: &str) {
+/// * `theme` - Theme to use for colors
+pub fn render(frame: &mut Frame, area: Rect, version: &str, theme: &Theme) {
     // Handle very small terminals
     if area.width < 40 || area.height < 10 {
-        render_minimal(frame, area, version);
+        render_minimal(frame, area, version, theme);
         return;
     }
 
@@ -91,7 +93,7 @@ pub fn render(frame: &mut Frame, area: Rect, version: &str) {
     // Render logo centered with parsed ANSI codes
     let logo_paragraph = Paragraph::new(logo_lines)
         .alignment(Alignment::Center)
-        .style(Style::default().bg(Color::Black));
+        .style(Style::default().bg(theme.panel_bg));
     frame.render_widget(logo_paragraph, chunks[0]);
 
     // Render version
@@ -111,7 +113,7 @@ pub fn render(frame: &mut Frame, area: Rect, version: &str) {
     let instruction = Line::from(vec![
         Span::styled(
             "Press ",
-            Style::default().fg(Color::Gray),
+            Style::default().fg(theme.info_color),
         ),
         Span::styled(
             "Enter",
@@ -121,7 +123,7 @@ pub fn render(frame: &mut Frame, area: Rect, version: &str) {
         ),
         Span::styled(
             " to continue...",
-            Style::default().fg(Color::Gray),
+            Style::default().fg(theme.info_color),
         ),
     ]);
     let instruction_paragraph = Paragraph::new(instruction)
@@ -130,7 +132,7 @@ pub fn render(frame: &mut Frame, area: Rect, version: &str) {
 }
 
 /// Render minimal welcome screen for very small terminals
-fn render_minimal(frame: &mut Frame, area: Rect, version: &str) {
+fn render_minimal(frame: &mut Frame, area: Rect, version: &str, theme: &Theme) {
     let lines = vec![
         Line::from(Span::styled(
             "Leeky File Manager",
@@ -140,11 +142,11 @@ fn render_minimal(frame: &mut Frame, area: Rect, version: &str) {
         )),
         Line::from(Span::styled(
             format!("v{}", version),
-            Style::default().fg(Color::Gray),
+            Style::default().fg(theme.info_color),
         )),
         Line::from(""),
         Line::from(vec![
-            Span::styled("Press ", Style::default().fg(Color::Gray)),
+            Span::styled("Press ", Style::default().fg(theme.info_color)),
             Span::styled(
                 "Enter",
                 Style::default()
