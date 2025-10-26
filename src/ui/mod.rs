@@ -14,6 +14,7 @@ pub mod bookmark_manager; // TASK-006: Bookmark manager widget
 pub mod history_dialog; // TASK-018: Navigation history dialog
 pub mod goto_dialog; // TASK-021: Go To Path dialog
 pub mod text_editor; // TASK-027: Text editor widget
+pub mod search_dialog; // TASK-039: Recursive search dialog
 
 use crate::app::{AppState, PanelSide, DialogState};
 use crate::ui::theme::Theme;
