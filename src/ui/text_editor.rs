@@ -88,14 +88,30 @@ impl<'a> TextEditor<'a> {
     
     /// Render the text editor
     pub fn render(&mut self, frame: &mut Frame, area: Rect, theme: &Theme) {
-        // Split into editor area and status bar
+        // Create a centered area with padding (similar to preview modal)
+        let vertical_padding = area.height / 10;
+        let horizontal_padding = area.width / 10;
+        
+        let editor_area = Rect {
+            x: area.x + horizontal_padding,
+            y: area.y + vertical_padding,
+            width: area.width.saturating_sub(horizontal_padding * 2),
+            height: area.height.saturating_sub(vertical_padding * 2),
+        };
+        
+        // Render background overlay (semi-transparent effect)
+        let background = Block::default()
+            .style(Style::default().bg(theme.panel_bg));
+        frame.render_widget(background, area);
+        
+        // Split editor area into main editor and status bar
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Min(3),      // Editor
                 Constraint::Length(1),   // Status bar
             ])
-            .split(area);
+            .split(editor_area);
         
         // Update title with file name and status
         let file_name = self.file_path
@@ -106,13 +122,13 @@ impl<'a> TextEditor<'a> {
         let modified_indicator = if self.modified { " [Modified]" } else { "" };
         let readonly_indicator = if self.read_only { " [Read-Only]" } else { "" };
         
-        let title = format!(" {} {}{}", file_name, modified_indicator, readonly_indicator);
+        let title = format!(" Text Editor: {} {}{}", file_name, modified_indicator, readonly_indicator);
         
         let block = Block::default()
             .title(title)
             .borders(Borders::ALL)
             .border_style(Style::default().fg(theme.active_border))
-            .style(Style::default().bg(theme.panel_bg).fg(theme.panel_fg));
+            .style(Style::default().bg(theme.dialog_bg).fg(theme.panel_fg));
         
         self.textarea.set_block(block);
         
@@ -149,10 +165,13 @@ impl<'a> TextEditor<'a> {
         
         let style = if self.last_error.is_some() {
             Style::default()
+                .bg(theme.dialog_bg)
                 .fg(ratatui::style::Color::Red)
                 .add_modifier(Modifier::BOLD)
         } else {
-            Style::default().fg(theme.info_color)
+            Style::default()
+                .bg(theme.dialog_bg)
+                .fg(theme.info_color)
         };
         
         let status = Paragraph::new(status_text)

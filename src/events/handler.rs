@@ -16,12 +16,53 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
         return Ok(Action::None);
     }
 
-    // T627: Special handling for preview mode
+    // Special handling for dialogs (highest priority after welcome)
+    // T561-T585: Handle dialogs with special input handling
+    if let Some(DialogState::Input { .. }) = &app.dialog_state {
+        return handle_input_dialog(app, key);
+    }
+
+    if let Some(DialogState::PasswordInput { .. }) = &app.dialog_state {
+        return handle_password_input_dialog(app, key);
+    }
+
+    if let Some(DialogState::DriveSelector { .. }) = &app.dialog_state {
+        return handle_drive_selector_dialog(app, key);
+    }
+
+    if let Some(DialogState::ThemeSelector { .. }) = &app.dialog_state {
+        return handle_theme_selector_dialog(app, key);
+    }
+
+    if let Some(DialogState::BookmarkManager { .. }) = &app.dialog_state {
+        return handle_bookmark_manager_dialog(app, key);
+    }
+
+    if let Some(DialogState::HistoryViewer { .. }) = &app.dialog_state {
+        return handle_history_viewer_dialog(app, key);
+    }
+
+    if let Some(DialogState::GoToPath { .. }) = &app.dialog_state {
+        return handle_goto_dialog(app, key);
+    }
+
+    if let Some(DialogState::CompressOptions { .. }) = &app.dialog_state {
+        return handle_compress_options_dialog(app, key);
+    }
+    
+    let action = map_key_to_action(key);
+
+    // Handle other dialog-specific actions (Confirm dialogs, Progress, Error)
+    if app.has_dialog() {
+        return handle_dialog_action(app, action);
+    }
+
+    // T627: Special handling for preview mode (after dialogs)
     if app.has_preview() {
         return handle_preview_mode(app, key);
     }
     
-    // TASK-030: Special handling for editor mode
+    // TASK-030: Special handling for editor mode (after dialogs and preview)
     if app.has_editor() {
         return handle_editor_mode(app, key);
     }
@@ -31,19 +72,9 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
         return handle_search_mode(app, key);
     }
     
-    // Special handling for input dialogs
-    if let Some(DialogState::Input { .. }) = &app.dialog_state {
-        return handle_input_dialog(app, key);
-    }
-    
     // Special handling for rename dialog
     if let Some(DialogState::Rename { .. }) = &app.dialog_state {
         return handle_rename_dialog(app, key);
-    }
-    
-    // T843: Special handling for password input dialogs
-    if let Some(DialogState::PasswordInput { .. }) = &app.dialog_state {
-        return handle_password_input_dialog(app, key);
     }
     
     // T844: Special handling for collision prompts
@@ -51,42 +82,7 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
         return handle_collision_dialog(app, key);
     }
     
-    // US4: Special handling for drive selector
-    if let Some(DialogState::DriveSelector { .. }) = &app.dialog_state {
-        return handle_drive_selector_dialog(app, key);
-    }
-    
-    // US5: Special handling for theme selector
-    if let Some(DialogState::ThemeSelector { .. }) = &app.dialog_state {
-        return handle_theme_selector_dialog(app, key);
-    }
-    
-    // TASK-008: Special handling for bookmark manager
-    if let Some(DialogState::BookmarkManager { .. }) = &app.dialog_state {
-        return handle_bookmark_manager_dialog(app, key);
-    }
-    
-    // TASK-018: Special handling for history viewer
-    if let Some(DialogState::HistoryViewer { .. }) = &app.dialog_state {
-        return handle_history_viewer_dialog(app, key);
-    }
-    
-    // TASK-021: Special handling for Go To Path dialog
-    if let Some(DialogState::GoToPath { .. }) = &app.dialog_state {
-        return handle_goto_dialog(app, key);
-    }
-    
-    // Special handling for compress options dialog
-    if let Some(DialogState::CompressOptions { .. }) = &app.dialog_state {
-        return handle_compress_options_dialog(app, key);
-    }
-    
     let action = map_key_to_action(key);
-
-    // Handle other dialog-specific actions
-    if app.has_dialog() {
-        return handle_dialog_action(app, action);
-    }
 
     // Handle normal navigation actions
     match action {
