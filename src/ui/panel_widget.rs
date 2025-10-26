@@ -6,6 +6,7 @@ use crate::ui::theme::{self, Theme};
 use crate::ui::file_icons;
 use crate::ui::column_layout::{ColumnLayout, Alignment};
 use crate::ui::formatters;
+use crate::fs::disk_info::{get_disk_space, format_size};
 use ratatui::{
     layout::Rect,
     style::{Modifier, Style},
@@ -27,11 +28,24 @@ pub fn render_panel(
     theme: &Theme, // US5: Pass theme for customization
 ) {
     // T560: Add selection counter in header
+    // TASK-013: Add disk free space info
     let selected_count = selection_state.count(panel_side);
+    
+    // Get disk space info for current path
+    let disk_info_str = match get_disk_space(&panel.current_path) {
+        Ok(info) => format!(" | Free: {}", format_size(info.free_bytes)),
+        Err(_) => String::new(), // Don't show if error
+    };
+    
     let title = if selected_count > 0 {
-        format!(" {} ({} seleccionados) ", panel.current_path.display(), selected_count)
+        format!(" {} ({} seleccionados){} ", 
+            panel.current_path.display(), 
+            selected_count,
+            disk_info_str)
     } else {
-        format!(" {} ", panel.current_path.display())
+        format!(" {}{} ", 
+            panel.current_path.display(),
+            disk_info_str)
     };
     
     let border_style = if is_active {
