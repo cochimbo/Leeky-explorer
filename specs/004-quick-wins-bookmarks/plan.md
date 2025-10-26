@@ -9,7 +9,7 @@ Implement four high-value, low-complexity features to enhance user productivity:
 1. **Bookmarks (P1)**: Persistent favorite directories accessible via Ctrl+B
 2. **Disk Usage Indicators (P2)**: Visual progress bars in drive selector showing space usage
 3. **Navigation History (P3)**: Browser-like back/forward navigation with Alt+Left/Right
-4. **Text Editor (P4)**: Simple in-app editor for text files via 'e' or F4
+4. **Text Editor (P4)**: Simple in-app editor for text files via F4 (edit mode in preview)
 
 **Technical Approach**: 
 - Extend existing `config::state` module for bookmarks persistence
@@ -101,7 +101,7 @@ src/
 │   └── disk_info.rs          # [MODIFY] Add usage percentage calculation
 │
 ├── events/
-│   ├── keybindings.rs        # [MODIFY] Add Ctrl+B, Alt+Left/Right, 'e'/F4
+│   ├── keybindings.rs        # [MODIFY] Add Ctrl+B, Alt+Left/Right, F4 edit mode
 │   └── handler.rs            # [MODIFY] Handle new actions
 │
 └── app.rs                    # [MODIFY] Integrate new features
@@ -272,7 +272,7 @@ tests/
    - Render text with line numbers
    - Cursor rendering and movement
    - Insert/delete character operations
-2. Add editor keybindings ('e', F4, Ctrl+S, Esc)
+2. Add editor keybindings (F4 for preview, 'e' within preview for edit, Ctrl+S, Esc)
 3. Implement file reading and writing
 4. Add dirty flag and unsaved changes warning
 5. Integrate editor into `src/events/handler.rs`
@@ -287,7 +287,7 @@ tests/
 9. Optional: Basic syntax highlighting using `syntect`
 
 **Success Criteria**:
-- 'e' or F4 opens editor for text files
+- F4 opens preview, 'e' in preview switches to edit mode for text files
 - Basic text editing works (insert, delete, navigate)
 - Ctrl+S saves changes successfully
 - Esc closes editor with unsaved warning

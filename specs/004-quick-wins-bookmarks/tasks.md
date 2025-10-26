@@ -170,8 +170,8 @@ pub enum Action {
     // For history
     NavigateBack,
     NavigateForward,
-    // For editor
-    OpenEditor,
+    // For editor (enhance existing F4 preview)
+    EditFile,
     SaveFile,
 }
 
@@ -179,16 +179,17 @@ pub enum Action {
 KeyEvent { code: KeyCode::Char('b'), modifiers: KeyModifiers::CONTROL, .. } => Some(Action::OpenBookmarkManager),
 KeyEvent { code: KeyCode::Left, modifiers: KeyModifiers::ALT, .. } => Some(Action::NavigateBack),
 KeyEvent { code: KeyCode::Right, modifiers: KeyModifiers::ALT, .. } => Some(Action::NavigateForward),
-KeyCode::Char('e') => Some(Action::OpenEditor),
-KeyCode::F(4) => Some(Action::OpenEditor),
+// F4 already opens preview (Action::OpenPreview), will add edit mode detection
 ```
+
+**Note**: F4 is already mapped to `OpenPreview`. The editor will be an enhancement to the preview system, where pressing 'e' while in preview mode switches to edit mode for text files.
 
 **Acceptance**:
 - [ ] All new actions defined
 - [ ] Ctrl+B mapped to bookmark manager
 - [ ] Alt+Left/Right mapped
-- [ ] 'e' and F4 mapped to editor
-- [ ] No keybinding conflicts (F5 already used for Copy)
+- [ ] F4 already mapped to preview (edit mode will be added)
+- [ ] No keybinding conflicts (F5 for Copy, 'e' for QuickJump)
 
 ---
 
@@ -856,11 +857,13 @@ fn test_deleted_path_in_history() { ... }
 ### TASK-021: Create EditorBuffer struct ⬜
 **Priority**: P4 | **Time**: 2h | **Dependencies**: None
 
-**Description**: Buffer for text file content and cursor state
+**Description**: Buffer for text file content and cursor state. This will enhance the existing preview system to support editing.
 
 **Files**:
-- `src/ui/text_editor.rs` - NEW
-- `src/ui/mod.rs` - Add `pub mod text_editor;`
+- `src/ui/text_editor.rs` - NEW (or enhance `src/preview/text_viewer.rs`)
+- `src/ui/mod.rs` - Add `pub mod text_editor;` if new
+
+**Note**: Consider enhancing the existing preview system rather than creating a completely separate editor. The preview modal already opens with F4, we can add an 'e' key handler within preview mode to switch to edit mode for text files.
 
 **Implementation**:
 ```rust
@@ -895,10 +898,16 @@ impl EditorBuffer {
 ### TASK-022: Create text editor UI widget ⬜
 **Priority**: P4 | **Time**: 3h | **Dependencies**: TASK-021
 
-**Description**: Modal editor widget with rendering
+**Description**: Modal editor widget with rendering (enhancement of preview modal)
 
 **Files**:
-- `src/ui/text_editor.rs` - MODIFY
+- `src/ui/text_editor.rs` - MODIFY (or `src/preview/text_viewer.rs`)
+
+**Implementation Strategy**: Enhance the existing preview modal to support an "edit mode" for text files:
+1. When preview is open (F4) for a text file, show hint: "Press 'e' to edit"
+2. Pressing 'e' in preview switches to edit mode
+3. Edit mode allows modifications
+4. Ctrl+S saves, Esc returns to preview or closes
 
 **Implementation**:
 ```rust
@@ -960,9 +969,11 @@ pub enum EditorAction {
 │  5 | █                                                             │
 │ ...                                                                │
 ├────────────────────────────────────────────────────────────────────┤
-│ Ctrl+S: Save | Esc: Close | Line 5, Col 1                         │
+│ Ctrl+S: Save | Esc: Back to Preview | Line 5, Col 1               │
 └────────────────────────────────────────────────────────────────────┘
 ```
+
+**Note**: This reuses the preview infrastructure (F4), just adding edit capabilities.
 
 **Acceptance**:
 - [ ] Editor renders full screen
@@ -998,8 +1009,8 @@ fn is_file_too_large(path: &Path, max_size: u64) -> bool {
     }
 }
 
-// In handler
-Action::OpenEditor => {
+// In preview modal handler (when 'e' pressed in preview)
+Action::EditFile => {
     let file = app.active_panel().selected_file()?;
     
     if !is_text_file(&file.path) {
@@ -1012,10 +1023,14 @@ Action::OpenEditor => {
         return Ok(());
     }
     
-    let buffer = EditorBuffer::from_file(file.path.clone())?;
-    app.editor = Some(TextEditorWidget::new(buffer));
+    // Switch preview to edit mode
+    if let Some(preview) = &mut app.preview_modal {
+        preview.enable_edit_mode()?;
+    }
 }
 ```
+
+**Note**: This assumes the user has already opened preview with F4, then presses 'e' within the preview to enter edit mode.
 
 **Acceptance**:
 - [ ] Binary files rejected
@@ -1166,9 +1181,16 @@ fn test_insert_and_delete() { ... }
 
 **Sections to update**:
 - Features list
-- Keybindings table (Ctrl+B, Alt+Left/Right, 'e', F4)
+- Keybindings table (Ctrl+B, Alt+Left/Right, F4 edit mode)
 - Configuration section (bookmarks.json)
 - Screenshots (if applicable)
+
+**Keybinding Documentation**:
+- Ctrl+B: Open/close bookmark manager
+- Alt+Left: Navigate backward in history
+- Alt+Right: Navigate forward in history  
+- F4: Open preview (press 'e' in preview to edit text files)
+- Ctrl+S: Save file (when in edit mode)
 
 **Acceptance**:
 - [ ] All new features documented
@@ -1196,7 +1218,7 @@ fn test_insert_and_delete() { ... }
 - Visual disk usage indicators in drive selector (F9)
 - Disk space display in panel status bar
 - Navigation history with Alt+Left (back) and Alt+Right (forward)
-- [If included] Simple text editor with 'e' or F4 keybinding
+- [If included] Simple text editor accessible from preview (F4 then 'e')
 
 ### Changed
 - Drive selector now shows visual usage bars with color coding

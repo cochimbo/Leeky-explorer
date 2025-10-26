@@ -69,16 +69,18 @@ Users want to quickly edit configuration files, notes, or small text files witho
 
 **Why this priority**: Lower priority due to complexity and potential scope creep. Most users have preferred external editors. Can be deferred to later iteration.
 
-**Independent Test**: Can be tested by selecting a text file, pressing 'e', making edits, saving, and verifying changes persist.
+**Independent Test**: Can be tested by selecting a text file, pressing F4, making edits, saving, and verifying changes persist.
+
+**Note**: Uses F4 keybinding (already assigned to preview, will be enhanced to support editing mode).
 
 **Acceptance Scenarios**:
 
-1. **Given** I have a text file selected, **When** I press 'e' or F4, **Then** a modal editor opens with the file content
+1. **Given** I have a text file selected, **When** I press F4 and then 'e' for edit mode, **Then** a modal editor opens with the file content
 2. **Given** the editor is open, **When** I make changes, **Then** the changes are reflected in the editor buffer
 3. **Given** I've made changes, **When** I press Ctrl+S, **Then** the file is saved to disk
 4. **Given** the editor is open, **When** I press Esc, **Then** the editor closes (with unsaved changes warning if applicable)
-5. **Given** I try to edit a binary file, **When** I press 'e', **Then** an error message indicates the file is not editable
-6. **Given** I try to edit a large file (>1MB), **When** I press 'e', **Then** a warning prompts to use external editor instead
+5. **Given** I try to edit a binary file, **When** I press F4 and 'e', **Then** an error message indicates the file is not editable
+6. **Given** I try to edit a large file (>1MB), **When** I press F4 and 'e', **Then** a warning prompts to use external editor instead
 
 ---
 
@@ -126,7 +128,7 @@ Users want to quickly edit configuration files, notes, or small text files witho
 - **FR-020**: System MUST handle navigation to non-existent historical directories gracefully
 
 **Text Editor (P4):**
-- **FR-021**: System MUST open text editor via 'e' or F4 keybinding for selected file
+- **FR-021**: System MUST open text editor via F4 keybinding for selected file (edit mode in preview)
 - **FR-022**: System MUST support basic text editing (insert, delete, navigation)
 - **FR-023**: System MUST save file via Ctrl+S keybinding
 - **FR-024**: System MUST close editor via Esc keybinding
