@@ -27,6 +27,7 @@ pub enum Action {
     CompressArchive,  // T937: Shift+F9 to compress archive
     OpenDriveSelector, // US4: F10 to open drive selector (Windows)
     OpenThemeSelector, // US5: F11 to open theme selector
+    ToggleBookmarkManager, // TASK-005: Ctrl+B to toggle bookmark manager
     ScrollPreviewUp,
     ScrollPreviewDown,
     PagePreviewUp,
@@ -84,6 +85,10 @@ pub fn map_key_to_action(key: KeyEvent) -> Action {
         (KeyCode::F(9), KeyModifiers::SHIFT) => Action::CompressArchive,
         (KeyCode::F(10), _) => Action::OpenDriveSelector,
         (KeyCode::F(12), _) => Action::OpenThemeSelector,
+        // TASK-005: Ctrl+B for bookmarks
+        (KeyCode::Char('b'), KeyModifiers::CONTROL) | (KeyCode::Char('B'), KeyModifiers::CONTROL) => {
+            Action::ToggleBookmarkManager
+        }
         // T565-T566: Selection keybindings
         (KeyCode::Char(' '), KeyModifiers::NONE) => Action::ToggleSelection,
         (KeyCode::Char('a'), KeyModifiers::CONTROL) => Action::SelectAll,
