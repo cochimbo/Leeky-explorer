@@ -27,6 +27,7 @@ env_logger = "0.11"  # T851: Logging implementation
 chrono = { version = "0.4", features = ["serde"] }  # T851b: Timestamps for structured logs; TASK-001: serde support for bookmarks
 image = "0.25"
 viuer = "0.9.2"
+tui-textarea = "0.7"  # TASK-027: Text editor widget compatible with ratatui 0.29
 # T801-T803: Archive extraction dependencies
 zip = { version = "6.0.0", features = ["aes-crypto"] }  # T908: Enable AES encryption for compression
 tar = "0.4"
