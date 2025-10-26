@@ -287,6 +287,21 @@ impl<'a> TextEditor<'a> {
     pub fn file_path(&self) -> &PathBuf {
         &self.file_path
     }
+    
+    /// Get the number of lines in the editor (for testing)
+    pub fn line_count(&self) -> usize {
+        self.textarea.lines().len()
+    }
+    
+    /// Get a specific line content (for testing)
+    pub fn get_line(&self, index: usize) -> Option<&str> {
+        self.textarea.lines().get(index).map(|s| s.as_str())
+    }
+    
+    /// Set modified flag (for testing)
+    pub fn set_modified(&mut self, modified: bool) {
+        self.modified = modified;
+    }
 }
 
 #[cfg(test)]
