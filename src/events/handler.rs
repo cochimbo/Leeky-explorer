@@ -1813,12 +1813,25 @@ fn handle_bookmark_manager_dialog(app: &mut AppState, key: KeyEvent) -> Result<A
                     // Navigate active panel to bookmarked path
                     app.active_panel_mut().current_path = path;
                     
+                    // Refresh panel entries to load the new directory
+                    app.active_panel_mut().refresh_entries()?;
+                    let entries = app.active_panel().entries.clone();
+                    app.store_all_entries(entries);
+                    
+                    // Clear selection marks when navigating
+                    app.selection_state.clear(app.active_panel);
+                    
+                    // Exit search mode if active
+                    if app.search_mode {
+                        app.search_mode = false;
+                        app.search_pattern.clear();
+                    }
+                    
                     // Update last accessed timestamp
                     let _ = app.bookmarks.access(&name);
                     
                     app.close_dialog();
-                    // Return Refresh to reload the panel contents
-                    return Ok(Action::Refresh);
+                    return Ok(Action::None);
                 } else {
                     // Show error for invalid bookmark
                     app.error_message = Some(format!("Bookmark path does not exist: {}", path.display()));

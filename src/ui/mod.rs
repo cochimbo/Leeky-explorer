@@ -218,6 +218,7 @@ pub fn render_footer(frame: &mut Frame, area: Rect, theme: &Theme) {
         ("⇧F9", "Compress", Color::Cyan),    // Shift+F9 for compression
         ("F10", "Drive", Color::Blue),        // US4: Drive selector
         ("F12", "Theme", Color::Magenta),     // US5: Theme selector
+        ("Ctrl+B", "Bookmarks", Color::Yellow), // Bookmark manager
         ("Ctrl+Q", "Quit", Color::Gray),     // T128b: Changed from Q to Ctrl+Q
         ("Ctrl+A", "All", Color::Magenta),
     ];
