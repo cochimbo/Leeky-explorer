@@ -7,3 +7,4 @@ pub mod config;
 pub mod app;
 pub mod preview;
 pub mod archive;
+pub mod search;
