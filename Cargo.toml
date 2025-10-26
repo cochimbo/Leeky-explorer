@@ -21,6 +21,7 @@ anyhow = "1.0"
 dirs = "6.0.0"
 async-recursion = "1.0"
 glob = "0.3"
+ignore = "0.4"  # TASK-038: Recursive search with .gitignore support
 encoding_rs = "0.8"
 log = "0.4"
 env_logger = "0.11"  # T851: Logging implementation
