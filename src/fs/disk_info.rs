@@ -61,20 +61,18 @@ fn get_drive_label(path: &Path) -> String {
         // Common mount points
         if path_str.starts_with("/Volumes/") {
             // macOS external volumes
-            if let Some(volume_name) = path_str.strip_prefix("/Volumes/") {
-                if let Some(first_part) = volume_name.split('/').next() {
+            if let Some(volume_name) = path_str.strip_prefix("/Volumes/")
+                && let Some(first_part) = volume_name.split('/').next() {
                     return format!("/Volumes/{}", first_part);
                 }
-            }
         }
         
         if path_str.starts_with("/mnt/") {
             // Linux mount points
-            if let Some(mount_name) = path_str.strip_prefix("/mnt/") {
-                if let Some(first_part) = mount_name.split('/').next() {
+            if let Some(mount_name) = path_str.strip_prefix("/mnt/")
+                && let Some(first_part) = mount_name.split('/').next() {
                     return format!("/mnt/{}", first_part);
                 }
-            }
         }
         
         if path_str.starts_with("/home") {
