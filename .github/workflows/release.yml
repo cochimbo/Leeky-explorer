@@ -66,7 +66,9 @@ jobs:
       - name: Create archive
         run: |
           cd target/x86_64-unknown-linux-gnu/release
-          tar -czf leeky-explorer-${{ github.ref_name }}-linux-x86_64.tar.gz leeky-explorer
+          mkdir -p assets/images
+          cp ../../../assets/images/leekpc.png assets/images/
+          tar -czf leeky-explorer-${{ github.ref_name }}-linux-x86_64.tar.gz leeky-explorer assets/
           sha256sum leeky-explorer-${{ github.ref_name }}-linux-x86_64.tar.gz > leeky-explorer-${{ github.ref_name }}-linux-x86_64.tar.gz.sha256
 
       - name: Upload artifacts
@@ -98,7 +100,9 @@ jobs:
         shell: powershell
         run: |
           cd target\x86_64-pc-windows-msvc\release
-          Compress-Archive -Path leeky-explorer.exe -DestinationPath "leeky-explorer-${{ github.ref_name }}-windows-x86_64.zip"
+          New-Item -ItemType Directory -Force -Path assets\images
+          Copy-Item ..\..\..\assets\images\leekpc.png assets\images\
+          Compress-Archive -Path leeky-explorer.exe,assets -DestinationPath "leeky-explorer-${{ github.ref_name }}-windows-x86_64.zip"
           Get-FileHash "leeky-explorer-${{ github.ref_name }}-windows-x86_64.zip" -Algorithm SHA256 | Select-Object -ExpandProperty Hash | Out-File "leeky-explorer-${{ github.ref_name }}-windows-x86_64.zip.sha256" -NoNewline
 
       - name: Upload artifacts
@@ -129,7 +133,9 @@ jobs:
       - name: Create archive
         run: |
           cd target/x86_64-apple-darwin/release
-          tar -czf leeky-explorer-${{ github.ref_name }}-macos-x86_64.tar.gz leeky-explorer
+          mkdir -p assets/images
+          cp ../../../assets/images/leekpc.png assets/images/
+          tar -czf leeky-explorer-${{ github.ref_name }}-macos-x86_64.tar.gz leeky-explorer assets/
           shasum -a 256 leeky-explorer-${{ github.ref_name }}-macos-x86_64.tar.gz > leeky-explorer-${{ github.ref_name }}-macos-x86_64.tar.gz.sha256
 
       - name: Upload artifacts
@@ -160,7 +166,9 @@ jobs:
       - name: Create archive
         run: |
           cd target/aarch64-apple-darwin/release
-          tar -czf leeky-explorer-${{ github.ref_name }}-macos-arm64.tar.gz leeky-explorer
+          mkdir -p assets/images
+          cp ../../../assets/images/leekpc.png assets/images/
+          tar -czf leeky-explorer-${{ github.ref_name }}-macos-arm64.tar.gz leeky-explorer assets/
           shasum -a 256 leeky-explorer-${{ github.ref_name }}-macos-arm64.tar.gz > leeky-explorer-${{ github.ref_name }}-macos-arm64.tar.gz.sha256
 
       - name: Upload artifacts
@@ -198,7 +206,9 @@ jobs:
       - name: Create archive
         run: |
           cd target/aarch64-unknown-linux-gnu/release
-          tar -czf leeky-explorer-${{ github.ref_name }}-linux-arm64.tar.gz leeky-explorer
+          mkdir -p assets/images
+          cp ../../../assets/images/leekpc.png assets/images/
+          tar -czf leeky-explorer-${{ github.ref_name }}-linux-arm64.tar.gz leeky-explorer assets/
           sha256sum leeky-explorer-${{ github.ref_name }}-linux-arm64.tar.gz > leeky-explorer-${{ github.ref_name }}-linux-arm64.tar.gz.sha256
 
       - name: Upload artifacts
@@ -236,7 +246,9 @@ jobs:
       - name: Create archive
         run: |
           cd target/armv7-unknown-linux-gnueabihf/release
-          tar -czf leeky-explorer-${{ github.ref_name }}-linux-armv7.tar.gz leeky-explorer
+          mkdir -p assets/images
+          cp ../../../assets/images/leekpc.png assets/images/
+          tar -czf leeky-explorer-${{ github.ref_name }}-linux-armv7.tar.gz leeky-explorer assets/
           sha256sum leeky-explorer-${{ github.ref_name }}-linux-armv7.tar.gz > leeky-explorer-${{ github.ref_name }}-linux-armv7.tar.gz.sha256
 
       - name: Upload artifacts
