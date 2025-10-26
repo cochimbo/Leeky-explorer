@@ -176,7 +176,7 @@ pub enum Action {
 }
 
 // In key mapping
-KeyCode::F(5) => Some(Action::OpenBookmarkManager),
+KeyEvent { code: KeyCode::Char('b'), modifiers: KeyModifiers::CONTROL, .. } => Some(Action::OpenBookmarkManager),
 KeyEvent { code: KeyCode::Left, modifiers: KeyModifiers::ALT, .. } => Some(Action::NavigateBack),
 KeyEvent { code: KeyCode::Right, modifiers: KeyModifiers::ALT, .. } => Some(Action::NavigateForward),
 KeyCode::Char('e') => Some(Action::OpenEditor),
@@ -185,10 +185,10 @@ KeyCode::F(4) => Some(Action::OpenEditor),
 
 **Acceptance**:
 - [ ] All new actions defined
-- [ ] F5 mapped to bookmark manager
+- [ ] Ctrl+B mapped to bookmark manager
 - [ ] Alt+Left/Right mapped
 - [ ] 'e' and F4 mapped to editor
-- [ ] No keybinding conflicts
+- [ ] No keybinding conflicts (F5 already used for Copy)
 
 ---
 
@@ -245,7 +245,7 @@ pub enum BookmarkAction {
 
 **UI Layout**:
 ```
-┌─ Bookmarks (F5) ─────────────────────────────┐
+┌─ Bookmarks (Ctrl+B) ─────────────────────────┐
 │ ↓ Projects (/home/user/projects)             │
 │   Downloads (/home/user/Downloads)           │
 │   Documents (/home/user/Documents)           │
@@ -267,6 +267,7 @@ pub enum BookmarkAction {
 - [ ] Enter navigates to bookmark
 - [ ] Esc closes modal
 - [ ] Empty state shows helpful message
+- [ ] Ctrl+B toggles bookmark manager
 
 ---
 
@@ -317,7 +318,8 @@ impl TextInputDialog {
 **Changes in handler.rs**:
 ```rust
 Action::OpenBookmarkManager => {
-    app.show_bookmark_manager = true;
+    // Toggle bookmark manager visibility
+    app.show_bookmark_manager = !app.show_bookmark_manager;
 }
 Action::AddBookmark => {
     if let Some(name) = app.get_bookmark_name_input() {
@@ -344,7 +346,7 @@ Action::NavigateToBookmark(index) => {
 ```
 
 **Acceptance**:
-- [ ] F5 toggles bookmark manager
+- [ ] Ctrl+B toggles bookmark manager
 - [ ] Add bookmark creates entry
 - [ ] Delete removes bookmark
 - [ ] Navigate changes active panel path
@@ -1164,7 +1166,7 @@ fn test_insert_and_delete() { ... }
 
 **Sections to update**:
 - Features list
-- Keybindings table (F5, Alt+Left/Right, 'e', F4)
+- Keybindings table (Ctrl+B, Alt+Left/Right, 'e', F4)
 - Configuration section (bookmarks.json)
 - Screenshots (if applicable)
 
@@ -1189,7 +1191,7 @@ fn test_insert_and_delete() { ... }
 ## [0.4.0] - 2025-MM-DD
 
 ### Added
-- Bookmarks system with F5 keybinding for quick directory access
+- Bookmarks system with Ctrl+B keybinding for quick directory access
 - Persistent bookmark storage in configuration
 - Visual disk usage indicators in drive selector (F9)
 - Disk space display in panel status bar

@@ -6,7 +6,7 @@
 ## Summary
 
 Implement four high-value, low-complexity features to enhance user productivity:
-1. **Bookmarks (P1)**: Persistent favorite directories accessible via F5
+1. **Bookmarks (P1)**: Persistent favorite directories accessible via Ctrl+B
 2. **Disk Usage Indicators (P2)**: Visual progress bars in drive selector showing space usage
 3. **Navigation History (P3)**: Browser-like back/forward navigation with Alt+Left/Right
 4. **Text Editor (P4)**: Simple in-app editor for text files via 'e' or F4
@@ -92,7 +92,7 @@ src/
 │
 ├── ui/
 │   ├── mod.rs                # [MODIFY] Export new modules
-│   ├── bookmark_manager.rs   # [NEW] F5 bookmark menu widget
+│   ├── bookmark_manager.rs   # [NEW] Ctrl+B bookmark menu widget
 │   ├── text_editor.rs        # [NEW] Simple text editor modal
 │   ├── drive_selector.rs     # [MODIFY] Add disk usage bars
 │   └── panel_widget.rs       # [MODIFY] Show disk space in status bar
@@ -101,7 +101,7 @@ src/
 │   └── disk_info.rs          # [MODIFY] Add usage percentage calculation
 │
 ├── events/
-│   ├── keybindings.rs        # [MODIFY] Add F5, Alt+Left/Right, 'e'/F4
+│   ├── keybindings.rs        # [MODIFY] Add Ctrl+B, Alt+Left/Right, 'e'/F4
 │   └── handler.rs            # [MODIFY] Handle new actions
 │
 └── app.rs                    # [MODIFY] Integrate new features
@@ -126,7 +126,7 @@ tests/
 2. Create `src/models/bookmark.rs` with `Bookmark` struct
 3. Create `src/config/bookmarks.rs` with `BookmarkManager`
 4. Update `src/config/state.rs` to include bookmarks field
-5. Add bookmark keybindings to `src/events/keybindings.rs` (F5, bookmark actions)
+5. Add bookmark keybindings to `src/events/keybindings.rs` (Ctrl+B, bookmark actions)
 6. Write unit tests for bookmark model and manager
 
 **Success Criteria**:
@@ -139,7 +139,7 @@ tests/
 ### Phase 1: Bookmarks Feature (P1) - MVP
 
 **Duration**: 1.5 days
-**Deliverable**: Fully functional bookmarks with F5 menu
+**Deliverable**: Fully functional bookmarks with Ctrl+B menu
 
 **Dependencies**: Phase 0
 
@@ -160,7 +160,7 @@ tests/
 7. Update keybinding documentation
 
 **Success Criteria**:
-- F5 opens bookmark menu
+- Ctrl+B opens bookmark menu
 - Users can add current directory as bookmark with custom name
 - Bookmarks persist across restarts
 - Navigation to bookmarked directories works

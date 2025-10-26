@@ -15,9 +15,11 @@ Users frequently work with the same directories (projects, downloads, documents)
 
 **Independent Test**: Can be fully tested by creating bookmarks, reopening the app, and verifying persistence. Delivers instant value by reducing navigation time.
 
+**Note**: Uses Ctrl+B keybinding (F5 is already assigned to Copy operation).
+
 **Acceptance Scenarios**:
 
-1. **Given** I'm in any directory, **When** I press F5, **Then** a bookmark menu opens showing saved bookmarks and option to add current directory
+1. **Given** I'm in any directory, **When** I press Ctrl+B, **Then** a bookmark menu opens showing saved bookmarks and option to add current directory
 2. **Given** the bookmark menu is open, **When** I select "Add Bookmark", **Then** the current directory is added to bookmarks with a custom name prompt
 3. **Given** I have saved bookmarks, **When** I select a bookmark from the menu, **Then** the active panel navigates to that directory
 4. **Given** I have bookmarks saved, **When** I restart leeky-explorer, **Then** all bookmarks persist and are available
@@ -104,7 +106,7 @@ Users want to quickly edit configuration files, notes, or small text files witho
 - **FR-004**: System MUST allow renaming existing bookmarks
 - **FR-005**: System MUST navigate to bookmarked directory when selected from menu
 - **FR-006**: System MUST handle bookmarks to non-existent directories gracefully (show warning, offer to remove)
-- **FR-007**: Bookmark menu MUST be accessible via F5 keybinding
+- **FR-007**: Bookmark menu MUST be accessible via Ctrl+B keybinding
 - **FR-008**: System MUST support at least 50 bookmarks without performance degradation
 
 **Disk Usage (P2):**
