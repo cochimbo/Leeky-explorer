@@ -5,6 +5,53 @@ use super::file_entry::FileEntry;
 use anyhow::Result;
 use glob::Pattern;
 
+/// Navigation history for a panel (last 20 visited directories)
+#[derive(Debug, Clone)]
+pub struct NavigationHistory {
+    entries: Vec<PathBuf>,
+    max_size: usize,
+}
+
+impl NavigationHistory {
+    pub fn new(max_size: usize) -> Self {
+        Self {
+            entries: Vec::new(),
+            max_size,
+        }
+    }
+    
+    /// Add a new path to history
+    pub fn push(&mut self, path: PathBuf) {
+        // Don't add duplicate of last entry
+        if self.entries.last() == Some(&path) {
+            return;
+        }
+        
+        // Add new entry
+        self.entries.push(path);
+        
+        // Enforce max size (keep most recent)
+        if self.entries.len() > self.max_size {
+            self.entries.remove(0);
+        }
+    }
+    
+    /// Get all history entries (most recent last)
+    pub fn get_all(&self) -> &[PathBuf] {
+        &self.entries
+    }
+    
+    /// Get count of history entries
+    pub fn count(&self) -> usize {
+        self.entries.len()
+    }
+    
+    /// Clear all history
+    pub fn clear(&mut self) {
+        self.entries.clear();
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Panel {
     pub current_path: PathBuf,
@@ -23,10 +70,14 @@ pub struct Panel {
     pub perms_scroll_offset: usize,          // Horizontal scroll offset for permissions
     pub text_scroll_timer: Instant,          // Last time text scroll was updated
     pub scroll_pause_until: Option<Instant>, // Pause scrolling until this time (for loop restart delay)
+    pub history: NavigationHistory,          // Navigation history (last 20 dirs)
 }
 
 impl Panel {
     pub fn new(path: PathBuf) -> Self {
+        let mut history = NavigationHistory::new(20); // Keep last 20 directories
+        history.push(path.clone());
+        
         Self {
             current_path: path,
             entries: Vec::new(),
@@ -43,6 +94,7 @@ impl Panel {
             perms_scroll_offset: 0,
             text_scroll_timer: Instant::now(),
             scroll_pause_until: None,
+            history,
         }
     }
 
@@ -142,7 +194,8 @@ impl Panel {
         if let Some(entry) = self.selected_entry()
             && entry.is_dir() {
                 let new_path = entry.path.clone();
-                self.current_path = new_path;
+                self.current_path = new_path.clone();
+                self.history.push(new_path); // Add to history
                 self.cursor = 0;
                 self.scroll_offset = 0;
                 // Clear any active filter when entering a new directory
@@ -172,7 +225,9 @@ impl Panel {
                 .and_then(|name| name.to_str())
                 .map(|s| s.to_string());
             
-            self.current_path = parent.to_path_buf();
+            let parent_path = parent.to_path_buf();
+            self.current_path = parent_path.clone();
+            self.history.push(parent_path); // Add to history
             
             // Clear any active filter when going up to parent directory
             self.filter = None;
