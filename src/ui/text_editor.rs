@@ -9,6 +9,7 @@ use ratatui::{
 };
 use std::fs;
 use std::path::PathBuf;
+use std::time::SystemTime;
 use tui_textarea::TextArea;
 
 use crate::ui::theme::Theme;
@@ -27,6 +28,7 @@ pub struct TextEditor<'a> {
     textarea: TextArea<'a>,
     file_path: PathBuf,
     original_content: String,  // Original file content for change detection
+    file_mtime: Option<SystemTime>,  // File modification time when loaded
     modified: bool,
     read_only: bool,
     last_error: Option<String>,
@@ -35,9 +37,10 @@ pub struct TextEditor<'a> {
 impl<'a> TextEditor<'a> {
     /// Create a new text editor from a file path
     pub fn from_file(path: PathBuf, theme: &Theme) -> Result<Self> {
-        // Check if file is read-only
+        // Check if file is read-only and get modification time
         let metadata = fs::metadata(&path)?;
         let read_only = metadata.permissions().readonly();
+        let file_mtime = metadata.modified().ok();
         
         // Read file content
         let content = fs::read_to_string(&path)?;
@@ -53,6 +56,7 @@ impl<'a> TextEditor<'a> {
             textarea,
             file_path: path,
             original_content: content,  // Store original for comparison
+            file_mtime,  // Store modification time
             modified: false,
             read_only,
             last_error: None,
@@ -234,11 +238,39 @@ impl<'a> TextEditor<'a> {
             anyhow::bail!("File is read-only");
         }
         
+        // Check if file still exists
+        if !self.file_path.exists() {
+            anyhow::bail!("File has been deleted externally");
+        }
+        
+        // Check if file was modified externally
+        if self.check_external_modifications() {
+            anyhow::bail!("File has been modified externally. Please reload the file.");
+        }
+        
         let content = self.textarea.lines().join("\n");
         fs::write(&self.file_path, &content)?;
+        
+        // Update mtime after successful save
+        if let Ok(metadata) = fs::metadata(&self.file_path) {
+            self.file_mtime = metadata.modified().ok();
+        }
+        
         self.original_content = content;  // Update original after save
         self.modified = false;
         Ok(())
+    }
+    
+    /// Check if file has been modified externally since it was loaded
+    pub fn check_external_modifications(&self) -> bool {
+        if let Some(original_mtime) = self.file_mtime {
+            if let Ok(metadata) = fs::metadata(&self.file_path) {
+                if let Ok(current_mtime) = metadata.modified() {
+                    return current_mtime > original_mtime;
+                }
+            }
+        }
+        false
     }
     
     /// Check if file has been modified
