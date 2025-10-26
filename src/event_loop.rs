@@ -428,7 +428,7 @@ fn render_ui<B: ratatui::backend::Backend>(
         ui::render_panels(f, app, &layout);
         
         // Render footer
-        ui::render_footer(f, layout.footer);
+        ui::render_footer(f, layout.footer, &app.theme);
         
         // Render dialog if present
         ui::render_dialog_if_present(f, app);

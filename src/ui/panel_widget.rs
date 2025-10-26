@@ -2,7 +2,7 @@
 use crate::models::panel::Panel;
 use crate::models::selection::SelectionState;
 use crate::app::PanelSide;
-use crate::ui::theme;
+use crate::ui::theme::{self, Theme};
 use crate::ui::file_icons;
 use crate::ui::column_layout::{ColumnLayout, Alignment};
 use crate::ui::formatters;
@@ -24,6 +24,7 @@ pub fn render_panel(
     search_pattern: &str,
     selection_state: &SelectionState,
     panel_side: PanelSide,
+    theme: &Theme, // US5: Pass theme for customization
 ) {
     // T560: Add selection counter in header
     let selected_count = selection_state.count(panel_side);
@@ -34,15 +35,17 @@ pub fn render_panel(
     };
     
     let border_style = if is_active {
-        Style::default().fg(theme::ACTIVE_BORDER)
+        Style::default().fg(theme.active_border)
     } else {
-        Style::default().fg(theme::INACTIVE_BORDER)
+        Style::default().fg(theme.inactive_border)
     };
 
     let block = Block::default()
         .borders(Borders::ALL)
         .border_style(border_style)
-        .title(title);
+        .title(title)
+        .style(Style::default().bg(theme.panel_bg)); // US5: Use theme background
+
 
     // Calculate column layout based on available width
     let content_width = area.width.saturating_sub(4); // Subtract borders and padding
@@ -52,33 +55,33 @@ pub fn render_panel(
     let items: Vec<ListItem> = if panel.entries.is_empty() && panel.has_filter() {
         vec![ListItem::new(Line::from(Span::styled(
             format!(" Sin resultados para: {}", panel.get_filter().unwrap_or("")),
-            Style::default().fg(theme::ERROR),
+            Style::default().fg(theme.error_color),
         )))]
     } else {
         // Build column header as first item
         let mut all_items = Vec::new();
         
         // Header row
-        let header_line = build_header_row(&layout);
+        let header_line = build_header_row(&layout, theme);
         all_items.push(ListItem::new(header_line));
         
         // Separator row
         let separator = "─".repeat(content_width as usize);
         all_items.push(ListItem::new(Line::from(Span::styled(
             separator,
-            Style::default().fg(theme::INACTIVE_BORDER),
+            Style::default().fg(theme.inactive_border),
         ))));
         
         // Data rows
         for (idx, entry) in panel.entries.iter().enumerate() {
-            let mut style = theme::get_entry_style(&entry.entry_type);
+            let mut style = theme.get_entry_style(&entry.entry_type);
             
             // T558: Show "*" prefix and alternate background for marked items
             let is_marked = selection_state.is_marked(panel_side, &entry.path);
             
             // T559: Add alternate background color for marked items
             if is_marked {
-                style = style.bg(theme::MARKED_BG);
+                style = style.bg(theme.marked_bg);
             }
             
             // Check if this is the selected item
@@ -114,10 +117,12 @@ pub fn render_panel(
         .block(block)
         .highlight_style(
             Style::default()
-                .bg(theme::HIGHLIGHT_BG)
-                .fg(theme::HIGHLIGHT_FG)
+                .bg(theme.highlight_bg)
+                .fg(theme.highlight_fg)
                 .add_modifier(Modifier::BOLD),
-        );
+        )
+        .style(Style::default().bg(theme.panel_bg).fg(theme.panel_fg)); // US5: Panel colors
+
 
     let mut state = ListState::default();
     // Offset cursor by 2 to account for header and separator rows
@@ -152,7 +157,7 @@ pub fn render_panel(
             };
             let filter_widget = Paragraph::new(Line::from(Span::styled(
                 filter_text,
-                Style::default().fg(theme::DIR_COLOR),
+                Style::default().fg(theme.info_color),
             )));
             frame.render_widget(filter_widget, filter_area);
         }
@@ -160,27 +165,27 @@ pub fn render_panel(
 }
 
 /// Build header row with column titles
-fn build_header_row(layout: &ColumnLayout) -> Line<'static> {
+fn build_header_row(layout: &ColumnLayout, theme: &Theme) -> Line<'static> {
     let mut spans = Vec::new();
     
     // Icon column (empty header)
     spans.push(Span::styled(
         formatters::pad_text("", layout.icon_width, Alignment::Left),
-        Style::default().add_modifier(Modifier::BOLD),
+        Style::default().fg(theme.panel_fg).add_modifier(Modifier::BOLD),
     ));
     spans.push(Span::raw("  "));
     
     // Mark column (empty header)
     spans.push(Span::styled(
         formatters::pad_text("", layout.mark_width, Alignment::Left),
-        Style::default().add_modifier(Modifier::BOLD),
+        Style::default().fg(theme.panel_fg).add_modifier(Modifier::BOLD),
     ));
     spans.push(Span::raw("  "));
     
     // Name column
     spans.push(Span::styled(
         formatters::pad_text("Name", layout.name_width, Alignment::Left),
-        Style::default().add_modifier(Modifier::BOLD).fg(theme::ACTIVE_BORDER),
+        Style::default().fg(theme.panel_fg).add_modifier(Modifier::BOLD),
     ));
     spans.push(Span::raw("  "));
     
@@ -188,7 +193,7 @@ fn build_header_row(layout: &ColumnLayout) -> Line<'static> {
     if layout.show_extension {
         spans.push(Span::styled(
             formatters::pad_text("Ext", layout.ext_width, Alignment::Left),
-            Style::default().add_modifier(Modifier::BOLD).fg(theme::ACTIVE_BORDER),
+            Style::default().fg(theme.panel_fg).add_modifier(Modifier::BOLD),
         ));
         spans.push(Span::raw("  "));
     }
@@ -196,14 +201,14 @@ fn build_header_row(layout: &ColumnLayout) -> Line<'static> {
     // Size column
     spans.push(Span::styled(
         formatters::pad_text("Size", layout.size_width, Alignment::Right),
-        Style::default().add_modifier(Modifier::BOLD).fg(theme::ACTIVE_BORDER),
+        Style::default().fg(theme.panel_fg).add_modifier(Modifier::BOLD),
     ));
     spans.push(Span::raw("  "));
     
     // Modified column
     spans.push(Span::styled(
         formatters::pad_text("Modified", layout.modified_width, Alignment::Center),
-        Style::default().add_modifier(Modifier::BOLD).fg(theme::ACTIVE_BORDER),
+        Style::default().fg(theme.panel_fg).add_modifier(Modifier::BOLD),
     ));
     
     // Created column (if visible)
@@ -211,7 +216,7 @@ fn build_header_row(layout: &ColumnLayout) -> Line<'static> {
         spans.push(Span::raw("  "));
         spans.push(Span::styled(
             formatters::pad_text("Created", layout.created_width, Alignment::Center),
-            Style::default().add_modifier(Modifier::BOLD).fg(theme::ACTIVE_BORDER),
+            Style::default().fg(theme.panel_fg).add_modifier(Modifier::BOLD),
         ));
     }
     
@@ -220,7 +225,7 @@ fn build_header_row(layout: &ColumnLayout) -> Line<'static> {
         spans.push(Span::raw("  "));
         spans.push(Span::styled(
             formatters::pad_text("Perms", layout.perms_width, Alignment::Center),
-            Style::default().add_modifier(Modifier::BOLD).fg(theme::ACTIVE_BORDER),
+            Style::default().fg(theme.panel_fg).add_modifier(Modifier::BOLD),
         ));
     }
     

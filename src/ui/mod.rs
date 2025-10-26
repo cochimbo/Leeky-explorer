@@ -12,6 +12,7 @@ pub mod drive_selector;
 pub mod theme_selector; // US5: Theme selector widget
 
 use crate::app::{AppState, PanelSide, DialogState};
+use crate::ui::theme::Theme;
 use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
@@ -104,6 +105,7 @@ pub fn render_panels(frame: &mut Frame, app: &AppState, layout: &layout::AppLayo
         &app.search_pattern,
         &app.selection_state,
         PanelSide::Left,
+        &app.theme,
     );
     
     panel_widget::render_panel(
@@ -115,6 +117,7 @@ pub fn render_panels(frame: &mut Frame, app: &AppState, layout: &layout::AppLayo
         &app.search_pattern,
         &app.selection_state,
         PanelSide::Right,
+        &app.theme,
     );
 }
 
@@ -128,14 +131,15 @@ pub fn render_dialog_if_present(frame: &mut Frame, app: &AppState) {
                         frame,
                         message,
                         &op.progress,
-                        frame.area()
+                        frame.area(),
+                        &app.theme,
                     );
                 } else {
-                    dialog::render_dialog(frame, dialog, frame.area());
+                    dialog::render_dialog(frame, dialog, frame.area(), &app.theme);
                 }
             }
             _ => {
-                dialog::render_dialog(frame, dialog, frame.area());
+                dialog::render_dialog(frame, dialog, frame.area(), &app.theme);
             }
         }
     }
@@ -186,7 +190,7 @@ pub fn render_header(frame: &mut Frame, app: &mut AppState, left_area: Rect, rig
     frame.render_widget(right_paragraph, right_area);
 }
 
-pub fn render_footer(frame: &mut Frame, area: Rect) {
+pub fn render_footer(frame: &mut Frame, area: Rect, theme: &Theme) {
     // T561: Group keybindings in 2 lines for better space management
     let line1_bindings = vec![
         ("↑↓", "Nav", Color::Blue),
@@ -222,7 +226,7 @@ pub fn render_footer(frame: &mut Frame, area: Rect) {
                 .iter()
                 .enumerate()
                 .flat_map(|(i, &(key, action, color))| {
-                    let bg = if i % 2 == 0 { Color::Black } else { Color::DarkGray };
+                    let bg = if i % 2 == 0 { theme.footer_bg } else { theme.footer_bg };
                     vec![
                         Span::styled(
                             format!(" {} ", key),
@@ -234,7 +238,7 @@ pub fn render_footer(frame: &mut Frame, area: Rect) {
                         Span::styled(
                             format!(":{} ", action),
                             Style::default()
-                                .fg(Color::White)
+                                .fg(theme.footer_fg)
                                 .bg(bg),
                         ),
                     ]
@@ -249,7 +253,7 @@ pub fn render_footer(frame: &mut Frame, area: Rect) {
     ];
 
     let paragraph = Paragraph::new(content)
-        .style(Style::default().bg(Color::Black));
+        .style(Style::default().bg(theme.footer_bg));
 
     frame.render_widget(paragraph, area);
 }
