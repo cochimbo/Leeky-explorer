@@ -435,7 +435,7 @@ fn render_ui<B: ratatui::backend::Backend>(
         
         // Render preview modal if present
         if let Some(preview) = &app.preview_state {
-            ui::preview_modal::render_preview_modal(f, preview);
+            ui::preview_modal::render_preview_modal(f, preview, &app.theme);
         }
     })?;
     

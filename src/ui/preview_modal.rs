@@ -1,9 +1,10 @@
 // Preview modal rendering
 use crate::app::PreviewState;
+use crate::ui::theme::Theme;
 use humansize::{format_size, DECIMAL};
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, Paragraph, Wrap},
     Frame,
@@ -11,7 +12,7 @@ use ratatui::{
 use super::parse_ansi_line;
 
 /// Render the text preview modal
-pub fn render_preview_modal(f: &mut Frame, preview_state: &PreviewState) {
+pub fn render_preview_modal(f: &mut Frame, preview_state: &PreviewState, theme: &Theme) {
     match preview_state {
         PreviewState::Text {
             content,
@@ -53,7 +54,7 @@ pub fn render_preview_modal(f: &mut Frame, preview_state: &PreviewState) {
             let block = Block::default()
                 .borders(Borders::ALL)
                 .title(title)
-                .style(Style::default().bg(Color::Black).fg(Color::White));
+                .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
 
             // Calculate content area (inside border)
             let inner_area = block.inner(modal_area);
@@ -91,7 +92,7 @@ pub fn render_preview_modal(f: &mut Frame, preview_state: &PreviewState) {
                     Line::from(vec![
                         Span::styled(
                             format!("{:>width$} ", line_num, width = num_width),
-                            Style::default().fg(Color::DarkGray),
+                            Style::default().fg(theme.info_color),
                         ),
                         Span::raw(line_content),
                     ])
@@ -101,7 +102,7 @@ pub fn render_preview_modal(f: &mut Frame, preview_state: &PreviewState) {
             // Render content
             let content_widget = Paragraph::new(lines)
                 .wrap(Wrap { trim: false })
-                .style(Style::default().bg(Color::Black).fg(Color::White));
+                .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
 
             f.render_widget(content_widget, content_area);
 
@@ -127,7 +128,7 @@ pub fn render_preview_modal(f: &mut Frame, preview_state: &PreviewState) {
             ];
 
             let footer = Paragraph::new(Line::from(footer_text))
-                .style(Style::default().bg(Color::Black).fg(Color::Gray))
+                .style(Style::default().bg(theme.dialog_bg).fg(theme.info_color))
                 .alignment(Alignment::Left);
 
             f.render_widget(footer, footer_area);
@@ -183,7 +184,7 @@ pub fn render_preview_modal(f: &mut Frame, preview_state: &PreviewState) {
             let block = Block::default()
                 .borders(Borders::ALL)
                 .title(title)
-                .style(Style::default().bg(Color::Black).fg(Color::White));
+                .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
 
             // Calculate content area (inside border)
             let inner_area = block.inner(modal_area);
@@ -210,7 +211,7 @@ pub fn render_preview_modal(f: &mut Frame, preview_state: &PreviewState) {
                 .collect();
 
             let content_widget = Paragraph::new(art_lines)
-                .style(Style::default().bg(Color::Black))
+                .style(Style::default().bg(theme.dialog_bg))
                 .alignment(Alignment::Center);
 
             f.render_widget(content_widget, content_area);
@@ -225,7 +226,7 @@ pub fn render_preview_modal(f: &mut Frame, preview_state: &PreviewState) {
             ];
 
             let footer = Paragraph::new(Line::from(footer_text))
-                .style(Style::default().bg(Color::Black).fg(Color::Gray))
+                .style(Style::default().bg(theme.dialog_bg).fg(theme.info_color))
                 .alignment(Alignment::Left);
 
             f.render_widget(footer, footer_area);
