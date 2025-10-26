@@ -1096,8 +1096,9 @@ fn clean_windows_path(path: PathBuf) -> PathBuf  // Windows UNC fix
 
 ## Phase 5: Text Editor (P4) - Optional/Deferred
 
-### TASK-027: Create EditorBuffer struct ⬜
+### TASK-027: Create EditorBuffer struct ✅
 **Priority**: P4 | **Time**: 2h | **Dependencies**: None
+**Completed**: Used `tui-textarea` crate instead of custom implementation
 
 **Description**: Buffer for text file content and cursor state. This will enhance the existing preview system to support editing.
 
@@ -1137,8 +1138,9 @@ impl EditorBuffer {
 
 ---
 
-### TASK-028: Create text editor UI widget ⬜
+### TASK-028: Create text editor UI widget ✅
 **Priority**: P4 | **Time**: 3h | **Dependencies**: TASK-027
+**Completed**: Full modal editor with tui-textarea, theme integration, status bar
 
 **Description**: Modal editor widget with rendering (enhancement of preview modal)
 
@@ -1227,8 +1229,9 @@ pub enum EditorAction {
 
 ---
 
-### TASK-029: Add file type validation ⬜
+### TASK-029: Add file type validation ✅
 **Priority**: P4 | **Time**: 1h | **Dependencies**: TASK-028
+**Completed**: Binary file detection (extensions + null bytes), 2MB size limit
 
 **Description**: Prevent editing binary files and large files
 
@@ -1282,8 +1285,9 @@ Action::EditFile => {
 
 ---
 
-### TASK-030: Implement save and close handlers ⬜
+### TASK-030: Implement save and close handlers ✅
 **Priority**: P4 | **Time**: 1h | **Dependencies**: TASK-029
+**Completed**: Ctrl+S save, Esc close, unsaved changes confirmation dialog
 
 **Description**: Handle save operations and unsaved changes
 
@@ -1520,9 +1524,9 @@ cargo build --release
 ## Task Summary
 
 **Total Tasks**: 36  
-**Completed**: 26 tasks (TASK-001 through TASK-026) ✅  
-**Remaining**: 10 tasks (TASK-027 through TASK-036)  
-**Estimated Time**: 34.5 hours (~4-5 work days)
+**Completed**: 30 tasks (TASK-001 through TASK-030) ✅  
+**Remaining**: 6 tasks (TASK-031 through TASK-036)  
+**Estimated Time Remaining**: ~4.75 hours
 
 ### By Phase:
 - **Phase 0** (Foundation): 5 tasks, 4.75h ✅
@@ -1530,30 +1534,39 @@ cargo build --release
 - **Phase 2** (Disk Usage): 3 tasks, 5.5h ✅
 - **Phase 3** (Navigation History): 5 tasks, 5h ✅
 - **Phase 4** (Go To Path): 6 tasks, 4.5h ✅
-- **Phase 5** (Text Editor): 6 tasks, 10h ⬜ *(optional/deferred)*
+- **Phase 5** (Text Editor): 4 tasks, 7h ✅ *(COMPLETED!)*
+- **Phase 5 Edge Cases**: 2 tasks, 3h ⬜ *(in progress)*
 - **Documentation**: 4 tasks, 1.75h ⬜
 
 ### By Priority:
-- **P1** (Critical): 18 tasks - Bookmarks, Foundation, Go To Path, Docs
-- **P2** (High): 10 tasks - Disk Usage, Edge Cases, Autocomplete
-- **P3** (Medium): 6 tasks - Navigation History, Go To Path
-- **P4** (Low): 6 tasks - Text Editor *(can be deferred)*
+- **P1** (Critical): 18 tasks - All core features complete ✅
+- **P2** (High): 10 tasks - All complete ✅
+- **P3** (Medium): 6 tasks - All complete ✅
+- **P4** (Low): 6 tasks - 4 complete, 2 remaining (edge cases)
 
 ### Completed Work:
-1. ✅ **Phase 0-1**: TASK-001 through TASK-010 (Foundation + Bookmarks) - 12h
+1. ✅ **Phase 0-1**: TASK-001 through TASK-010 (Foundation + Bookmarks) - 14.25h
 2. ✅ **Phase 2**: TASK-011 through TASK-015 (Disk Usage) - 5.5h
 3. ✅ **Phase 3**: TASK-016 through TASK-020 (Navigation History) - 5h
 4. ✅ **Phase 4**: TASK-021 through TASK-026 (Go To Path + Autocomplete) - 4.5h
+5. ✅ **Phase 5**: TASK-027 through TASK-030 (Text Editor Core) - 7h
 
 **Current Status**: 
-- 27 commits on branch `004-quick-wins-bookmarks`
-- 111 tests passing (78 library + 33 integration)
-- All features fully functional
+- 30+ commits on branch `004-quick-wins-bookmarks`
+- 81+ tests passing
+- All core features fully functional
+- Text editor working with tui-textarea integration
 
 ### Remaining Work:
-- **Phase 5** (Text Editor): TASK-027 through TASK-032 - 10h *(optional)*
-- **Documentation**: TASK-033 through TASK-036 - 1.75h
+- **TASK-031**: Editor edge cases (read-only, external mods, permissions) - 1h
+- **TASK-032**: Editor integration tests - 2h
+- **TASK-033**: Update README - 0.5h
+- **TASK-034**: Update CHANGELOG - 0.25h
+- **TASK-035**: Full test suite validation - 0.5h
+- **TASK-036**: Requirements checklist - 0.5h
 
-**Release Options**:
-- **MVP Release** (v0.4.0): Complete Phases 0-4 + Docs = 27h ✅ (CURRENT)
-- **Full Release** (v0.4.1): Add Phase 5 (Text Editor) = 37h
+**Next Steps**:
+1. Complete TASK-031 (edge cases)
+2. Complete TASK-032 (tests)
+3. Documentation (TASK-033 to 036)
+4. Release v0.4.0
