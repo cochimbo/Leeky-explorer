@@ -15,49 +15,13 @@ use crate::ui::theme::Theme;
 #[derive(Debug, Clone)]
 pub struct BookmarkManagerState {
     pub selected: usize,
-    pub show_input: bool,
-    pub input_mode: InputMode,
-    pub input_value: String,
-    pub selected_bookmark_name: Option<String>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum InputMode {
-    AddBookmark,
-    RenameBookmark,
 }
 
 impl BookmarkManagerState {
     pub fn new() -> Self {
         Self {
             selected: 0,
-            show_input: false,
-            input_mode: InputMode::AddBookmark,
-            input_value: String::new(),
-            selected_bookmark_name: None,
         }
-    }
-
-    /// Start adding a new bookmark
-    pub fn start_add(&mut self, default_name: String) {
-        self.show_input = true;
-        self.input_mode = InputMode::AddBookmark;
-        self.input_value = default_name;
-    }
-
-    /// Start renaming a bookmark
-    pub fn start_rename(&mut self, bookmark_name: String) {
-        self.show_input = true;
-        self.input_mode = InputMode::RenameBookmark;
-        self.input_value = bookmark_name.clone();
-        self.selected_bookmark_name = Some(bookmark_name);
-    }
-
-    /// Cancel input mode
-    pub fn cancel_input(&mut self) {
-        self.show_input = false;
-        self.input_value.clear();
-        self.selected_bookmark_name = None;
     }
 
     /// Move selection up
@@ -99,17 +63,8 @@ pub fn render(
     frame.render_widget(Clear, area);
     
     // Create main block
-    let title = if state.show_input {
-        match state.input_mode {
-            InputMode::AddBookmark => " Add Bookmark ",
-            InputMode::RenameBookmark => " Rename Bookmark ",
-        }
-    } else {
-        " Bookmark Manager (Ctrl+B) "
-    };
-    
     let block = Block::default()
-        .title(title)
+        .title(" Bookmark Manager (Ctrl+B) ")
         .title_alignment(Alignment::Center)
         .borders(Borders::ALL)
         .border_style(Style::default().fg(theme.active_border))
@@ -125,58 +80,7 @@ pub fn render(
         height: area.height.saturating_sub(2),
     };
     
-    if state.show_input {
-        render_input_mode(frame, inner, state, theme);
-    } else {
-        render_list_mode(frame, inner, bookmarks, state, theme);
-    }
-}
-
-/// Render input mode for adding/renaming bookmarks
-fn render_input_mode(
-    frame: &mut Frame,
-    area: Rect,
-    state: &BookmarkManagerState,
-    theme: &Theme,
-) {
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(3),  // Prompt
-            Constraint::Length(3),  // Input box
-            Constraint::Min(1),     // Spacer
-            Constraint::Length(2),  // Footer
-        ])
-        .split(area);
-    
-    // Prompt
-    let prompt_text = match state.input_mode {
-        InputMode::AddBookmark => "Enter a name for this bookmark:",
-        InputMode::RenameBookmark => "Enter new name:",
-    };
-    
-    let prompt = Paragraph::new(prompt_text)
-        .style(Style::default().fg(theme.dialog_fg))
-        .alignment(Alignment::Left);
-    frame.render_widget(prompt, chunks[0]);
-    
-    // Input box
-    let input_block = Block::default()
-        .borders(Borders::ALL)
-        .border_style(Style::default().fg(theme.highlight_fg));
-    
-    let input_text = format!("{}_", state.input_value);
-    let input_paragraph = Paragraph::new(input_text)
-        .style(Style::default().fg(theme.dialog_fg))
-        .block(input_block);
-    
-    frame.render_widget(input_paragraph, chunks[1]);
-    
-    // Footer instructions
-    let footer = Paragraph::new("Enter: Confirm | Esc: Cancel")
-        .style(Style::default().fg(theme.info_color))
-        .alignment(Alignment::Center);
-    frame.render_widget(footer, chunks[3]);
+    render_list_mode(frame, inner, bookmarks, state, theme);
 }
 
 /// Render list mode showing all bookmarks
@@ -291,13 +195,15 @@ fn create_bookmark_item(
         spans.push(Span::raw("  "));
     }
     
-    // Bookmark name (bold if selected)
+    // Bookmark name
     let name_style = if is_selected {
         Style::default()
             .fg(theme.highlight_fg)
             .add_modifier(Modifier::BOLD)
     } else if !exists {
-        Style::default().fg(theme.error_color)
+        Style::default()
+            .fg(theme.error_color)
+            .add_modifier(Modifier::DIM)
     } else {
         Style::default().fg(theme.dialog_fg)
     };
@@ -310,7 +216,7 @@ fn create_bookmark_item(
     // Path with existence indicator
     let path_display = bookmark.path.display().to_string();
     let path_text = if !exists {
-        format!("{} [PATH NOT FOUND]", path_display)
+        format!("{} [INVALID]", path_display)
     } else {
         path_display
     };
@@ -318,9 +224,13 @@ fn create_bookmark_item(
     let path_style = if is_selected {
         Style::default().fg(theme.info_color)
     } else if !exists {
-        Style::default().fg(theme.error_color)
+        Style::default()
+            .fg(theme.error_color)
+            .add_modifier(Modifier::DIM)
     } else {
-        Style::default().fg(theme.info_color)
+        Style::default()
+            .fg(theme.info_color)
+            .add_modifier(Modifier::DIM)
     };
     
     spans.push(Span::styled(path_text, path_style));
@@ -365,40 +275,6 @@ mod tests {
     fn test_state_creation() {
         let state = BookmarkManagerState::new();
         assert_eq!(state.selected, 0);
-        assert!(!state.show_input);
-        assert!(state.input_value.is_empty());
-    }
-
-    #[test]
-    fn test_start_add() {
-        let mut state = BookmarkManagerState::new();
-        state.start_add("TestName".to_string());
-        
-        assert!(state.show_input);
-        assert_eq!(state.input_mode, InputMode::AddBookmark);
-        assert_eq!(state.input_value, "TestName");
-    }
-
-    #[test]
-    fn test_start_rename() {
-        let mut state = BookmarkManagerState::new();
-        state.start_rename("OldName".to_string());
-        
-        assert!(state.show_input);
-        assert_eq!(state.input_mode, InputMode::RenameBookmark);
-        assert_eq!(state.input_value, "OldName");
-        assert_eq!(state.selected_bookmark_name, Some("OldName".to_string()));
-    }
-
-    #[test]
-    fn test_cancel_input() {
-        let mut state = BookmarkManagerState::new();
-        state.start_add("Test".to_string());
-        state.cancel_input();
-        
-        assert!(!state.show_input);
-        assert!(state.input_value.is_empty());
-        assert!(state.selected_bookmark_name.is_none());
     }
 
     #[test]
