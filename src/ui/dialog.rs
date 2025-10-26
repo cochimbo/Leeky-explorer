@@ -1,5 +1,5 @@
 // Dialog rendering
-use crate::app::DialogState;
+use crate::app::{AppState, DialogState};
 use crate::models::operation::Progress;
 use crate::ui::theme::Theme;
 use ratatui::{
@@ -10,7 +10,7 @@ use ratatui::{
     Frame,
 };
 
-pub fn render_dialog(frame: &mut Frame, dialog: &DialogState, area: Rect, theme: &Theme) {
+pub fn render_dialog(frame: &mut Frame, dialog: &DialogState, area: Rect, theme: &Theme, app: &AppState) {
     match dialog {
         DialogState::Confirm { message, .. } => {
             render_confirm_dialog(frame, message, area, theme);
@@ -47,6 +47,10 @@ pub fn render_dialog(frame: &mut Frame, dialog: &DialogState, area: Rect, theme:
         // US5: Render theme selector dialog
         DialogState::ThemeSelector { themes, selected } => {
             crate::ui::theme_selector::render(frame, themes, *selected, theme);
+        }
+        // TASK-008: Render bookmark manager dialog
+        DialogState::BookmarkManager { state } => {
+            crate::ui::bookmark_manager::render(frame, &app.bookmarks, state, theme);
         }
     }
 }

@@ -136,11 +136,11 @@ pub fn render_dialog_if_present(frame: &mut Frame, app: &AppState) {
                         &app.theme,
                     );
                 } else {
-                    dialog::render_dialog(frame, dialog, frame.area(), &app.theme);
+                    dialog::render_dialog(frame, dialog, frame.area(), &app.theme, app);
                 }
             }
             _ => {
-                dialog::render_dialog(frame, dialog, frame.area(), &app.theme);
+                dialog::render_dialog(frame, dialog, frame.area(), &app.theme, app);
             }
         }
     }

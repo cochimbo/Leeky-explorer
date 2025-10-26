@@ -57,6 +57,11 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
         return handle_theme_selector_dialog(app, key);
     }
     
+    // TASK-008: Special handling for bookmark manager
+    if let Some(DialogState::BookmarkManager { .. }) = &app.dialog_state {
+        return handle_bookmark_manager_dialog(app, key);
+    }
+    
     // Special handling for compress options dialog
     if let Some(DialogState::CompressOptions { .. }) = &app.dialog_state {
         return handle_compress_options_dialog(app, key);
@@ -204,6 +209,11 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
                 themes,
                 selected,
             });
+        }
+        Action::ToggleBookmarkManager => {
+            // TASK-008: Open bookmark manager dialog
+            let state = crate::ui::bookmark_manager::BookmarkManagerState::new();
+            app.dialog_state = Some(DialogState::BookmarkManager { state });
         }
         Action::ExtractArchive => {
             // T838-T839: Extract archive
@@ -982,22 +992,61 @@ fn handle_input_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
     match action {
         Action::ConfirmInput => {
             if let Some(value) = app.get_input_value()
-                && !value.is_empty() {
-                    // BUG-001 FIX: Only close dialog if create_folder succeeds
-                    if create_folder(app, &value).is_ok() && app.error_message.is_none() {
-                        app.close_dialog();
-                    } else {
-                        // Keep dialog open to show error, but clear input to allow retry
-                        // Actually, convert to error dialog
-                        if let Some(err_msg) = app.error_message.take() {
+                && !value.is_empty()
+            {
+                // TASK-008: Check if this is a bookmark operation
+                if let Some(ref context) = app.error_message {
+                    if context.starts_with("RENAME:") {
+                        // Rename bookmark
+                        let old_name = context.strip_prefix("RENAME:").unwrap();
+                        if let Err(e) = app.bookmarks.rename(old_name, value.clone()) {
+                            app.error_message = Some(format!("Failed to rename bookmark: {}", e));
                             app.dialog_state = Some(DialogState::Error {
-                                message: err_msg,
+                                message: format!("Failed to rename bookmark: {}", e),
                             });
+                        } else {
+                            app.error_message = None;
+                            app.close_dialog();
+                            // Reopen bookmark manager
+                            let state = crate::ui::bookmark_manager::BookmarkManagerState::new();
+                            app.dialog_state = Some(DialogState::BookmarkManager { state });
                         }
+                        return Ok(Action::None);
+                    } else if !context.starts_with("Error") {
+                        // Add bookmark (context contains the path)
+                        let path = std::path::PathBuf::from(context.clone());
+                        if let Err(e) = app.bookmarks.add(value.clone(), path.clone()) {
+                            app.error_message = Some(format!("Failed to add bookmark: {}", e));
+                            app.dialog_state = Some(DialogState::Error {
+                                message: format!("Failed to add bookmark: {}", e),
+                            });
+                        } else {
+                            app.error_message = None;
+                            app.close_dialog();
+                            // Reopen bookmark manager
+                            let state = crate::ui::bookmark_manager::BookmarkManagerState::new();
+                            app.dialog_state = Some(DialogState::BookmarkManager { state });
+                        }
+                        return Ok(Action::None);
                     }
-                } else {
-                    app.close_dialog();
                 }
+                
+                // Original behavior: create folder
+                // BUG-001 FIX: Only close dialog if create_folder succeeds
+                if create_folder(app, &value).is_ok() && app.error_message.is_none() {
+                    app.close_dialog();
+                } else {
+                    // Keep dialog open to show error, but clear input to allow retry
+                    // Actually, convert to error dialog
+                    if let Some(err_msg) = app.error_message.take() {
+                        app.dialog_state = Some(DialogState::Error {
+                            message: err_msg,
+                        });
+                    }
+                }
+            } else {
+                app.close_dialog();
+            }
         }
         Action::InputChar(c) => {
             app.input_dialog_append(c);
@@ -1699,6 +1748,150 @@ fn handle_theme_selector_dialog(app: &mut AppState, key: KeyEvent) -> Result<Act
         }
         // Escape: cancel without applying
         (KeyCode::Esc, _) => {
+            app.close_dialog();
+        }
+        _ => {}
+    }
+    
+    Ok(Action::None)
+}
+
+// TASK-008: Handle bookmark manager dialog key events
+fn handle_bookmark_manager_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
+    use crossterm::event::{KeyCode, KeyModifiers};
+    
+    match (key.code, key.modifiers) {
+        // Up: move selection up
+        (KeyCode::Up, _) | (KeyCode::Char('k'), KeyModifiers::NONE) => {
+            let bookmark_count = app.bookmarks.count();
+            if let Some(DialogState::BookmarkManager { state }) = &mut app.dialog_state {
+                state.move_up(bookmark_count);
+            }
+        }
+        // Down: move selection down
+        (KeyCode::Down, _) | (KeyCode::Char('j'), KeyModifiers::NONE) => {
+            let bookmark_count = app.bookmarks.count();
+            if let Some(DialogState::BookmarkManager { state }) = &mut app.dialog_state {
+                state.move_down(bookmark_count);
+            }
+        }
+        // Enter: navigate to selected bookmark
+        (KeyCode::Enter, _) => {
+            // Clone bookmark info before mutating app
+            let bookmark_info = if let Some(DialogState::BookmarkManager { state }) = &app.dialog_state {
+                app.bookmarks.get_all()
+                    .get(state.selected)
+                    .map(|b| (b.name.clone(), b.path.clone(), b.path_exists()))
+            } else {
+                None
+            };
+            
+            if let Some((name, path, exists)) = bookmark_info {
+                if exists {
+                    // Navigate active panel to bookmarked path
+                    app.active_panel_mut().current_path = path;
+                    
+                    // Update last accessed timestamp
+                    let _ = app.bookmarks.access(&name);
+                    
+                    app.close_dialog();
+                    // Return Refresh to reload the panel contents
+                    return Ok(Action::Refresh);
+                } else {
+                    // Show error for invalid bookmark
+                    app.error_message = Some(format!("Bookmark path does not exist: {}", path.display()));
+                    app.close_dialog();
+                }
+            }
+        }
+        // 'a': add current directory as bookmark
+        (KeyCode::Char('a'), KeyModifiers::NONE) | (KeyCode::Char('A'), KeyModifiers::NONE) => {
+            let current_path = app.active_panel().current_path.clone();
+            let default_name = current_path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("bookmark")
+                .to_string();
+            
+            // Close bookmark manager and open input dialog
+            app.close_dialog();
+            app.dialog_state = Some(DialogState::Input {
+                prompt: format!("Add bookmark for: {}", current_path.display()),
+                value: default_name,
+            });
+            // Store the path in error_message temporarily (we'll use it when input is confirmed)
+            app.error_message = Some(current_path.display().to_string());
+        }
+        // 'r': rename selected bookmark
+        (KeyCode::Char('r'), KeyModifiers::NONE) | (KeyCode::Char('R'), KeyModifiers::NONE) => {
+            let bookmark_info = if let Some(DialogState::BookmarkManager { state }) = &app.dialog_state {
+                app.bookmarks.get_all()
+                    .get(state.selected)
+                    .map(|b| b.name.clone())
+            } else {
+                None
+            };
+            
+            if let Some(old_name) = bookmark_info {
+                // Close bookmark manager and open input dialog
+                app.close_dialog();
+                app.dialog_state = Some(DialogState::Input {
+                    prompt: format!("Rename bookmark: {}", old_name),
+                    value: old_name.clone(),
+                });
+                // Store the old name in error_message temporarily
+                app.error_message = Some(format!("RENAME:{}", old_name));
+            }
+        }
+        // 'd': delete selected bookmark
+        (KeyCode::Char('d'), KeyModifiers::NONE) | (KeyCode::Char('D'), KeyModifiers::NONE) => {
+            let bookmark_name = if let Some(DialogState::BookmarkManager { state }) = &app.dialog_state {
+                app.bookmarks.get_all()
+                    .get(state.selected)
+                    .map(|b| b.name.clone())
+            } else {
+                None
+            };
+            
+            if let Some(name) = bookmark_name {
+                if let Err(e) = app.bookmarks.remove(&name) {
+                    app.error_message = Some(format!("Failed to delete bookmark: {}", e));
+                }
+                
+                // Update selection if needed
+                if let Some(DialogState::BookmarkManager { state }) = &mut app.dialog_state {
+                    let new_count = app.bookmarks.count();
+                    if state.selected >= new_count && new_count > 0 {
+                        state.selected = new_count - 1;
+                    }
+                    if new_count == 0 {
+                        state.reset_selection();
+                    }
+                }
+            }
+        }
+        // 'c': clean invalid bookmarks
+        (KeyCode::Char('c'), KeyModifiers::NONE) | (KeyCode::Char('C'), KeyModifiers::NONE) => {
+            match app.bookmarks.clean_invalid() {
+                Ok(removed) => {
+                    if removed > 0 {
+                        app.error_message = Some(format!("Removed {} invalid bookmark(s)", removed));
+                        
+                        // Reset selection
+                        if let Some(DialogState::BookmarkManager { state }) = &mut app.dialog_state {
+                            state.reset_selection();
+                        }
+                    } else {
+                        app.error_message = Some("No invalid bookmarks found".to_string());
+                    }
+                }
+                Err(e) => {
+                    app.error_message = Some(format!("Failed to clean bookmarks: {}", e));
+                }
+            }
+        }
+        // Escape: close dialog
+        (KeyCode::Esc, _) | (KeyCode::Char('b'), KeyModifiers::CONTROL) | (KeyCode::Char('B'), KeyModifiers::CONTROL) => {
             app.close_dialog();
         }
         _ => {}

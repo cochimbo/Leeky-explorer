@@ -105,6 +105,10 @@ pub enum DialogState {
         themes: Vec<crate::ui::theme::Theme>,
         selected: usize,
     },
+    // TASK-008: Bookmark manager dialog
+    BookmarkManager {
+        state: crate::ui::bookmark_manager::BookmarkManagerState,
+    },
 }
 
 #[derive(Debug, Clone)]
