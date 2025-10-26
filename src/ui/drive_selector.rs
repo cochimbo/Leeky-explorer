@@ -56,6 +56,13 @@ pub fn render(
         .alignment(Alignment::Center);
     frame.render_widget(header, chunks[0]);
     
+    // Calculate maximum label width for alignment
+    let max_label_width = drives.iter()
+        .map(|(_, label)| label.len())
+        .max()
+        .unwrap_or(10)
+        .max(10); // At least 10 characters
+    
     // Drive list with usage bars
     let items: Vec<ListItem> = drives
         .iter()
@@ -87,15 +94,16 @@ pub fn render(
                 // Build complete line with all components
                 let mut spans = vec![
                     Span::styled(prefix, base_style),
-                    Span::styled(format!("{:<10}", label), base_style),
+                    Span::styled(format!("{:<width$}", label, width = max_label_width), base_style),
+                    Span::raw(" "), // Spacing before bar
                 ];
                 
                 // Add the gradient bar spans
                 spans.extend(bar_spans);
                 
-                // Add percentage and free space
-                spans.push(Span::styled(format!(" {:>3.0}% ", usage_pct), base_style));
-                spans.push(Span::styled(format!("({} free)", format_size(info.free_bytes)), base_style));
+                // Add percentage and free space with consistent spacing
+                spans.push(Span::styled(format!(" {:>3.0}%", usage_pct), base_style));
+                spans.push(Span::styled(format!("  ({:>8})", format_size(info.free_bytes)), base_style));
                 
                 Line::from(spans)
             } else {
