@@ -1,38 +1,44 @@
 # 🗂️ Leeky Explorer
 
+![Leeky Explorer Logo](assets/images/leekpc.png)
+
 A fast, dual-pane terminal file manager built with Rust and Ratatui.
 
 [![Rust](https://img.shields.io/badge/rust-1.70%2B-orange.svg)](https://www.rust-lang.org/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/cochimbo/Leeky-explorer)](https://github.com/cochimbo/Leeky-explorer/releases)
 
 ## ✨ Features
 
 - **Dual-Pane Navigation**: Classic two-panel interface for efficient file management
 - **Fast & Responsive**: Built with Rust for maximum performance
+- **🎨 Theme System**: Choose from 8 beautiful built-in themes with live preview (F12)
 - **Archive Support**: Extract and create ZIP, TAR.GZ, TAR.BZ2, TAR.XZ, and 7Z archives
 - **Password Protection**: Encrypt/decrypt ZIP archives with passwords
 - **File Preview**: View text files and images directly in the terminal (ASCII art)
 - **Multi-Selection**: Select multiple files for batch operations
 - **Smart Search**: Quick filter with glob pattern support (`*.txt`, `test*`, etc.)
+- **Drive Selector**: Quick drive switching on Windows (F10)
 - **Progress Tracking**: Real-time progress bars for long operations
 - **Operation Cancellation**: Press ESC to cancel ongoing operations
 - **Safe Operations**: Collision detection, disk space validation, permission checks
-- **Session Persistence**: Remembers panel positions and active panel between sessions
+- **Session Persistence**: Remembers panel positions, active panel, and theme between sessions
+- **Cross-Platform**: Full support for Windows, Linux, macOS, and Raspberry Pi (ARM)
 
 ## 📦 Installation
 
 ### Pre-built Binaries (Recommended)
 
-Download the latest release for your platform from [GitHub Releases](https://github.com/cochimbo/Leeky-explorer/releases):
+Download the latest release for your platform from [GitHub Releases](https://github.com/cochimbo/Leeky-explorer/releases/latest).
 
-**Linux (x86_64)**:
+#### 🐧 Linux (x86_64)
 ```bash
 # Download and extract
-wget https://github.com/cochimbo/Leeky-explorer/releases/download/v0.2.0/leeky-explorer-v0.2.0-linux-x86_64.tar.gz
-tar -xzf leeky-explorer-v0.2.0-linux-x86_64.tar.gz
+wget https://github.com/cochimbo/Leeky-explorer/releases/download/v0.3.0/leeky-explorer-v0.3.0-linux-x86_64.tar.gz
+tar -xzf leeky-explorer-v0.3.0-linux-x86_64.tar.gz
 
 # Verify checksum (optional)
-sha256sum -c leeky-explorer-v0.2.0-linux-x86_64.tar.gz.sha256
+sha256sum -c leeky-explorer-v0.3.0-linux-x86_64.tar.gz.sha256
 
 # Move to PATH
 sudo mv leeky-explorer /usr/local/bin/
@@ -41,10 +47,28 @@ sudo mv leeky-explorer /usr/local/bin/
 leeky-explorer
 ```
 
-**Windows (x86_64)**:
+#### 🍓 Raspberry Pi / ARM Devices
+
+**ARM64 (Raspberry Pi 3/4/5 - 64-bit OS)**:
+```bash
+wget https://github.com/cochimbo/Leeky-explorer/releases/download/v0.3.0/leeky-explorer-v0.3.0-linux-arm64.tar.gz
+tar -xzf leeky-explorer-v0.3.0-linux-arm64.tar.gz
+sudo mv leeky-explorer /usr/local/bin/
+leeky-explorer
+```
+
+**ARMv7 (Raspberry Pi 2/3 - 32-bit OS)**:
+```bash
+wget https://github.com/cochimbo/Leeky-explorer/releases/download/v0.3.0/leeky-explorer-v0.3.0-linux-armv7.tar.gz
+tar -xzf leeky-explorer-v0.3.0-linux-armv7.tar.gz
+sudo mv leeky-explorer /usr/local/bin/
+leeky-explorer
+```
+
+#### 🪟 Windows (x86_64)
 ```powershell
 # Download from GitHub Releases page or use PowerShell
-Invoke-WebRequest -Uri "https://github.com/cochimbo/Leeky-explorer/releases/download/v0.2.0/leeky-explorer-v0.2.0-windows-x86_64.zip" -OutFile "leeky-explorer.zip"
+Invoke-WebRequest -Uri "https://github.com/cochimbo/Leeky-explorer/releases/download/v0.3.0/leeky-explorer-v0.3.0-windows-x86_64.zip" -OutFile "leeky-explorer.zip"
 
 # Extract
 Expand-Archive leeky-explorer.zip -DestinationPath .
@@ -56,14 +80,14 @@ Get-FileHash leeky-explorer.exe -Algorithm SHA256
 .\leeky-explorer.exe
 ```
 
-**macOS (Intel)**:
+#### 🍎 macOS (Intel)
 ```bash
 # Download and extract
-curl -L -o leeky-explorer.tar.gz https://github.com/cochimbo/Leeky-explorer/releases/download/v0.2.0/leeky-explorer-v0.2.0-macos-x86_64.tar.gz
+curl -L -o leeky-explorer.tar.gz https://github.com/cochimbo/Leeky-explorer/releases/download/v0.3.0/leeky-explorer-v0.3.0-macos-x86_64.tar.gz
 tar -xzf leeky-explorer.tar.gz
 
 # Verify checksum (optional)
-shasum -a 256 -c leeky-explorer-v0.2.0-macos-x86_64.tar.gz.sha256
+shasum -a 256 -c leeky-explorer-v0.3.0-macos-x86_64.tar.gz.sha256
 
 # Move to PATH
 sudo mv leeky-explorer /usr/local/bin/
@@ -72,10 +96,10 @@ sudo mv leeky-explorer /usr/local/bin/
 leeky-explorer
 ```
 
-**macOS (M1/M2 ARM)**:
+#### 🍎 macOS (M1/M2/M3 Apple Silicon)
 ```bash
 # Download and extract
-curl -L -o leeky-explorer.tar.gz https://github.com/cochimbo/Leeky-explorer/releases/download/v0.2.0/leeky-explorer-v0.2.0-macos-arm64.tar.gz
+curl -L -o leeky-explorer.tar.gz https://github.com/cochimbo/Leeky-explorer/releases/download/v0.3.0/leeky-explorer-v0.3.0-macos-arm64.tar.gz
 tar -xzf leeky-explorer.tar.gz
 
 # Move to PATH
@@ -85,17 +109,30 @@ sudo mv leeky-explorer /usr/local/bin/
 leeky-explorer
 ```
 
+### Supported Platforms
+
+| Platform | Architecture | Status |
+|----------|-------------|--------|
+| Linux | x86_64 | ✅ Fully Supported |
+| Linux | ARM64 (aarch64) | ✅ Fully Supported |
+| Linux | ARMv7 (32-bit) | ✅ Fully Supported |
+| Windows | x86_64 | ✅ Fully Supported |
+| macOS | Intel (x86_64) | ✅ Fully Supported |
+| macOS | Apple Silicon (ARM64) | ✅ Fully Supported |
+
 ### From Source
 
 ```bash
 # Clone the repository
-git clone https://gitlab.com/cochimbo/Leeky-explorer.git
+git clone https://github.com/cochimbo/Leeky-explorer.git
 cd Leeky-explorer
 
 # Build and install
 cargo install --path .
 
 # Run
+leeky-explorer
+```
 leeky-explorer
 ```
 
@@ -147,6 +184,8 @@ make package
 
 | Key | Action |
 |-----|--------|
+| `F2` | Rename file/directory (name only) |
+| `Shift+F2` | Rename with extension |
 | `F5` | Copy file(s) to opposite panel |
 | `F6` | Move file(s) to opposite panel |
 | `F7` | Create new directory |
@@ -158,8 +197,8 @@ make package
 
 | Key | Action |
 |-----|--------|
-| `Ctrl+E` | Extract archive to current directory |
-| `Ctrl+Z` | Compress selected files |
+| `F9` | Extract archive to current directory |
+| `Shift+F9` | Compress selected files |
 
 **Compression Options**:
 - Format: ZIP, TAR.GZ, TAR.BZ2, TAR.XZ
@@ -170,21 +209,41 @@ make package
 
 | Key | Action |
 |-----|--------|
-| `/` | Start search/filter mode |
-| `Esc` | Clear filter |
-| Any character | Filter files by pattern |
+| `F3` | Start search/filter mode |
+| `F3` (again) | Clear filter and exit search |
+| `Shift+F3` | Clear search pattern and filter |
+| `Esc` | Clear filter (in search mode) |
+| Any character | Filter files by pattern (while in search mode) |
 
 **Search supports**:
 - Glob patterns: `*.rs`, `test*`, `file?.txt`
 - Case-insensitive matching
 - Real-time filtering
 
+### System & Customization
+
+| Key | Action |
+|-----|--------|
+| `F4` | Preview file (text/image) |
+| `F10` | Drive selector (Windows) |
+| `F12` | Theme selector with live preview |
+
+**Built-in Themes**:
+- 🌟 Classic (default)
+- ☀️ Light
+- 🌙 Dark
+- ⚡ High Contrast
+- 🌊 Nord
+- 🧛 Dracula
+- 🌅 Solarized Dark
+- 🌄 Solarized Light
+
 ### Preview Mode
 
 | Key | Action |
 |-----|--------|
-| `Enter` | Open file preview (on file) |
-| `Esc` | Close preview |
+| `F4` | Open file preview (on file) |
+| `Esc` / `q` | Close preview |
 | `↑` / `k` | Scroll up |
 | `↓` / `j` | Scroll down |
 | `Page Up` | Scroll up one page |
@@ -201,8 +260,7 @@ make package
 
 | Key | Action |
 |-----|--------|
-| `?` | Help screen (keybindings) |
-| `Ctrl+C` / `q` | Quit application |
+| `Ctrl+Q` | Quit application |
 | `Esc` | Cancel operation / Close dialog |
 
 ## 🖼️ Screenshot
@@ -288,7 +346,9 @@ leeky-explorer/
 │   ├── ui/                  # User interface
 │   │   ├── panel_widget.rs  # Dual-pane rendering
 │   │   ├── dialog.rs        # Dialogs (confirm, input, progress)
-│   │   └── preview_modal.rs # File preview window
+│   │   ├── preview_modal.rs # File preview window
+│   │   ├── theme.rs         # Theme system (8 built-in themes)
+│   │   └── theme_selector.rs # Theme picker with live preview
 │   ├── events/              # Event handling
 │   │   ├── handler.rs       # Key event dispatcher
 │   │   └── keybindings.rs   # Key mappings
@@ -330,15 +390,17 @@ cargo test -- --nocapture
 # Run specific test
 cargo test test_copy_file
 
-# Generate code coverage
-cargo tarpaulin --out Html
+# Run clippy for code quality
+cargo clippy --all-targets --all-features -- -D warnings
 ```
 
-**Test Coverage**: 58 tests across 8 test suites
+**Test Coverage**: 83 tests across 8 test suites
 - Unit tests for core functionality
 - Integration tests for file operations
 - Compression/extraction tests
 - UI state management tests
+- Configuration persistence tests
+- Search and filter tests
 
 ## 🐛 Error Handling
 
@@ -360,6 +422,9 @@ Configuration is automatically saved in:
 Stored data:
 - Last panel paths (left/right)
 - Active panel selection
+- Selected theme name
+
+The theme preference persists between sessions, and you can switch themes anytime with `F12`.
 
 ## 🤝 Contributing
 

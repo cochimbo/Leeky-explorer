@@ -1,5 +1,7 @@
 // Application state management
 use std::path::{Path, PathBuf};
+use std::collections::HashMap;
+use std::time::Instant;
 
 use crate::models::file_entry::{FileEntry, EntryType};
 use crate::models::operation::Operation;
@@ -31,6 +33,11 @@ pub struct AppState {
     pub right_all_entries: Vec<FileEntry>,
     pub selection_state: SelectionState,
     pub preview_state: Option<PreviewState>,
+    pub show_welcome: bool,
+    // T077: Disk space cache with 5-second TTL
+    pub disk_space_cache: HashMap<PathBuf, (crate::fs::disk_info::DiskSpaceInfo, Instant)>,
+    // US5: Current theme
+    pub theme: crate::ui::theme::Theme,
 }
 
 #[derive(Debug, Clone)]
@@ -85,6 +92,16 @@ pub enum DialogState {
         password: String,
         confirm_password: String,
         selected_field: usize, // 0=name, 1=format, 2=level, 3=password_checkbox, 4=password, 5=confirm_password
+    },
+    // US4: Drive selector dialog (Windows drive letters)
+    DriveSelector {
+        drives: Vec<(String, String)>, // (letter like "C:", label like "Local Disk")
+        selected: usize,
+    },
+    // US5: Theme selector dialog
+    ThemeSelector {
+        themes: Vec<crate::ui::theme::Theme>,
+        selected: usize,
     },
 }
 
@@ -147,6 +164,12 @@ impl AppState {
         let persisted = crate::config::state::PersistedState::load()
             .unwrap_or_default();
 
+        // US5: Load theme from persisted state or use default
+        let theme = persisted.theme_name
+            .as_ref()
+            .and_then(|name| crate::ui::theme::Theme::by_name(name))
+            .unwrap_or_default();
+
         Ok(Self {
             left_panel: Panel::new(persisted.left_panel_path),
             right_panel: Panel::new(persisted.right_panel_path),
@@ -160,6 +183,9 @@ impl AppState {
             right_all_entries: Vec::new(),
             selection_state: SelectionState::new(),
             preview_state: None,
+            show_welcome: true,
+            disk_space_cache: HashMap::new(),
+            theme, // US5: Set loaded theme
         })
     }
 
@@ -169,6 +195,7 @@ impl AppState {
             left_panel_path: self.left_panel.current_path.clone(),
             right_panel_path: self.right_panel.current_path.clone(),
             active_panel: self.active_panel.into(),
+            theme_name: Some(self.theme.name.clone()), // US5: Save theme name
         };
         
         state.save()
@@ -192,6 +219,28 @@ impl AppState {
         match self.active_panel {
             PanelSide::Left => &self.right_panel,
             PanelSide::Right => &self.left_panel,
+        }
+    }
+
+    /// T078: Get disk space info with caching (5-second TTL)
+    pub fn get_cached_disk_space(&mut self, path: &Path) -> Option<crate::fs::disk_info::DiskSpaceInfo> {
+        const CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(5);
+        
+        // Check if we have a cached entry
+        if let Some((info, timestamp)) = self.disk_space_cache.get(path)
+            && timestamp.elapsed() < CACHE_TTL
+        {
+            // Cache is still valid
+            return Some(info.clone());
+        }
+        
+        // Cache miss or expired - query filesystem
+        if let Ok(info) = crate::fs::disk_info::get_disk_space(path) {
+            // Store in cache
+            self.disk_space_cache.insert(path.to_path_buf(), (info.clone(), Instant::now()));
+            Some(info)
+        } else {
+            None
         }
     }
 
@@ -638,6 +687,9 @@ impl Default for AppState {
                 right_all_entries: Vec::new(),
                 selection_state: SelectionState::new(),
                 preview_state: None,
+                show_welcome: true,
+                disk_space_cache: HashMap::new(),
+                theme: crate::ui::theme::Theme::default(), // US5: Default theme
             }
         })
     }

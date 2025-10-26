@@ -1,6 +1,7 @@
 // Dialog rendering
 use crate::app::DialogState;
 use crate::models::operation::Progress;
+use crate::ui::theme::Theme;
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
@@ -9,40 +10,48 @@ use ratatui::{
     Frame,
 };
 
-pub fn render_dialog(frame: &mut Frame, dialog: &DialogState, area: Rect) {
+pub fn render_dialog(frame: &mut Frame, dialog: &DialogState, area: Rect, theme: &Theme) {
     match dialog {
         DialogState::Confirm { message, .. } => {
-            render_confirm_dialog(frame, message, area);
+            render_confirm_dialog(frame, message, area, theme);
         }
         DialogState::Input { prompt, value } => {
-            render_input_dialog(frame, prompt, value, area);
+            render_input_dialog(frame, prompt, value, area, theme);
         }
         DialogState::Rename { prompt, value, .. } => {
-            render_input_dialog(frame, prompt, value, area);
+            render_input_dialog(frame, prompt, value, area, theme);
         }
         DialogState::Progress { message } => {
-            render_progress_dialog(frame, message, area);
+            render_progress_dialog(frame, message, area, theme);
         }
         DialogState::Error { message } => {
-            render_error_dialog(frame, message, area);
+            render_error_dialog(frame, message, area, theme);
         }
         DialogState::ExtractOptions { archive_name, dest, selected, .. } => {
-            render_extract_options_dialog(frame, archive_name, dest, *selected, area);
+            render_extract_options_dialog(frame, archive_name, dest, *selected, area, theme);
         }
         DialogState::PasswordInput { prompt, value, show_password, .. } => {
-            render_password_input_dialog(frame, prompt, value, *show_password, area);
+            render_password_input_dialog(frame, prompt, value, *show_password, area, theme);
         }
         DialogState::CollisionPrompt { file_path, selected, operation: _ } => {
-            render_collision_dialog(frame, file_path, *selected, area);
+            render_collision_dialog(frame, file_path, *selected, area, theme);
         }
         // T930: Render compression options dialog
         DialogState::CompressOptions { sources, output_name, format, level, use_password, password, confirm_password, selected_field } => {
-            render_compress_options_dialog(frame, sources, output_name, format, level, *use_password, password, confirm_password, *selected_field, area);
+            render_compress_options_dialog(frame, sources, output_name, format, level, *use_password, password, confirm_password, *selected_field, area, theme);
+        }
+        // US4: Render drive selector dialog
+        DialogState::DriveSelector { drives, selected } => {
+            crate::ui::drive_selector::render(frame, drives, *selected, theme);
+        }
+        // US5: Render theme selector dialog
+        DialogState::ThemeSelector { themes, selected } => {
+            crate::ui::theme_selector::render(frame, themes, *selected, theme);
         }
     }
 }
 
-pub fn render_extract_options_dialog(frame: &mut Frame, archive_name: &str, dest: &std::path::Path, selected: usize, area: Rect) {
+pub fn render_extract_options_dialog(frame: &mut Frame, archive_name: &str, dest: &std::path::Path, selected: usize, area: Rect, theme: &Theme) {
     let dialog_area = centered_rect(70, 35, area);
     
     frame.render_widget(Clear, dialog_area);
@@ -50,7 +59,7 @@ pub fn render_extract_options_dialog(frame: &mut Frame, archive_name: &str, dest
     let block = Block::default()
         .borders(Borders::ALL)
         .title(" Extract Archive ")
-        .style(Style::default().bg(Color::Black).fg(Color::Cyan));
+        .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
     
     let inner = block.inner(dialog_area);
     frame.render_widget(block, dialog_area);
@@ -68,7 +77,7 @@ pub fn render_extract_options_dialog(frame: &mut Frame, archive_name: &str, dest
     // Title
     let title = Paragraph::new(format!("Extract '{}' to:", archive_name))
         .alignment(Alignment::Left)
-        .style(Style::default().fg(Color::White));
+        .style(Style::default().fg(theme.dialog_fg));
     frame.render_widget(title, chunks[0]);
     
     // Option 1: Extract here
@@ -84,7 +93,7 @@ pub fn render_extract_options_dialog(frame: &mut Frame, archive_name: &str, dest
         ]),
         Line::from(vec![
             Span::raw("  "),
-            Span::styled(format!("→ {}", dest.display()), Style::default().fg(Color::DarkGray)),
+            Span::styled(format!("→ {}", dest.display()), Style::default().fg(theme.info_color)),
         ]),
     ]);
     frame.render_widget(option1, chunks[1]);
@@ -103,7 +112,7 @@ pub fn render_extract_options_dialog(frame: &mut Frame, archive_name: &str, dest
         ]),
         Line::from(vec![
             Span::raw("  "),
-            Span::styled(format!("→ {}", dest_with_folder.display()), Style::default().fg(Color::DarkGray)),
+            Span::styled(format!("→ {}", dest_with_folder.display()), Style::default().fg(theme.info_color)),
         ]),
     ]);
     frame.render_widget(option2, chunks[2]);
@@ -121,7 +130,7 @@ pub fn render_extract_options_dialog(frame: &mut Frame, archive_name: &str, dest
     frame.render_widget(help_text, chunks[3]);
 }
 
-pub fn render_confirm_dialog(frame: &mut Frame, message: &str, area: Rect) {
+pub fn render_confirm_dialog(frame: &mut Frame, message: &str, area: Rect, theme: &Theme) {
     let dialog_area = centered_rect(60, 30, area);
     
     frame.render_widget(Clear, dialog_area);
@@ -129,7 +138,7 @@ pub fn render_confirm_dialog(frame: &mut Frame, message: &str, area: Rect) {
     let block = Block::default()
         .borders(Borders::ALL)
         .title(" Confirm ")
-        .style(Style::default().bg(Color::Black).fg(Color::Yellow));
+        .style(Style::default().bg(theme.dialog_bg).fg(theme.warning_color));
     
     let inner = block.inner(dialog_area);
     frame.render_widget(block, dialog_area);
@@ -144,7 +153,8 @@ pub fn render_confirm_dialog(frame: &mut Frame, message: &str, area: Rect) {
     
     let text = Paragraph::new(message)
         .wrap(Wrap { trim: false })
-        .alignment(Alignment::Center);
+        .alignment(Alignment::Center)
+        .style(Style::default().fg(theme.dialog_fg));
     frame.render_widget(text, chunks[0]);
     
     let confirm_text = Paragraph::new(Line::from(vec![
@@ -158,7 +168,7 @@ pub fn render_confirm_dialog(frame: &mut Frame, message: &str, area: Rect) {
     frame.render_widget(confirm_text, chunks[1]);
 }
 
-pub fn render_input_dialog(frame: &mut Frame, prompt: &str, value: &str, area: Rect) {
+pub fn render_input_dialog(frame: &mut Frame, prompt: &str, value: &str, area: Rect, theme: &Theme) {
     let dialog_area = centered_rect(60, 25, area);
     
     frame.render_widget(Clear, dialog_area);
@@ -166,7 +176,7 @@ pub fn render_input_dialog(frame: &mut Frame, prompt: &str, value: &str, area: R
     let block = Block::default()
         .borders(Borders::ALL)
         .title(" Input ")
-        .style(Style::default().bg(Color::Black).fg(Color::Cyan));
+        .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
     
     let inner = block.inner(dialog_area);
     frame.render_widget(block, dialog_area);
@@ -181,23 +191,24 @@ pub fn render_input_dialog(frame: &mut Frame, prompt: &str, value: &str, area: R
         .split(inner);
     
     let prompt_text = Paragraph::new(prompt)
-        .alignment(Alignment::Left);
+        .alignment(Alignment::Left)
+        .style(Style::default().fg(theme.dialog_fg));
     frame.render_widget(prompt_text, chunks[0]);
     
     let input_block = Block::default()
         .borders(Borders::ALL)
-        .style(Style::default().fg(Color::White));
+        .style(Style::default().fg(theme.dialog_fg));
     let input_text = Paragraph::new(value)
         .block(input_block);
     frame.render_widget(input_text, chunks[1]);
     
     let help_text = Paragraph::new("Enter: Confirm | Esc: Cancel")
         .alignment(Alignment::Center)
-        .style(Style::default().fg(Color::Gray));
+        .style(Style::default().fg(theme.info_color));
     frame.render_widget(help_text, chunks[2]);
 }
 
-pub fn render_progress_dialog(frame: &mut Frame, message: &str, area: Rect) {
+pub fn render_progress_dialog(frame: &mut Frame, message: &str, area: Rect, theme: &Theme) {
     let dialog_area = centered_rect(70, 30, area);
     
     frame.render_widget(Clear, dialog_area);
@@ -205,14 +216,15 @@ pub fn render_progress_dialog(frame: &mut Frame, message: &str, area: Rect) {
     let block = Block::default()
         .borders(Borders::ALL)
         .title(" Operation in Progress ")
-        .style(Style::default().bg(Color::Black).fg(Color::Green));
+        .style(Style::default().bg(theme.dialog_bg).fg(Color::Green));
     
     let inner = block.inner(dialog_area);
     frame.render_widget(block, dialog_area);
     
     let text = Paragraph::new(message)
         .wrap(Wrap { trim: false })
-        .alignment(Alignment::Center);
+        .alignment(Alignment::Center)
+        .style(Style::default().fg(theme.dialog_fg));
     frame.render_widget(text, inner);
 }
 
@@ -221,6 +233,7 @@ pub fn render_progress_with_bar(
     message: &str,
     progress: &Progress,
     area: Rect,
+    theme: &Theme,
 ) {
     let dialog_area = centered_rect(70, 35, area);
     
@@ -229,7 +242,7 @@ pub fn render_progress_with_bar(
     let block = Block::default()
         .borders(Borders::ALL)
         .title(" Operation in Progress ")
-        .style(Style::default().bg(Color::Black).fg(Color::Green));
+        .style(Style::default().bg(theme.dialog_bg).fg(Color::Green));
     
     let inner = block.inner(dialog_area);
     frame.render_widget(block, dialog_area);
@@ -244,13 +257,14 @@ pub fn render_progress_with_bar(
         .split(inner);
     
     let text = Paragraph::new(message)
-        .alignment(Alignment::Center);
+        .alignment(Alignment::Center)
+        .style(Style::default().fg(theme.dialog_fg));
     frame.render_widget(text, chunks[0]);
     
     let percentage = progress.percentage();
     let gauge = Gauge::default()
         .block(Block::default().borders(Borders::ALL))
-        .gauge_style(Style::default().fg(Color::Green).bg(Color::Black))
+        .gauge_style(Style::default().fg(Color::Green).bg(theme.dialog_bg))
         .percent(percentage as u16)
         .label(format!("{:.1}%", percentage));
     frame.render_widget(gauge, chunks[1]);
@@ -264,11 +278,11 @@ pub fn render_progress_with_bar(
     );
     let stats_text = Paragraph::new(stats)
         .alignment(Alignment::Center)
-        .style(Style::default().fg(Color::Gray));
+        .style(Style::default().fg(theme.info_color));
     frame.render_widget(stats_text, chunks[2]);
 }
 
-pub fn render_error_dialog(frame: &mut Frame, message: &str, area: Rect) {
+pub fn render_error_dialog(frame: &mut Frame, message: &str, area: Rect, theme: &Theme) {
     let dialog_area = centered_rect(60, 30, area);
     
     frame.render_widget(Clear, dialog_area);
@@ -276,7 +290,7 @@ pub fn render_error_dialog(frame: &mut Frame, message: &str, area: Rect) {
     let block = Block::default()
         .borders(Borders::ALL)
         .title(" Error ")
-        .style(Style::default().bg(Color::Black).fg(Color::Red));
+        .style(Style::default().bg(theme.dialog_bg).fg(theme.error_color));
     
     let inner = block.inner(dialog_area);
     frame.render_widget(block, dialog_area);
@@ -292,13 +306,13 @@ pub fn render_error_dialog(frame: &mut Frame, message: &str, area: Rect) {
     let text = Paragraph::new(message)
         .wrap(Wrap { trim: false })
         .alignment(Alignment::Center)
-        .style(Style::default().fg(Color::Red));
+        .style(Style::default().fg(theme.error_color));
     frame.render_widget(text, chunks[0]);
     
     // BUG-001 FIX: Make it clearer that ESC closes the error dialog
     let help_text = Paragraph::new("Presiona ESC para cerrar")
         .alignment(Alignment::Center)
-        .style(Style::default().fg(Color::Gray));
+        .style(Style::default().fg(theme.info_color));
     frame.render_widget(help_text, chunks[1]);
 }
 
@@ -343,7 +357,7 @@ pub fn render_double_confirm_dialog(frame: &mut Frame, message: &str, area: Rect
 }
 
 // T843: Password input dialog for encrypted archives
-pub fn render_password_input_dialog(frame: &mut Frame, prompt: &str, value: &str, show_password: bool, area: Rect) {
+pub fn render_password_input_dialog(frame: &mut Frame, prompt: &str, value: &str, show_password: bool, area: Rect, theme: &Theme) {
     let dialog_area = centered_rect(60, 30, area);
     
     frame.render_widget(Clear, dialog_area);
@@ -351,7 +365,7 @@ pub fn render_password_input_dialog(frame: &mut Frame, prompt: &str, value: &str
     let block = Block::default()
         .borders(Borders::ALL)
         .title(" 🔒 Password Required ")
-        .style(Style::default().bg(Color::Black).fg(Color::Yellow));
+        .style(Style::default().bg(theme.dialog_bg).fg(theme.warning_color));
     
     let inner = block.inner(dialog_area);
     frame.render_widget(block, dialog_area);
@@ -370,7 +384,7 @@ pub fn render_password_input_dialog(frame: &mut Frame, prompt: &str, value: &str
     // Prompt
     let prompt_text = Paragraph::new(prompt)
         .alignment(Alignment::Center)
-        .style(Style::default().fg(Color::White));
+        .style(Style::default().fg(theme.dialog_fg));
     frame.render_widget(prompt_text, chunks[0]);
     
     // Input field (show asterisks if password hidden)
@@ -393,7 +407,7 @@ pub fn render_password_input_dialog(frame: &mut Frame, prompt: &str, value: &str
     };
     let toggle_para = Paragraph::new(toggle_text)
         .alignment(Alignment::Center)
-        .style(Style::default().fg(Color::Gray));
+        .style(Style::default().fg(theme.info_color));
     frame.render_widget(toggle_para, chunks[2]);
     
     // Instructions
@@ -410,7 +424,7 @@ pub fn render_password_input_dialog(frame: &mut Frame, prompt: &str, value: &str
 }
 
 // T844: Collision handling dialog
-pub fn render_collision_dialog(frame: &mut Frame, file_path: &str, selected: usize, area: Rect) {
+pub fn render_collision_dialog(frame: &mut Frame, file_path: &str, selected: usize, area: Rect, theme: &Theme) {
     let dialog_area = centered_rect(70, 40, area);
     
     frame.render_widget(Clear, dialog_area);
@@ -418,7 +432,7 @@ pub fn render_collision_dialog(frame: &mut Frame, file_path: &str, selected: usi
     let block = Block::default()
         .borders(Borders::ALL)
         .title(" ⚠️  File Already Exists ")
-        .style(Style::default().bg(Color::Black).fg(Color::Yellow));
+        .style(Style::default().bg(theme.dialog_bg).fg(theme.warning_color));
     
     let inner = block.inner(dialog_area);
     frame.render_widget(block, dialog_area);
@@ -496,6 +510,7 @@ fn render_compress_options_dialog(
     confirm_password: &str,
     selected_field: usize,
     area: Rect,
+    theme: &Theme,
 ) {
     let dialog_area = centered_rect(80, 70, area);
     
@@ -504,7 +519,7 @@ fn render_compress_options_dialog(
     let block = Block::default()
         .borders(Borders::ALL)
         .title(" Comprimir Archivos ")
-        .style(Style::default().bg(Color::Black).fg(Color::Cyan));
+        .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
     
     let inner = block.inner(dialog_area);
     frame.render_widget(block, dialog_area);

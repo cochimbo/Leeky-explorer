@@ -59,6 +59,7 @@ fn test_save_creates_config_directory() -> Result<()> {
         left_panel_path: PathBuf::from("/test/left"),
         right_panel_path: PathBuf::from("/test/right"),
         active_panel: ActivePanel::Left,
+        theme_name: Some("Classic".to_string()),
     };
     
     // We can't actually test save() here because it uses dirs::config_dir()
@@ -77,6 +78,7 @@ fn test_full_cycle_serialize_deserialize() -> Result<()> {
         left_panel_path: PathBuf::from("/home/user/projects"),
         right_panel_path: PathBuf::from("/home/user/music"),
         active_panel: ActivePanel::Right,
+        theme_name: Some("Dark".to_string()),
     };
     
     // Serialize

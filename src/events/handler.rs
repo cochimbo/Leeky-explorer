@@ -7,6 +7,16 @@ use crate::events::keybindings::{map_key_to_action, map_key_to_input_action, Act
 use crate::models::operation::Operation;
 
 pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
+    // Handle welcome screen - only Enter key dismisses it
+    if app.show_welcome {
+        use crossterm::event::KeyCode;
+        if key.code == KeyCode::Enter {
+            app.show_welcome = false;
+        }
+        // Ignore all other keys during welcome screen
+        return Ok(Action::None);
+    }
+
     // T627: Special handling for preview mode
     if app.has_preview() {
         return handle_preview_mode(app, key);
@@ -35,6 +45,16 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
     // T844: Special handling for collision prompts
     if let Some(DialogState::CollisionPrompt { .. }) = &app.dialog_state {
         return handle_collision_dialog(app, key);
+    }
+    
+    // US4: Special handling for drive selector
+    if let Some(DialogState::DriveSelector { .. }) = &app.dialog_state {
+        return handle_drive_selector_dialog(app, key);
+    }
+    
+    // US5: Special handling for theme selector
+    if let Some(DialogState::ThemeSelector { .. }) = &app.dialog_state {
+        return handle_theme_selector_dialog(app, key);
     }
     
     // Special handling for compress options dialog
@@ -86,6 +106,11 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
             refresh_and_store(app)?;
             // T578: Clear marks when navigating to different directory
             app.selection_state.clear(app.active_panel);
+            // Exit search mode when entering a directory (panel clears its own filter)
+            if app.search_mode {
+                app.search_mode = false;
+                app.search_pattern.clear();
+            }
         }
         Action::GoUp => {
             app.active_panel_mut().go_up()?;
@@ -94,6 +119,11 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
             app.store_all_entries(entries);
             // T578: Clear marks when navigating to parent directory
             app.selection_state.clear(app.active_panel);
+            // Exit search mode when going up to parent (panel clears its own filter)
+            if app.search_mode {
+                app.search_mode = false;
+                app.search_pattern.clear();
+            }
         }
         Action::Refresh => {
             // Store current panel
@@ -129,15 +159,51 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
             handle_rename_request(app, true)?; // true = name with extension
         }
         Action::Search => {
-            // T411: Activate search mode
-            app.activate_search();
-            // T580: Clear marks when entering search mode to avoid confusion
-            app.selection_state.clear(app.active_panel);
+            // T411: Activate search mode or clear if already active
+            if app.search_mode {
+                // If already in search mode, pressing F3 again clears and exits
+                app.deactivate_search();
+            } else {
+                // Activate search mode
+                app.activate_search();
+                // T580: Clear marks when entering search mode to avoid confusion
+                app.selection_state.clear(app.active_panel);
+            }
+        }
+        Action::ClearSearch => {
+            // Shift+F3: Clear search pattern and filter
+            app.deactivate_search();
         }
         Action::OpenPreview => {
             // T625-T626: Open preview for current file
             // This needs to be async, so we'll handle it in main.rs
             return Ok(action);
+        }
+        Action::OpenDriveSelector => {
+            // US4: Open drive selector dialog
+            let drives = crate::fs::disk_info::get_available_drives();
+            if !drives.is_empty() {
+                app.dialog_state = Some(DialogState::DriveSelector {
+                    drives,
+                    selected: 0,
+                });
+            }
+        }
+        Action::OpenThemeSelector => {
+            // US5: Open theme selector dialog
+            let themes = crate::ui::theme::Theme::all_themes();
+            
+            // Find the index of the currently active theme
+            let current_theme_name = &app.theme.name;
+            let selected = themes
+                .iter()
+                .position(|t| &t.name == current_theme_name)
+                .unwrap_or(0);
+            
+            app.dialog_state = Some(DialogState::ThemeSelector {
+                themes,
+                selected,
+            });
         }
         Action::ExtractArchive => {
             // T838-T839: Extract archive
@@ -1331,6 +1397,7 @@ fn handle_search_mode(app: &mut AppState, key: KeyEvent) -> Result<Action> {
         }
         crossterm::event::KeyCode::Enter => {
             // T415: Finalize filter and return to navigation
+            // Keep the filtered results but exit search mode
             app.search_mode = false;
             Ok(Action::None)
         }
@@ -1552,3 +1619,90 @@ fn handle_compress_options_dialog(app: &mut AppState, key: KeyEvent) -> Result<A
     Ok(Action::None)
 }
 
+// US4: Handle drive selector dialog key events
+fn handle_drive_selector_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
+    use crossterm::event::{KeyCode, KeyModifiers};
+    
+    match (key.code, key.modifiers) {
+        // Up: move selection up
+        (KeyCode::Up, _) | (KeyCode::Char('k'), KeyModifiers::NONE) => {
+            if let Some(DialogState::DriveSelector { selected, .. }) = &mut app.dialog_state
+                && *selected > 0
+            {
+                *selected -= 1;
+            }
+        }
+        // Down: move selection down
+        (KeyCode::Down, _) | (KeyCode::Char('j'), KeyModifiers::NONE) => {
+            if let Some(DialogState::DriveSelector { selected, drives }) = &mut app.dialog_state
+                && *selected < drives.len().saturating_sub(1)
+            {
+                *selected += 1;
+            }
+        }
+        // Enter: select drive and navigate to it
+        (KeyCode::Enter, _) => {
+            if let Some(DialogState::DriveSelector { drives, selected }) = &app.dialog_state
+                && let Some((drive_path, _)) = drives.get(*selected)
+            {
+                let new_path = std::path::PathBuf::from(drive_path);
+                // Change the active panel to this drive
+                let panel = app.active_panel_mut();
+                panel.current_path = new_path;
+                panel.refresh_entries()?;
+                panel.cursor = 0; // Reset cursor to top
+            }
+            app.close_dialog();
+        }
+        // Escape: cancel
+        (KeyCode::Esc, _) => {
+            app.close_dialog();
+        }
+        _ => {}
+    }
+    
+    Ok(Action::None)
+}
+
+// US5: Handle theme selector dialog key events
+fn handle_theme_selector_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
+    use crossterm::event::{KeyCode, KeyModifiers};
+    
+    match (key.code, key.modifiers) {
+        // Up: move selection up
+        (KeyCode::Up, _) | (KeyCode::Char('k'), KeyModifiers::NONE) => {
+            if let Some(DialogState::ThemeSelector { selected, .. }) = &mut app.dialog_state
+                && *selected > 0
+            {
+                *selected -= 1;
+            }
+        }
+        // Down: move selection down
+        (KeyCode::Down, _) | (KeyCode::Char('j'), KeyModifiers::NONE) => {
+            if let Some(DialogState::ThemeSelector { selected, themes }) = &mut app.dialog_state
+                && *selected < themes.len().saturating_sub(1)
+            {
+                *selected += 1;
+            }
+        }
+        // Enter: apply selected theme
+        (KeyCode::Enter, _) => {
+            if let Some(DialogState::ThemeSelector { themes, selected }) = &app.dialog_state
+                && let Some(theme) = themes.get(*selected).cloned()
+            {
+                // Apply theme immediately
+                app.theme = theme;
+                // Save state to persist theme selection
+                let _ = app.save_state();
+            }
+            app.close_dialog();
+        }
+        // Escape: cancel without applying
+        (KeyCode::Esc, _) => {
+            app.close_dialog();
+        }
+        _ => {}
+    }
+    
+    Ok(Action::None)
+}

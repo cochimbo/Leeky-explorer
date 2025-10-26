@@ -100,12 +100,32 @@ pub async fn run<B: ratatui::backend::Backend>(
         // Start new operation if one is queued
         start_queued_operation(app, &mut operation_task, &progress_tx, &mut current_cancel_tx);
         
+        // US3: Update text scroll animation for active panel
+        let active_panel = app.active_panel_mut();
+        let term_size = terminal.size()?;
+        let panel_width = (term_size.width / 2).saturating_sub(4); // Account for borders, half screen
+        let column_layout = ui::column_layout::ColumnLayout::calculate(panel_width, &active_panel.entries);
+        let _needs_refresh = active_panel.update_text_scroll(
+            column_layout.name_width as usize,
+            column_layout.ext_width as usize,
+            column_layout.size_width as usize,
+            column_layout.modified_width as usize,
+            column_layout.created_width as usize,
+            column_layout.perms_width as usize,
+        );
+        
         // Draw UI
         render_ui(terminal, app)?;
         
         // Handle input
         if event::poll(Duration::from_millis(50))?
             && let Event::Key(key) = event::read()? {
+                // Only process key press events, ignore release and repeat
+                use crossterm::event::KeyEventKind;
+                if key.kind != KeyEventKind::Press {
+                    continue;
+                }
+                
                 // T955: Check if user pressed Esc during progress dialog to cancel
                 if let Some(DialogState::Progress { .. }) = &app.dialog_state
                     && matches!(key.code, crossterm::event::KeyCode::Esc) {
@@ -390,26 +410,32 @@ fn cancel_operation(operation_task: &mut Option<tokio::task::JoinHandle<Result<(
 /// Render the UI
 fn render_ui<B: ratatui::backend::Backend>(
     terminal: &mut Terminal<B>,
-    app: &AppState,
+    app: &mut AppState,
 ) -> Result<()> {
     terminal.draw(|f| {
+        // Show welcome screen if flag is set
+        if app.show_welcome {
+            ui::render_welcome(f, env!("CARGO_PKG_VERSION"), &app.theme);
+            return;
+        }
+
         let layout = ui::layout::create_layout(f.area());
         
-        // Render header
-        ui::render_header(f, app, layout.header);
+        // Render headers (T075-T076: two separate blocks aligned with panels)
+        ui::render_header(f, app, layout.left_header, layout.right_header);
         
         // Render panels
         ui::render_panels(f, app, &layout);
         
         // Render footer
-        ui::render_footer(f, layout.footer);
+        ui::render_footer(f, layout.footer, &app.theme);
         
         // Render dialog if present
         ui::render_dialog_if_present(f, app);
         
         // Render preview modal if present
         if let Some(preview) = &app.preview_state {
-            ui::preview_modal::render_preview_modal(f, preview);
+            ui::preview_modal::render_preview_modal(f, preview, &app.theme);
         }
     })?;
     

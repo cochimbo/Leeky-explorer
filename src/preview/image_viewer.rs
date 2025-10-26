@@ -147,16 +147,16 @@ fn calculate_brightness(pixel: &image::Rgb<u8>) -> u8 {
 
 /// Select half-block character based on top and bottom brightness
 fn select_half_block(top: u8, bottom: u8) -> char {
-    // Use multiple threshold levels for better gradients
-    const LEVELS: [u8; 4] = [64, 128, 192, 255];
+    // Use adjusted threshold levels with higher minimum to avoid noise in light areas
+    const LEVELS: [u8; 4] = [32, 96, 160, 220];
     
     // Determine brightness level (0-3) for each pixel
     let top_level = LEVELS.iter().position(|&l| top < l).unwrap_or(3);
     let bottom_level = LEVELS.iter().position(|&l| bottom < l).unwrap_or(3);
     
-    // Use half-blocks and shading blocks for better representation
+    // Use half-blocks for better representation, avoid light shade characters
     match (top_level, bottom_level) {
-        // Both very bright
+        // Both very bright - full block
         (3, 3) => '█',
         // Top brighter than bottom
         (3, 2) => '▀',
@@ -166,17 +166,19 @@ fn select_half_block(top: u8, bottom: u8) -> char {
         (2, 3) => '▄',
         (1, 3) => '▄',
         (0, 3) => '▄',
-        // Similar medium-high brightness
-        (2, 2) => '▓',
+        // Similar medium-high brightness - use full block for cleaner look
+        (2, 2) => '█',
         // Top medium, bottom lower
-        (2, 1) | (2, 0) => '▀',
+        (2, 1) => '▀',
+        (2, 0) => '▀',
         // Bottom medium, top lower
-        (1, 2) | (0, 2) => '▄',
-        // Both medium-low
+        (1, 2) => '▄',
+        (0, 2) => '▄',
+        // Both medium-low - use medium shade only
         (1, 1) => '▒',
-        // One low, one very low
-        (1, 0) | (0, 1) => '░',
-        // Both very dark
+        // One low, one very low - use space instead of light shade to reduce noise
+        (1, 0) | (0, 1) => ' ',
+        // Both very dark - empty space
         _ => ' ',
     }
 }

@@ -2,8 +2,10 @@
 use crate::models::panel::Panel;
 use crate::models::selection::SelectionState;
 use crate::app::PanelSide;
-use crate::ui::theme;
+use crate::ui::theme::{self, Theme};
 use crate::ui::file_icons;
+use crate::ui::column_layout::{ColumnLayout, Alignment};
+use crate::ui::formatters;
 use ratatui::{
     layout::Rect,
     style::{Modifier, Style},
@@ -22,6 +24,7 @@ pub fn render_panel(
     search_pattern: &str,
     selection_state: &SelectionState,
     panel_side: PanelSide,
+    theme: &Theme, // US5: Pass theme for customization
 ) {
     // T560: Add selection counter in header
     let selected_count = selection_state.count(panel_side);
@@ -32,59 +35,114 @@ pub fn render_panel(
     };
     
     let border_style = if is_active {
-        Style::default().fg(theme::ACTIVE_BORDER)
+        Style::default().fg(theme.active_border)
     } else {
-        Style::default().fg(theme::INACTIVE_BORDER)
+        Style::default().fg(theme.inactive_border)
     };
 
     let block = Block::default()
         .borders(Borders::ALL)
         .border_style(border_style)
-        .title(title);
+        .title(title)
+        .style(Style::default().bg(theme.panel_bg)); // US5: Use theme background
+
+
+    // Calculate column layout based on available width
+    let content_width = area.width.saturating_sub(4); // Subtract borders and padding
+    let layout = ColumnLayout::calculate(content_width, &panel.entries);
+
+    // Adjust area height if search bar or filter is active to prevent overlap
+    let list_area = if is_active && (search_mode || panel.has_filter()) {
+        Rect {
+            x: area.x,
+            y: area.y,
+            width: area.width,
+            height: area.height.saturating_sub(1), // Reserve 1 line for search bar or filter
+        }
+    } else {
+        area
+    };
 
     // T409: Show "No results" message if filter is active but no entries
     let items: Vec<ListItem> = if panel.entries.is_empty() && panel.has_filter() {
         vec![ListItem::new(Line::from(Span::styled(
             format!(" Sin resultados para: {}", panel.get_filter().unwrap_or("")),
-            Style::default().fg(theme::ERROR),
+            Style::default().fg(theme.error_color),
         )))]
     } else {
-        panel
-            .entries
-            .iter()
-            .map(|entry| {
-                let mut style = theme::get_entry_style(&entry.entry_type);
-                
-                // T558: Show "*" prefix and alternate background for marked items
-                let is_marked = selection_state.is_marked(panel_side, &entry.path);
-                let prefix = if is_marked { "* " } else { "  " };
-                
-                // T559: Add alternate background color for marked items
-                if is_marked {
-                    style = style.bg(theme::MARKED_BG);
+        // Build column header as first item
+        let mut all_items = Vec::new();
+        
+        // Header row
+        let header_line = build_header_row(&layout, theme);
+        all_items.push(ListItem::new(header_line));
+        
+        // Separator row
+        let separator = "─".repeat(content_width as usize);
+        all_items.push(ListItem::new(Line::from(Span::styled(
+            separator,
+            Style::default().fg(theme.inactive_border),
+        ))));
+        
+        // Data rows
+        for (idx, entry) in panel.entries.iter().enumerate() {
+            let mut style = theme.get_entry_style(&entry.entry_type);
+            
+            // T558: Show "*" prefix and alternate background for marked items
+            let is_marked = selection_state.is_marked(panel_side, &entry.path);
+            
+            // T559: Add alternate background color for marked items
+            if is_marked {
+                style = style.bg(theme.marked_bg);
+            }
+            
+            // Check if this is the selected item
+            let is_selected = idx == panel.cursor;
+            let scroll_offsets = if is_selected {
+                ScrollOffsets {
+                    name: panel.text_scroll_offset,
+                    ext: panel.ext_scroll_offset,
+                    size: panel.size_scroll_offset,
+                    modified: panel.modified_scroll_offset,
+                    created: panel.created_scroll_offset,
+                    perms: panel.perms_scroll_offset,
                 }
-                
-                // T872-T873: Add emoji icon before filename
-                let icon = file_icons::get_icon_for_entry(entry);
-                let content = format!("{}{} {}", prefix, icon, entry);
-                ListItem::new(Line::from(Span::styled(content, style)))
-            })
-            .collect()
+            } else {
+                ScrollOffsets::default()
+            };
+            
+            // Build columnar row
+            let line = build_data_row(
+                entry,
+                &layout,
+                is_marked,
+                is_selected,
+                &scroll_offsets,
+                style,
+            );
+            all_items.push(ListItem::new(line));
+        }
+        
+        all_items
     };
 
     let list = List::new(items)
         .block(block)
         .highlight_style(
             Style::default()
-                .bg(theme::HIGHLIGHT_BG)
-                .fg(theme::HIGHLIGHT_FG)
+                .bg(theme.highlight_bg)
+                .fg(theme.highlight_fg)
                 .add_modifier(Modifier::BOLD),
-        );
+        )
+        .style(Style::default().bg(theme.panel_bg).fg(theme.panel_fg)); // US5: Panel colors
+
 
     let mut state = ListState::default();
-    state.select(Some(panel.cursor));
+    // Offset cursor by 2 to account for header and separator rows
+    let cursor_offset = if panel.entries.is_empty() { 0 } else { panel.cursor + 2 };
+    state.select(Some(cursor_offset));
 
-    frame.render_stateful_widget(list, area, &mut state);
+    frame.render_stateful_widget(list, list_area, &mut state);
 
     // T408: Render search bar at bottom of panel if active
     if is_active && search_mode {
@@ -112,10 +170,235 @@ pub fn render_panel(
             };
             let filter_widget = Paragraph::new(Line::from(Span::styled(
                 filter_text,
-                Style::default().fg(theme::DIR_COLOR),
+                Style::default().fg(theme.info_color),
             )));
             frame.render_widget(filter_widget, filter_area);
         }
     }
 }
 
+/// Build header row with column titles
+fn build_header_row(layout: &ColumnLayout, theme: &Theme) -> Line<'static> {
+    let header_style = Style::default().fg(theme.panel_fg).add_modifier(Modifier::BOLD);
+    
+    let mut spans = vec![
+        // Icon column (empty header)
+        Span::styled(
+            formatters::pad_text("", layout.icon_width, Alignment::Left),
+            header_style,
+        ),
+        Span::raw("  "),
+        // Mark column (empty header)
+        Span::styled(
+            formatters::pad_text("", layout.mark_width, Alignment::Left),
+            header_style,
+        ),
+        Span::raw("  "),
+        // Name column
+        Span::styled(
+            formatters::pad_text("Name", layout.name_width, Alignment::Left),
+            header_style,
+        ),
+        Span::raw("  "),
+    ];
+    
+    // Extension column (if visible)
+    if layout.show_extension {
+        spans.push(Span::styled(
+            formatters::pad_text("Ext", layout.ext_width, Alignment::Left),
+            header_style,
+        ));
+        spans.push(Span::raw("  "));
+    }
+    
+    // Size column
+    spans.push(Span::styled(
+        formatters::pad_text("Size", layout.size_width, Alignment::Right),
+        header_style,
+    ));
+    spans.push(Span::raw("  "));
+    
+    // Modified column
+    spans.push(Span::styled(
+        formatters::pad_text("Modified", layout.modified_width, Alignment::Center),
+        header_style,
+    ));
+    
+    // Created column (if visible)
+    if layout.show_created {
+        spans.push(Span::raw("  "));
+        spans.push(Span::styled(
+            formatters::pad_text("Created", layout.created_width, Alignment::Center),
+            header_style,
+        ));
+    }
+    
+    // Permissions column (if visible)
+    if layout.show_permissions {
+        spans.push(Span::raw("  "));
+        spans.push(Span::styled(
+            formatters::pad_text("Perms", layout.perms_width, Alignment::Center),
+            header_style,
+        ));
+    }
+    
+    Line::from(spans)
+}
+
+/// Scroll offsets for a file entry row
+#[derive(Default)]
+struct ScrollOffsets {
+    name: usize,
+    ext: usize,
+    size: usize,
+    modified: usize,
+    created: usize,
+    perms: usize,
+}
+
+/// Build data row for a file entry with all columns
+#[allow(clippy::too_many_arguments)]
+fn build_data_row(
+    entry: &crate::models::file_entry::FileEntry,
+    layout: &ColumnLayout,
+    is_marked: bool,
+    is_selected: bool,
+    scroll_offsets: &ScrollOffsets,
+    style: Style,
+) -> Line<'static> {
+    let mut spans = Vec::new();
+    
+    // Icon column
+    let icon = file_icons::get_icon_for_entry(entry);
+    spans.push(Span::styled(
+        formatters::pad_text(icon, layout.icon_width, Alignment::Left),
+        style,
+    ));
+    spans.push(Span::raw("  "));
+    
+    // Mark column
+    let mark = if is_marked { "*" } else { "" };
+    spans.push(Span::styled(
+        formatters::pad_text(mark, layout.mark_width, Alignment::Left),
+        style,
+    ));
+    spans.push(Span::raw("  "));
+    
+    // Name column (truncate if too long, or scroll if selected)
+    let name = if is_selected && scroll_offsets.name > 0 {
+        // Apply scroll offset for selected item
+        let chars: Vec<char> = entry.name.chars().collect();
+        if scroll_offsets.name < chars.len() {
+            chars[scroll_offsets.name..].iter().collect()
+        } else {
+            entry.name.clone()
+        }
+    } else {
+        entry.name.clone()
+    };
+    
+    spans.push(Span::styled(
+        formatters::pad_text(&name, layout.name_width, Alignment::Left),
+        style,
+    ));
+    spans.push(Span::raw("  "));
+    
+    // Extension column (if visible, with scroll support)
+    if layout.show_extension {
+        let ext_full = formatters::format_extension(entry);
+        let ext = if is_selected && scroll_offsets.ext > 0 && !ext_full.is_empty() {
+            // Apply scroll offset for selected item's extension
+            let chars: Vec<char> = ext_full.chars().collect();
+            if scroll_offsets.ext < chars.len() {
+                chars[scroll_offsets.ext..].iter().collect()
+            } else {
+                ext_full.clone()
+            }
+        } else {
+            ext_full
+        };
+        
+        spans.push(Span::styled(
+            formatters::pad_text(&ext, layout.ext_width, Alignment::Left),
+            style,
+        ));
+        spans.push(Span::raw("  "));
+    }
+    
+    // Size column (with scroll support)
+    let size_full = formatters::format_size(entry);
+    let size = if is_selected && scroll_offsets.size > 0 && !size_full.is_empty() {
+        let chars: Vec<char> = size_full.chars().collect();
+        if scroll_offsets.size < chars.len() {
+            chars[scroll_offsets.size..].iter().collect()
+        } else {
+            size_full.clone()
+        }
+    } else {
+        size_full
+    };
+    spans.push(Span::styled(
+        formatters::pad_text(&size, layout.size_width, Alignment::Right),
+        style,
+    ));
+    spans.push(Span::raw("  "));
+    
+    // Modified column (with scroll support)
+    let modified_full = formatters::format_date(Some(entry.modified));
+    let modified = if is_selected && scroll_offsets.modified > 0 && !modified_full.is_empty() {
+        let chars: Vec<char> = modified_full.chars().collect();
+        if scroll_offsets.modified < chars.len() {
+            chars[scroll_offsets.modified..].iter().collect()
+        } else {
+            modified_full.clone()
+        }
+    } else {
+        modified_full
+    };
+    spans.push(Span::styled(
+        formatters::pad_text(&modified, layout.modified_width, Alignment::Center),
+        style,
+    ));
+    
+    // Created column (if visible, with scroll support)
+    if layout.show_created {
+        spans.push(Span::raw("  "));
+        let created_full = formatters::format_date(entry.created);
+        let created = if is_selected && scroll_offsets.created > 0 && !created_full.is_empty() {
+            let chars: Vec<char> = created_full.chars().collect();
+            if scroll_offsets.created < chars.len() {
+                chars[scroll_offsets.created..].iter().collect()
+            } else {
+                created_full.clone()
+            }
+        } else {
+            created_full
+        };
+        spans.push(Span::styled(
+            formatters::pad_text(&created, layout.created_width, Alignment::Center),
+            style,
+        ));
+    }
+    
+    // Permissions column (if visible, with scroll support)
+    if layout.show_permissions {
+        spans.push(Span::raw("  "));
+        let perms_full = formatters::format_permissions(entry);
+        let perms = if is_selected && scroll_offsets.perms > 0 && !perms_full.is_empty() {
+            let chars: Vec<char> = perms_full.chars().collect();
+            if scroll_offsets.perms < chars.len() {
+                chars[scroll_offsets.perms..].iter().collect()
+            } else {
+                perms_full.clone()
+            }
+        } else {
+            perms_full
+        };
+        spans.push(Span::styled(
+            formatters::pad_text(&perms, layout.perms_width, Alignment::Center),
+            style,
+        ));
+    }
+    
+    Line::from(spans)
+}
