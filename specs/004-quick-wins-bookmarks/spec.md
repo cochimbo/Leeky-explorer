@@ -105,6 +105,39 @@ Users want to quickly edit configuration files, notes, or small text files witho
 
 ---
 
+### User Story 6 - Recursive Deep Search (Ctrl+F) (Priority: P2)
+
+Users need to find files across entire directory trees, not just in the current folder, when they know part of a filename but not its exact location.
+
+**Why this priority**: High-value feature for large codebases and nested directory structures. Distinguishes from F3 filter which only searches current directory. Similar to `fd` or `fzf` tools.
+
+**Independent Test**: Can be tested by pressing Ctrl+F, typing a search term, and verifying results from all subdirectories appear with full paths.
+
+**Key Difference from F3 Filter**:
+- **F3 (Filter)**: Filters files in CURRENT directory only. Fast, instant results, no subdirectories.
+- **Ctrl+F (Search)**: Searches RECURSIVELY through all subdirectories. Shows results with full paths. Can take time on large trees.
+
+**Acceptance Scenarios**:
+
+1. **Given** I'm in any directory, **When** I press Ctrl+F, **Then** a search dialog opens with an input field for search term
+2. **Given** the search dialog is open, **When** I type a search term, **Then** results appear in real-time showing files matching the term from current directory and all subdirectories
+3. **Given** search results are displayed, **When** I select a result and press Enter, **Then** the active panel navigates to the parent directory of that file and selects it
+4. **Given** the search is running, **When** I press Esc, **Then** the search is cancelled and dialog closes
+5. **Given** I have search results, **When** I press Up/Down arrows, **Then** I can navigate through the result list
+6. **Given** search results are displayed, **When** there are many results, **Then** results are paginated or scrollable
+7. **Given** I'm searching, **When** I type `*.rs` or `*.txt`, **Then** the search supports glob patterns
+8. **Given** the search finds no matches, **When** the search completes, **Then** a "No results found" message is displayed
+9. **Given** I start a search in a large directory tree, **When** the search takes time, **Then** a progress indicator shows search is ongoing
+10. **Given** I'm viewing search results, **When** results show full paths, **Then** paths are displayed relative to the search root for readability
+
+**Performance Considerations**:
+- Search should be interruptible (cancel with Esc)
+- Results should stream in as they're found (don't wait for full tree scan)
+- Large directories (>10,000 files) should show progress indicator
+- Option to limit search depth or file count
+
+---
+
 ### Edge Cases
 
 - **Bookmarks**: What happens when a bookmarked directory is deleted or moved?
@@ -121,6 +154,12 @@ Users want to quickly edit configuration files, notes, or small text files witho
 - **Editor**: What happens when file is modified externally while being edited?
 - **Editor**: How to handle files without write permissions?
 - **Editor**: Character encoding detection (UTF-8, UTF-16, ASCII)?
+- **Recursive Search**: What happens when searching a directory tree with thousands of files?
+- **Recursive Search**: How to handle permission denied errors on some subdirectories?
+- **Recursive Search**: Should hidden files/folders be included in search results?
+- **Recursive Search**: How to handle symbolic links that create circular references?
+- **Recursive Search**: What's the maximum search depth to prevent infinite loops?
+- **Recursive Search**: How to differentiate from F3 filter in the UI?
 
 ## Requirements *(mandatory)*
 
@@ -176,6 +215,23 @@ Users want to quickly edit configuration files, notes, or small text files witho
 - **FR-039**: System MUST show line numbers in editor
 - **FR-040**: System MUST support syntax highlighting [NICE TO HAVE - can defer]
 
+**Recursive Search (P2):**
+- **FR-041**: System MUST open search dialog via Ctrl+F keybinding
+- **FR-042**: System MUST search recursively through all subdirectories from current directory
+- **FR-043**: System MUST display results with relative paths from search root
+- **FR-044**: System MUST support case-insensitive search by default
+- **FR-045**: System MUST support glob patterns (*.rs, *.txt, file?.log)
+- **FR-046**: System MUST allow cancelling search via Esc keybinding
+- **FR-047**: System MUST navigate to selected result's parent directory on Enter
+- **FR-048**: System MUST stream results as they are found (incremental display)
+- **FR-049**: System MUST show progress indicator for searches taking >500ms
+- **FR-050**: System MUST handle permission errors gracefully (skip and continue)
+- **FR-051**: System MUST limit search depth to prevent stack overflow (default: 20 levels)
+- **FR-052**: System MUST differentiate visually from F3 filter (different dialog title/style)
+- **FR-053**: System MUST display "No results found" when search completes with no matches
+- **FR-054**: System MUST support up/down navigation through results list
+- **FR-055**: System MUST exclude hidden files/folders by default [CONFIGURABLE]
+
 ### Key Entities
 
 - **Bookmark**: Represents a saved directory location
@@ -202,6 +258,22 @@ Users want to quickly edit configuration files, notes, or small text files witho
   - `modified`: bool - Whether buffer has unsaved changes
   - `cursor_position`: (usize, usize) - Line and column
   - `scroll_offset`: usize - Vertical scroll position
+
+- **SearchResult**: Represents a file found by recursive search
+  - `file_name`: String - Name of the file
+  - `full_path`: PathBuf - Absolute path to file
+  - `relative_path`: PathBuf - Path relative to search root
+  - `file_size`: u64 - Size in bytes
+  - `modified_time`: SystemTime - Last modification time
+  - `match_score`: f32 - Relevance score (for fuzzy matching, optional)
+
+- **SearchState**: Represents ongoing search operation
+  - `query`: String - Search term or pattern
+  - `root_path`: PathBuf - Starting directory for search
+  - `results`: Vec<SearchResult> - Found files
+  - `is_running`: bool - Whether search is in progress
+  - `files_scanned`: usize - Progress counter
+  - `use_glob`: bool - Whether query is a glob pattern
 
 ## Success Criteria *(mandatory)*
 
@@ -240,7 +312,18 @@ Users want to quickly edit configuration files, notes, or small text files witho
 - **SC-022**: Zero data loss incidents due to editor bugs
 - **SC-023**: Editor prevents editing binary files 100% of the time
 
+**Recursive Search:**
+- **SC-024**: Search dialog opens in <50ms
+- **SC-025**: First results appear within 100ms for directories with <1000 files
+- **SC-026**: Search can be cancelled instantly with Esc at any point
+- **SC-027**: Users can find files 3x faster than manual navigation through subdirectories
+- **SC-028**: Search correctly handles permission errors without crashing
+- **SC-029**: Glob patterns work accurately for all common cases (*.ext, file?, prefix*)
+- **SC-030**: Users clearly understand difference between F3 (filter) and Ctrl+F (search)
+- **SC-031**: Search scales to directories with 10,000+ files without freezing UI
+- **SC-032**: 90% of users discover and use recursive search within first 3 sessions
+
 **Overall:**
-- **SC-024**: All quick wins features combined add <500KB to binary size
-- **SC-025**: No measurable performance degradation in existing features
-- **SC-026**: Feature discoverability: 70% of users find at least 3 of 5 features in first 10 minutes
+- **SC-033**: All quick wins features combined add <500KB to binary size
+- **SC-034**: No measurable performance degradation in existing features
+- **SC-035**: Feature discoverability: 70% of users find at least 4 of 6 features in first 10 minutes

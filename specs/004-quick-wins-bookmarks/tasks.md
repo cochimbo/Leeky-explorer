@@ -1417,6 +1417,584 @@ fn test_insert_and_delete() { ... }
 
 ---
 
+## Phase 6: Recursive Deep Search (Ctrl+F)
+
+### TASK-037: Create SearchResult and SearchState structs ⬜
+**Priority**: P2 | **Time**: 1.5h | **Dependencies**: None
+
+**Description**: Core data structures for recursive file search
+
+**Files**:
+- `src/search/mod.rs` - NEW (module declaration)
+- `src/search/recursive.rs` - NEW
+- `src/lib.rs` - MODIFY (add search module)
+
+**SearchResult struct**:
+```rust
+#[derive(Debug, Clone)]
+pub struct SearchResult {
+    pub file_name: String,
+    pub full_path: PathBuf,
+    pub relative_path: PathBuf,
+    pub file_size: u64,
+    pub modified_time: SystemTime,
+}
+
+impl SearchResult {
+    pub fn new(full_path: PathBuf, root: &Path) -> Result<Self>;
+    pub fn matches_pattern(&self, pattern: &str, case_sensitive: bool) -> bool;
+}
+```
+
+**SearchState struct**:
+```rust
+pub struct SearchState {
+    query: String,
+    root_path: PathBuf,
+    results: Vec<SearchResult>,
+    is_running: bool,
+    files_scanned: usize,
+    use_glob: bool,
+    max_depth: usize,
+}
+
+impl SearchState {
+    pub fn new(query: String, root_path: PathBuf) -> Self;
+    pub fn is_glob_pattern(query: &str) -> bool;
+}
+```
+
+**Implementation Notes**:
+- `is_glob_pattern()`: Check if query contains `*`, `?`, `[`, `]`
+- `matches_pattern()`: Use `glob` crate or simple string matching
+- `relative_path`: Use `pathdiff` or manual calculation from root
+
+**Tests**:
+```rust
+#[test]
+fn test_search_result_creation() { ... }
+
+#[test]
+fn test_glob_pattern_detection() { ... }
+
+#[test]
+fn test_matches_pattern_simple() { ... }
+
+#[test]
+fn test_matches_pattern_glob() { ... }
+```
+
+**Acceptance**:
+- [ ] SearchResult stores file metadata correctly
+- [ ] SearchState initializes with proper defaults
+- [ ] Glob pattern detection works (*.rs, file?.txt)
+- [ ] Unit tests pass
+
+---
+
+### TASK-038: Implement recursive search engine ⬜
+**Priority**: P2 | **Time**: 2.5h | **Dependencies**: TASK-037
+
+**Description**: Core search logic with recursive directory traversal
+
+**Files**:
+- `src/search/recursive.rs` - MODIFY
+- `Cargo.toml` - MODIFY (add `glob` and `ignore` crates)
+
+**Dependencies**:
+```toml
+glob = "0.3"
+ignore = "0.4"  # Respects .gitignore, handles symlinks
+```
+
+**RecursiveSearcher implementation**:
+```rust
+pub struct RecursiveSearcher {
+    state: Arc<Mutex<SearchState>>,
+    cancel_flag: Arc<AtomicBool>,
+}
+
+impl RecursiveSearcher {
+    pub fn new(query: String, root_path: PathBuf) -> Self;
+    
+    /// Start search in background thread
+    pub fn start_search(&self) -> JoinHandle<()>;
+    
+    /// Recursive search implementation
+    fn search_directory(
+        &self,
+        dir: &Path,
+        current_depth: usize,
+    ) -> Result<()>;
+    
+    /// Cancel ongoing search
+    pub fn cancel(&self);
+    
+    /// Get current results (non-blocking)
+    pub fn get_results(&self) -> Vec<SearchResult>;
+    
+    /// Check if search is still running
+    pub fn is_running(&self) -> bool;
+    
+    /// Get progress (files scanned)
+    pub fn files_scanned(&self) -> usize;
+}
+```
+
+**Key Features**:
+- Use `ignore::WalkBuilder` for efficient traversal
+- Respect `.gitignore` files
+- Handle permission errors gracefully (skip and continue)
+- Max depth limit (default 20 levels)
+- Detect circular symlinks
+- Stream results as found (don't wait for completion)
+
+**Algorithm**:
+```rust
+fn search_directory(&self, dir: &Path, depth: usize) -> Result<()> {
+    // Check cancel flag
+    if self.cancel_flag.load(Ordering::Relaxed) {
+        return Ok(());
+    }
+    
+    // Check max depth
+    if depth > self.state.lock().unwrap().max_depth {
+        return Ok(());
+    }
+    
+    // Read directory entries
+    for entry in fs::read_dir(dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        
+        // Update scanned count
+        self.state.lock().unwrap().files_scanned += 1;
+        
+        if path.is_dir() {
+            // Recurse into subdirectory
+            self.search_directory(&path, depth + 1)?;
+        } else {
+            // Check if file matches query
+            if self.matches_query(&path) {
+                let result = SearchResult::new(path, &self.root)?;
+                self.state.lock().unwrap().results.push(result);
+            }
+        }
+    }
+    
+    Ok(())
+}
+```
+
+**Tests**:
+```rust
+#[test]
+fn test_search_current_directory() { ... }
+
+#[test]
+fn test_search_recursive() { ... }
+
+#[test]
+fn test_glob_pattern_matching() { ... }
+
+#[test]
+fn test_cancel_search() { ... }
+
+#[test]
+fn test_max_depth_limit() { ... }
+
+#[test]
+fn test_permission_errors_handled() { ... }
+```
+
+**Acceptance**:
+- [ ] Searches recursively through subdirectories
+- [ ] Glob patterns work correctly
+- [ ] Can cancel search mid-execution
+- [ ] Handles permission errors without crashing
+- [ ] Max depth prevents infinite recursion
+- [ ] Tests pass
+
+---
+
+### TASK-039: Create search dialog UI component ⬜
+**Priority**: P2 | **Time**: 2h | **Dependencies**: TASK-037
+
+**Description**: Modal dialog for recursive search
+
+**Files**:
+- `src/ui/search_dialog.rs` - NEW
+- `src/ui/mod.rs` - MODIFY (export search_dialog)
+
+**SearchDialog struct**:
+```rust
+pub struct SearchDialog {
+    input: String,
+    results: Vec<SearchResult>,
+    selected_index: usize,
+    scroll_offset: usize,
+    is_searching: bool,
+    files_scanned: usize,
+    searcher: Option<RecursiveSearcher>,
+}
+
+impl SearchDialog {
+    pub fn new(root_path: PathBuf) -> Self;
+    
+    pub fn handle_key(&mut self, key: KeyEvent) -> DialogAction;
+    
+    pub fn render(&self, frame: &mut Frame, area: Rect, theme: &Theme);
+    
+    fn start_search(&mut self);
+    
+    fn update_results(&mut self);
+    
+    fn render_input_field(&self, frame: &mut Frame, area: Rect, theme: &Theme);
+    
+    fn render_results_list(&self, frame: &mut Frame, area: Rect, theme: &Theme);
+    
+    fn render_progress(&self, frame: &mut Frame, area: Rect, theme: &Theme);
+}
+```
+
+**UI Layout**:
+```
+┌─ Recursive Search (Ctrl+F) ──────────────────────────┐
+│ Search: *.rs█                                         │
+│ ────────────────────────────────────────────────────  │
+│ Results (42 found, 1,234 files scanned):             │
+│                                                       │
+│ > src/main.rs                      2.3 KB  Today     │
+│   src/app.rs                       5.1 KB  Yesterday │
+│   src/ui/panel.rs                 12.4 KB  Oct 20    │
+│   tests/integration_test.rs        1.8 KB  Oct 15    │
+│   ...                                                 │
+│                                                       │
+│ [Searching... Press Esc to cancel]                   │
+└───────────────────────────────────────────────────────┘
+```
+
+**Visual Differentiation from F3 Filter**:
+- Title: "Recursive Search (Ctrl+F)" vs "Filter (F3)"
+- Border color: Different from filter (use search_border theme color)
+- Shows full paths vs just filenames
+- Shows progress indicator
+- Shows files scanned count
+
+**Key Handling**:
+- Any char: Add to input and restart search
+- Backspace: Remove from input and restart search
+- Up/Down: Navigate results
+- Enter: Select result and close dialog
+- Esc: Cancel search and close dialog
+- Ctrl+C: Copy selected path to clipboard (optional)
+
+**Acceptance**:
+- [ ] Dialog opens centered on screen
+- [ ] Input field accepts text
+- [ ] Results update as search progresses
+- [ ] Progress indicator shows during search
+- [ ] Can navigate results with arrows
+- [ ] Enter selects result
+- [ ] Esc cancels and closes
+
+---
+
+### TASK-040: Integrate search dialog with AppState ⬜
+**Priority**: P2 | **Time**: 1.5h | **Dependencies**: TASK-039
+
+**Description**: Wire search dialog into main application
+
+**Files**:
+- `src/app.rs` - MODIFY
+- `src/events/keybindings.rs` - MODIFY
+- `src/events/handler.rs` - MODIFY
+
+**AppState modifications**:
+```rust
+pub struct AppState {
+    // ... existing fields
+    pub search_dialog: Option<SearchDialog>,
+}
+
+impl AppState {
+    pub fn open_search_dialog(&mut self) {
+        let root = self.get_active_panel().get_path();
+        self.search_dialog = Some(SearchDialog::new(root));
+    }
+    
+    pub fn close_search_dialog(&mut self) {
+        self.search_dialog = None;
+    }
+    
+    pub fn has_search_dialog(&self) -> bool {
+        self.search_dialog.is_some()
+    }
+    
+    pub fn navigate_to_search_result(&mut self, result: &SearchResult) {
+        // Navigate to parent directory
+        let parent = result.full_path.parent().unwrap();
+        self.get_active_panel_mut().set_path(parent.to_path_buf());
+        
+        // Select the file
+        self.get_active_panel_mut().select_file(&result.file_name);
+        
+        self.close_search_dialog();
+    }
+}
+```
+
+**Keybinding**:
+```rust
+// In keybindings.rs
+pub enum Action {
+    // ... existing actions
+    OpenRecursiveSearch,
+}
+
+// In get_action()
+(KeyCode::Char('f'), KeyModifiers::CONTROL) => Action::OpenRecursiveSearch,
+```
+
+**Event Handler**:
+```rust
+// In handler.rs - handle_key()
+pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<bool> {
+    // Priority 1: Search dialog (if open)
+    if app.has_search_dialog() {
+        if let Some(dialog) = app.search_dialog.as_mut() {
+            match dialog.handle_key(key) {
+                DialogAction::Close => {
+                    app.close_search_dialog();
+                    return Ok(true);
+                }
+                DialogAction::Navigate(result) => {
+                    app.navigate_to_search_result(&result);
+                    return Ok(true);
+                }
+                DialogAction::Continue => return Ok(true),
+            }
+        }
+    }
+    
+    // Handle OpenRecursiveSearch action
+    match action {
+        Action::OpenRecursiveSearch => {
+            app.open_search_dialog();
+            Ok(true)
+        }
+        // ... other actions
+    }
+}
+```
+
+**Rendering Priority** (in event_loop.rs):
+```rust
+// Render order (highest to lowest):
+// 1. Welcome screen
+// 2. Dialogs (Input, Password, Confirm, DriveSelector)
+// 3. Preview modal
+// 4. Editor
+// 5. Search dialog  <-- Add here
+// 6. Panels + footer
+```
+
+**Acceptance**:
+- [ ] Ctrl+F opens search dialog
+- [ ] Search dialog has higher z-index than panels
+- [ ] Esc closes search dialog
+- [ ] Enter navigates to selected result
+- [ ] Search works in both left and right panel
+- [ ] Integration with existing app flow works
+
+---
+
+### TASK-041: Add search performance optimizations ⬜
+**Priority**: P3 | **Time**: 1.5h | **Dependencies**: TASK-038, TASK-039
+
+**Description**: Optimize search for large directory trees
+
+**Files**:
+- `src/search/recursive.rs` - MODIFY
+- `src/ui/search_dialog.rs` - MODIFY
+
+**Optimizations**:
+
+1. **Debounced Search**:
+```rust
+// Don't restart search on every keystroke
+// Wait 300ms after last keypress
+use std::time::{Duration, Instant};
+
+struct SearchDialog {
+    last_input_time: Instant,
+    debounce_duration: Duration,
+}
+
+// In update loop:
+if self.last_input_time.elapsed() > self.debounce_duration {
+    self.start_search();
+}
+```
+
+2. **Result Limit**:
+```rust
+// Stop search after finding N results
+const MAX_RESULTS: usize = 500;
+
+if self.state.lock().unwrap().results.len() >= MAX_RESULTS {
+    self.cancel();
+}
+```
+
+3. **Cache Recent Searches**:
+```rust
+// Store last 10 searches to avoid re-scanning
+use lru::LruCache;
+
+struct SearchCache {
+    cache: LruCache<String, Vec<SearchResult>>,
+}
+```
+
+4. **Skip Large Directories**:
+```rust
+// Skip common large dirs: node_modules, target, .git
+const SKIP_DIRS: &[&str] = &["node_modules", "target", ".git", "dist", "build"];
+
+if SKIP_DIRS.contains(&dir_name.to_str().unwrap()) {
+    continue;
+}
+```
+
+5. **Progress Throttling**:
+```rust
+// Update UI every N files instead of every file
+if files_scanned % 100 == 0 {
+    // Trigger UI update
+}
+```
+
+**Acceptance**:
+- [ ] Search doesn't freeze UI with 10,000+ files
+- [ ] Debouncing prevents excessive searches
+- [ ] Result limit prevents memory issues
+- [ ] Common large directories skipped
+- [ ] Progress updates don't spam UI
+
+---
+
+### TASK-042: Add integration tests for recursive search ⬜
+**Priority**: P2 | **Time**: 2h | **Dependencies**: TASK-037 through TASK-041
+
+**Description**: Comprehensive testing of search functionality
+
+**Files**:
+- `tests/recursive_search_test.rs` - NEW
+
+**Test Scenarios**:
+
+```rust
+#[test]
+fn test_simple_recursive_search() {
+    // Create temp directory structure:
+    // root/
+    //   file1.txt
+    //   subdir/
+    //     file2.txt
+    //     nested/
+    //       file3.txt
+    
+    let searcher = RecursiveSearcher::new("file".into(), root);
+    searcher.start_search().join().unwrap();
+    
+    let results = searcher.get_results();
+    assert_eq!(results.len(), 3);
+}
+
+#[test]
+fn test_glob_pattern_search() {
+    // Search for "*.txt"
+    let searcher = RecursiveSearcher::new("*.txt".into(), root);
+    // Assert only .txt files found
+}
+
+#[test]
+fn test_case_insensitive_search() {
+    // Search for "FILE" should find "file1.txt"
+}
+
+#[test]
+fn test_max_depth_limit() {
+    // Create deeply nested structure
+    // Verify search stops at max_depth
+}
+
+#[test]
+fn test_permission_denied_handling() {
+    // Create directory without read permissions
+    // Verify search continues without crashing
+}
+
+#[test]
+fn test_cancel_mid_search() {
+    // Start search on large directory
+    // Cancel after 100ms
+    // Verify it stops quickly
+}
+
+#[test]
+fn test_empty_results() {
+    // Search for non-existent pattern
+    // Verify empty results, no crash
+}
+
+#[test]
+fn test_special_characters_in_query() {
+    // Search for files with spaces, unicode, etc.
+}
+
+#[test]
+fn test_symlink_handling() {
+    // Create circular symlink
+    // Verify search doesn't infinite loop
+}
+
+#[test]
+fn test_navigate_to_result() {
+    // Simulate selecting search result
+    // Verify panel navigates to correct directory
+}
+```
+
+**Performance Tests**:
+```rust
+#[test]
+fn test_search_performance_1000_files() {
+    // Create 1000 files across 100 directories
+    let start = Instant::now();
+    let searcher = RecursiveSearcher::new("test".into(), root);
+    searcher.start_search().join().unwrap();
+    let elapsed = start.elapsed();
+    
+    assert!(elapsed < Duration::from_secs(2));
+}
+
+#[test]
+fn test_ui_responsiveness() {
+    // Verify UI updates don't block
+    // Check that results stream in incrementally
+}
+```
+
+**Acceptance**:
+- [ ] All integration tests pass
+- [ ] Coverage includes FR-041 through FR-055
+- [ ] Edge cases handled correctly
+- [ ] Performance acceptable (<2s for 1000 files)
+
+---
+
 ## Documentation and Final Tasks
 
 ### TASK-033: Update README with new features ⬜
@@ -1525,10 +2103,10 @@ cargo build --release
 
 ## Task Summary
 
-**Total Tasks**: 36  
+**Total Tasks**: 42  
 **Completed**: 31 tasks (TASK-001 through TASK-031) ✅  
-**Remaining**: 5 tasks (TASK-032 through TASK-036)  
-**Estimated Time Remaining**: ~3.75 hours
+**Remaining**: 11 tasks (TASK-032 through TASK-042)  
+**Estimated Time Remaining**: ~14.75 hours
 
 ### By Phase:
 - **Phase 0** (Foundation): 5 tasks, 4.75h ✅
@@ -1536,14 +2114,14 @@ cargo build --release
 - **Phase 2** (Disk Usage): 3 tasks, 5.5h ✅
 - **Phase 3** (Navigation History): 5 tasks, 5h ✅
 - **Phase 4** (Go To Path): 6 tasks, 4.5h ✅
-- **Phase 5** (Text Editor): 5 tasks, 8h ✅ *(COMPLETED!)*
-- **Phase 5 Edge Cases**: 1 task, 2h ⬜ *(in progress)*
-- **Documentation**: 4 tasks, 1.75h ⬜
+- **Phase 5** (Text Editor): 5 tasks, 8h ✅
+- **Phase 6** (Recursive Search): 6 tasks, 11h ⬜ *(NEW!)*
+- **Documentation**: 5 tasks, 2.25h ⬜
 
 ### By Priority:
 - **P1** (Critical): 18 tasks - All core features complete ✅
-- **P2** (High): 10 tasks - All complete ✅
-- **P3** (Medium): 6 tasks - All complete ✅
+- **P2** (High): 16 tasks - 10 complete, 6 remaining (search feature) ⬜
+- **P3** (Medium): 7 tasks - 6 complete, 1 remaining (optimizations)
 - **P4** (Low): 6 tasks - 5 complete, 1 remaining (integration tests)
 
 ### Completed Work:
@@ -1556,10 +2134,20 @@ cargo build --release
 **Current Status**: 
 - 31+ commits on branch `004-quick-wins-bookmarks`
 - 81+ tests passing
-- All core features fully functional
-- Text editor with edge case handling complete
+- All Phase 0-5 features fully functional
+- Ready to implement Phase 6 (Recursive Search)
 
 ### Remaining Work:
+
+**Phase 6 - Recursive Search (11h)**:
+- **TASK-037**: SearchResult/SearchState structs - 1.5h
+- **TASK-038**: Recursive search engine - 2.5h
+- **TASK-039**: Search dialog UI - 2h
+- **TASK-040**: Integration with AppState - 1.5h
+- **TASK-041**: Performance optimizations - 1.5h
+- **TASK-042**: Integration tests - 2h
+
+**Testing & Documentation (3.75h)**:
 - **TASK-032**: Editor integration tests - 2h
 - **TASK-033**: Update README - 0.5h
 - **TASK-034**: Update CHANGELOG - 0.25h
@@ -1567,6 +2155,8 @@ cargo build --release
 - **TASK-036**: Requirements checklist - 0.5h
 
 **Next Steps**:
-1. Complete TASK-032 (integration tests)
-2. Documentation (TASK-033 to 036)
+1. Implement Phase 6 (Recursive Search)
+2. Complete TASK-032 (editor tests)
+3. Documentation (TASK-033 to 036)
+4. Release v0.5.0 with 6 major features!
 4. Release v0.4.0
