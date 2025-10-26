@@ -672,3 +672,111 @@
 2. Or proceed to release preparation (version bump, changelog, final testing)
 3. Merge to master and create v0.3.0 release
 
+
+---
+
+## Phase 16: User Story 5 - Customizable Theme System (Priority: P1)  
+
+**Purpose**: Implement a theme system that allows users to customize the color scheme of the entire application
+
+**Acceptance Criteria**: See US5 in spec.md - 14 scenarios
+
+### Theme Infrastructure (FR-041 to FR-043)
+
+- [x] **T261** [P] [US5] Create `src/ui/theme.rs` with `Theme` struct 
+- [x] **T262** [P] [US5] Implement `Theme::classic()` method with current default colors 
+- [x] **T263** [P] [US5] Implement `Theme::light()` for light terminals 
+- [x] **T264** [P] [US5] Implement `Theme::dark()` enhanced dark theme 
+- [x] **T265** [P] [US5] Implement `Theme::high_contrast()` for accessibility 
+- [x] **T266** [P] [US5] Implement `Theme::nord()` with Nord color palette 
+- [x] **T267** [P] [US5] Implement `Theme::dracula()` with Dracula colors 
+- [x] **T268** [P] [US5] Implement `Theme::solarized_dark()` theme 
+- [x] **T269** [P] [US5] Implement `Theme::solarized_light()` theme 
+- [x] **T270** [P] [US5] Add `Theme::all_themes()` static method returning Vec<Theme> 
+- [x] **T271** [P] [US5] Add `Theme::by_name(name: &str) -> Option<Theme>` helper 
+- [x] **T272** [P] [US5] Add `get_entry_style()` method to Theme 
+- [x] **T273** [P] [US5] Export legacy color constants at bottom of theme.rs 
+
+### Theme Persistence (FR-044 to FR-046)
+
+- [x] **T274** [US5] Add `theme: Theme` field to `AppState` in `src/app.rs` 
+- [x] **T275** [US5] Add `theme_name: Option<String>` to `PersistedState` in `src/config/state.rs` 
+- [x] **T276** [US5] Update `AppState::new()` to load theme from config 
+- [x] **T277** [US5] Update `save_state()` to persist theme name 
+
+### Theme Selector Widget (FR-047 to FR-050)
+
+- [x] **T278** [P] [US5] Create `src/ui/theme_selector.rs` widget 
+- [x] **T279** [P] [US5] Add theme live preview in selector 
+- [x] **T280** [P] [US5] Add visual indicators in theme list 
+- [x] **T281** [P] [US5] Implement `render()` function for theme selector 
+- [x] **T282** [P] [US5] Add header with instructions 
+- [x] **T283** [P] [US5] Add footer with preview legend 
+- [x] **T284** [US5] Export theme_selector module in `src/ui/mod.rs` 
+
+### Theme Selector Events (FR-051 to FR-053)
+
+- [x] **T285** [US5] Add `ThemeSelector` variant to `DialogState` in `src/app.rs` 
+- [x] **T286** [US5] Add `OpenThemeSelector` action mapped to F12 key 
+- [x] **T287** [US5] Update footer in `src/ui/mod.rs` to show "F12:Theme" hint 
+- [x] **T288** [US5] Implement `OpenThemeSelector` action handler with cursor on active theme 
+- [x] **T289** [US5] Add theme selector dialog check in main event handler 
+- [x] **T290** [US5] Implement `handle_theme_selector_dialog()` with Up/Down/j/k navigation 
+- [x] **T291** [US5] Implement theme application on Enter with hot-swap 
+- [x] **T292** [US5] Update `render_dialog()` in `src/ui/dialog.rs` to handle ThemeSelector 
+
+### UI Component Refactoring (FR-054 to FR-056) - Phase 18
+
+- [x] **T293** [US5] Update `render_panel()` in `src/ui/panel_widget.rs` to use theme 
+- [x] **T294** [US5] Update panel header rendering with theme colors 
+- [x] **T295** [US5] Update panel list rendering with theme colors 
+- [x] **T296** [US5] Update `build_header_row()` to accept theme 
+- [x] **T297** [US5] Update all `render_panel()` call sites to pass theme 
+- [x] **T298** [US5] Update `render_footer()` to use theme colors 
+- [x] **T299** [US5] Update `render_footer()` call site in event_loop.rs 
+- [x] **T300** [US5] Update `render_dialog()` to accept and pass theme 
+- [x] **T301** [US5] Update `render_confirm_dialog()` with theme 
+- [x] **T302** [US5] Update `render_input_dialog()` with theme 
+- [x] **T303** [US5] Update `render_progress_dialog()` with theme 
+- [x] **T304** [US5] Update `render_progress_with_bar()` with theme 
+- [x] **T305** [US5] Update `render_error_dialog()` with theme 
+- [x] **T306** [US5] Update `render_extract_options_dialog()` with theme 
+- [x] **T307** [US5] Update `render_password_input_dialog()` with theme 
+- [x] **T308** [US5] Update `render_collision_dialog()` with theme 
+- [x] **T309** [US5] Update `render_compress_options_dialog()` with theme 
+- [x] **T310** [US5] Update `render_dialog_if_present()` to pass theme 
+- [x] **T311** [US5] Add Theme import to `src/ui/mod.rs` 
+- [x] **T312** [US5] Update welcome_screen `render()` with theme 
+- [x] **T313** [US5] Update welcome `render_minimal()` with theme 
+- [x] **T314** [US5] Update `render_welcome()` in mod.rs with theme 
+- [x] **T315** [US5] Update welcome render call in event_loop.rs 
+- [x] **T316** [US5] Update drive_selector `render()` with theme 
+- [x] **T317** [US5] Update drive_selector call in dialog.rs 
+- [x] **T318** [US5] Update `render_preview_modal()` with theme 
+- [x] **T319** [US5] Update image preview section with theme 
+- [x] **T320** [US5] Update preview modal call in event_loop.rs 
+
+### Testing & Polish (Phase 19)
+
+- [x] **T321** [US5] Manual test: F12 opens theme selector 
+- [x] **T322** [US5] Manual test: Navigate themes with Up/Down 
+- [x] **T323** [US5] Manual test: Apply theme with Enter 
+- [x] **T324** [US5] Manual test: Cancel with Escape 
+- [x] **T325** [US5] Manual test: Try all 8 themes 
+- [x] **T326** [US5] Manual test: Theme persistence across restarts 
+- [x] **T327** [US5] Manual test: Visual verification across all components 
+- [x] **T328** [US5] Verify no compilation warnings 
+
+**Deliverable**: Full theme system with 8 themes, F12 selector, live preview, persistence, and complete UI theming 
+
+**Status**: User Story 5 (Customizable Theme System) implementation complete  
+- 8 built-in themes (Classic, Light, Dark, High Contrast, Nord, Dracula, Solarized Dark/Light)
+- F12 hotkey opens theme selector (changed from F11 to avoid PowerShell conflict)
+- Live preview box showing directories, files, symlinks, executables with theme colors
+- Cursor starts on currently active theme with checkmark indicator
+- Theme persistence in config file
+- All UI components themed: panels, dialogs, footer, welcome, preview, selectors
+- Hot-swap capability - instant theme switching without restart
+- 68 tasks completed (T261-T328)
+
+**All 328 tasks across 5 User Stories completed! Ready for v0.3.0 release** 
