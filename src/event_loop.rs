@@ -430,9 +430,6 @@ fn render_ui<B: ratatui::backend::Backend>(
         // Render footer
         ui::render_footer(f, layout.footer, &app.theme);
         
-        // Render dialog if present
-        ui::render_dialog_if_present(f, app);
-        
         // Render preview modal if present
         if let Some(preview) = &app.preview_state {
             ui::preview_modal::render_preview_modal(f, preview, &app.theme);
@@ -442,6 +439,9 @@ fn render_ui<B: ratatui::backend::Backend>(
         if let Some(ref mut editor) = app.editor_state {
             editor.render(f, f.area(), &app.theme);
         }
+        
+        // Render dialog LAST so it appears on top of everything
+        ui::render_dialog_if_present(f, app);
     })?;
     
     Ok(())
