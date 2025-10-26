@@ -852,9 +852,194 @@ fn test_deleted_path_in_history() { ... }
 
 ---
 
-## Phase 4: Text Editor (P4) - Optional/Deferred
+## Phase 4: Go To Path (Ctrl+G) (P3)
 
-### TASK-021: Create EditorBuffer struct ⬜
+**Total Estimated Time**: 2-3 hours  
+**Priority**: P3 - High productivity value, low complexity  
+**Dependencies**: None (independent feature)
+
+### TASK-021: Add Go To Path dialog state ⬜
+**Priority**: P3 | **Time**: 30min | **Dependencies**: None
+
+**Description**: Add dialog state for Go To Path input
+
+**Files**:
+- `src/app.rs` - MODIFY (add GoToPath variant to DialogState)
+- `src/events/keybindings.rs` - MODIFY (add ToggleGoToPath action)
+
+**Implementation**:
+```rust
+// In src/app.rs DialogState enum
+GoToPath {
+    input: String,
+    error_message: Option<String>,
+},
+
+// In src/events/keybindings.rs
+pub enum Action {
+    // ... existing actions
+    ToggleGoToPath, // Ctrl+G to open/close Go To Path dialog
+}
+```
+
+**Acceptance**:
+- [ ] DialogState::GoToPath variant added
+- [ ] ToggleGoToPath action added
+- [ ] Ctrl+G keybinding mapped
+- [ ] Compiles without errors
+
+---
+
+### TASK-022: Create Go To Path dialog UI ⬜
+**Priority**: P3 | **Time**: 1h | **Dependencies**: TASK-021
+
+**Description**: Modal dialog for path input
+
+**Files**:
+- `src/ui/goto_dialog.rs` - NEW
+- `src/ui/mod.rs` - MODIFY (add pub mod goto_dialog)
+- `src/ui/dialog.rs` - MODIFY (add render case for GoToPath)
+
+**Implementation**:
+```rust
+pub fn render(
+    frame: &mut Frame,
+    input: &str,
+    error: &Option<String>,
+    theme: &Theme,
+) {
+    // Centered modal dialog (50x30% of screen)
+    // Title: "Go To Path (Ctrl+G)"
+    // Input field with current input
+    // Show error message if present
+    // Footer: "Enter: Navigate | Esc: Cancel | Ctrl+V: Paste"
+}
+```
+
+**UI Design**:
+- Simple input box centered on screen
+- Real-time path validation visual feedback
+- Error messages in red below input
+- Current directory hint
+
+**Acceptance**:
+- [ ] Dialog renders correctly
+- [ ] Input text displayed
+- [ ] Error messages shown when present
+- [ ] Theme colors applied
+- [ ] Footer with instructions
+
+---
+
+### TASK-023: Implement path validation and navigation ⬜
+**Priority**: P3 | **Time**: 1h | **Dependencies**: TASK-022
+
+**Description**: Handle path input, validation, and navigation
+
+**Files**:
+- `src/events/handler.rs` - MODIFY (add handle_goto_dialog function)
+- `src/fs/path_utils.rs` - NEW or MODIFY (path expansion utilities)
+
+**Implementation**:
+```rust
+fn handle_goto_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
+    // Handle text input
+    // Handle Enter: validate and navigate
+    // Handle Ctrl+V: paste from clipboard
+    // Handle Esc: close dialog
+}
+
+fn expand_path(input: &str, current_dir: &Path) -> Result<PathBuf> {
+    // Expand ~ to home directory
+    // Expand %VAR% or $VAR environment variables
+    // Resolve relative paths
+    // Validate path exists and is directory
+}
+```
+
+**Path Validation**:
+1. Trim whitespace
+2. Expand environment variables
+3. Resolve relative paths
+4. Check if path exists
+5. Check if path is directory
+6. Check read permissions
+
+**Acceptance**:
+- [ ] Absolute paths work (C:\Users\, /home/user/)
+- [ ] Relative paths work (../, ./subdir)
+- [ ] Environment variables expanded (~, %USERPROFILE%, $HOME)
+- [ ] Invalid paths show clear error
+- [ ] File paths rejected with error
+- [ ] Permission errors handled gracefully
+- [ ] Successful navigation adds to history
+- [ ] Panel refreshes after navigation
+
+---
+
+### TASK-024: Write Go To Path tests ⬜
+**Priority**: P3 | **Time**: 30min | **Dependencies**: TASK-023
+
+**Description**: Unit and integration tests for Go To Path
+
+**Files**:
+- `tests/goto_test.rs` - NEW
+
+**Test Cases**:
+```rust
+#[test]
+fn test_absolute_path_navigation() { ... }
+
+#[test]
+fn test_relative_path_navigation() { ... }
+
+#[test]
+fn test_environment_variable_expansion() { ... }
+
+#[test]
+fn test_invalid_path_shows_error() { ... }
+
+#[test]
+fn test_file_path_rejected() { ... }
+
+#[test]
+fn test_whitespace_trimmed() { ... }
+
+#[test]
+fn test_adds_to_history() { ... }
+```
+
+**Acceptance**:
+- [ ] All test cases pass
+- [ ] Coverage for FR-021 through FR-030
+- [ ] Edge cases tested (permissions, invalid chars, long paths)
+
+---
+
+### TASK-025: Update footer with Ctrl+G shortcut ⬜
+**Priority**: P3 | **Time**: 5min | **Dependencies**: TASK-023
+
+**Description**: Add Ctrl+G shortcut to footer help
+
+**Files**:
+- `src/ui/mod.rs` - MODIFY (render_footer function)
+
+**Change**:
+```rust
+// Add to line 2 or 3 of footer shortcuts
+("Ctrl+G", "Go To", Color::Yellow),
+```
+
+**Acceptance**:
+- [ ] Ctrl+G appears in footer
+- [ ] No layout issues
+- [ ] Visible in all themes
+
+---
+
+## Phase 5: Text Editor (P4) - Optional/Deferred
+
+### TASK-026: Create EditorBuffer struct ⬜
 **Priority**: P4 | **Time**: 2h | **Dependencies**: None
 
 **Description**: Buffer for text file content and cursor state. This will enhance the existing preview system to support editing.
@@ -895,8 +1080,8 @@ impl EditorBuffer {
 
 ---
 
-### TASK-022: Create text editor UI widget ⬜
-**Priority**: P4 | **Time**: 3h | **Dependencies**: TASK-021
+### TASK-027: Create text editor UI widget ⬜
+**Priority**: P4 | **Time**: 3h | **Dependencies**: TASK-026
 
 **Description**: Modal editor widget with rendering (enhancement of preview modal)
 

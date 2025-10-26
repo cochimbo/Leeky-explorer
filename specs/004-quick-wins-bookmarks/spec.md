@@ -63,7 +63,28 @@ Users often need to return to previously visited directories or retrace their na
 
 ---
 
-### User Story 4 - Simple Text File Editor (Priority: P4)
+### User Story 4 - Go To Path (Ctrl+G) (Priority: P3)
+
+Users need to quickly navigate to a known directory path without manually clicking through the directory tree, especially for deeply nested or frequently accessed locations.
+
+**Why this priority**: High productivity boost for power users. Simple implementation with immediate value. Complements bookmarks by handling one-off navigation needs.
+
+**Independent Test**: Can be tested by pressing Ctrl+G, typing a path, and verifying navigation to that directory in the active panel.
+
+**Acceptance Scenarios**:
+
+1. **Given** I'm in any directory, **When** I press Ctrl+G, **Then** a "Go To Path" dialog opens with an input field
+2. **Given** the Go To dialog is open, **When** I type a valid absolute path and press Enter, **Then** the active panel navigates to that directory
+3. **Given** the Go To dialog is open, **When** I type a valid relative path and press Enter, **Then** the active panel navigates to that path relative to current directory
+4. **Given** the Go To dialog is open, **When** I type an invalid or non-existent path, **Then** an error message is shown and the dialog remains open
+5. **Given** the Go To dialog is open, **When** I press Esc, **Then** the dialog closes without navigation
+6. **Given** the Go To dialog is open, **When** I type a path to a file (not a directory), **Then** an error indicates only directories are valid
+7. **Given** I have a path in my clipboard, **When** I open Go To dialog, **Then** I can paste the path (Ctrl+V)
+8. **Given** I'm typing a path, **When** the path contains environment variables like %USERPROFILE% or ~, **Then** the system expands them correctly
+
+---
+
+### User Story 5 - Simple Text File Editor (Priority: P4)
 
 Users want to quickly edit configuration files, notes, or small text files without leaving the file explorer and opening external editors.
 
@@ -93,6 +114,10 @@ Users want to quickly edit configuration files, notes, or small text files witho
 - **Disk Usage**: How to handle network drives with slow response times?
 - **History**: What happens when navigating to a directory that no longer exists?
 - **History**: Maximum history size (memory consideration)?
+- **Go To Path**: What happens when user enters a path with invalid characters?
+- **Go To Path**: How to handle paths with insufficient permissions?
+- **Go To Path**: How to handle very long paths (>260 chars on Windows)?
+- **Go To Path**: Should the input support path auto-completion?
 - **Editor**: What happens when file is modified externally while being edited?
 - **Editor**: How to handle files without write permissions?
 - **Editor**: Character encoding detection (UTF-8, UTF-16, ASCII)?
@@ -127,17 +152,29 @@ Users want to quickly edit configuration files, notes, or small text files witho
 - **FR-019**: System MUST persist history for at least 100 entries per panel
 - **FR-020**: System MUST handle navigation to non-existent historical directories gracefully
 
+**Go To Path (P3):**
+- **FR-021**: System MUST open Go To Path dialog via Ctrl+G keybinding
+- **FR-022**: System MUST accept absolute paths (e.g., C:\Users\John\Documents, /home/user/documents)
+- **FR-023**: System MUST accept relative paths from current directory (e.g., ../parent, ./subdir)
+- **FR-024**: System MUST expand environment variables (%USERPROFILE%, $HOME, ~)
+- **FR-025**: System MUST validate path before navigation and show error for invalid paths
+- **FR-026**: System MUST reject paths that point to files (only directories allowed)
+- **FR-027**: System MUST handle permission errors gracefully (show clear error message)
+- **FR-028**: System MUST support clipboard paste in path input (Ctrl+V)
+- **FR-029**: System MUST trim whitespace from input path
+- **FR-030**: System MUST add successful navigation to history
+
 **Text Editor (P4):**
-- **FR-021**: System MUST open text editor via F4 keybinding for selected file (edit mode in preview)
-- **FR-022**: System MUST support basic text editing (insert, delete, navigation)
-- **FR-023**: System MUST save file via Ctrl+S keybinding
-- **FR-024**: System MUST close editor via Esc keybinding
-- **FR-025**: System MUST warn before closing editor with unsaved changes
-- **FR-026**: System MUST prevent editing binary files (show error message)
-- **FR-027**: System MUST warn when attempting to edit large files (>1MB)
-- **FR-028**: System MUST handle UTF-8 encoded files
-- **FR-029**: System MUST show line numbers in editor
-- **FR-030**: System MUST support syntax highlighting [NICE TO HAVE - can defer]
+- **FR-031**: System MUST open text editor via F4 keybinding for selected file (edit mode in preview)
+- **FR-032**: System MUST support basic text editing (insert, delete, navigation)
+- **FR-033**: System MUST save file via Ctrl+S keybinding
+- **FR-034**: System MUST close editor via Esc keybinding
+- **FR-035**: System MUST warn before closing editor with unsaved changes
+- **FR-036**: System MUST prevent editing binary files (show error message)
+- **FR-037**: System MUST warn when attempting to edit large files (>1MB)
+- **FR-038**: System MUST handle UTF-8 encoded files
+- **FR-039**: System MUST show line numbers in editor
+- **FR-040**: System MUST support syntax highlighting [NICE TO HAVE - can defer]
 
 ### Key Entities
 
@@ -188,14 +225,22 @@ Users want to quickly edit configuration files, notes, or small text files witho
 - **SC-011**: 90% of users discover and use history navigation within first session (with keybinding hints)
 - **SC-012**: Each panel maintains independent history without cross-contamination
 
+**Go To Path:**
+- **SC-013**: Dialog opens and accepts input in <50ms
+- **SC-014**: Path validation completes in <100ms for local paths
+- **SC-015**: Users can navigate to any valid directory with 100% accuracy
+- **SC-016**: Environment variable expansion works correctly on all supported platforms
+- **SC-017**: Error messages clearly indicate why a path is invalid
+- **SC-018**: 80% of power users adopt Ctrl+G as preferred navigation method for known paths
+
 **Text Editor:**
-- **SC-013**: Editor opens files <100KB in under 200ms
-- **SC-014**: Users can make simple edits (config files, notes) without exiting application
-- **SC-015**: 100% of file saves complete successfully or show clear error message
-- **SC-016**: Zero data loss incidents due to editor bugs
-- **SC-017**: Editor prevents editing binary files 100% of the time
+- **SC-019**: Editor opens files <100KB in under 200ms
+- **SC-020**: Users can make simple edits (config files, notes) without exiting application
+- **SC-021**: 100% of file saves complete successfully or show clear error message
+- **SC-022**: Zero data loss incidents due to editor bugs
+- **SC-023**: Editor prevents editing binary files 100% of the time
 
 **Overall:**
-- **SC-018**: All quick wins features combined add <500KB to binary size
-- **SC-019**: No measurable performance degradation in existing features
-- **SC-020**: Feature discoverability: 70% of users find at least 2 of 4 features in first 10 minutes
+- **SC-024**: All quick wins features combined add <500KB to binary size
+- **SC-025**: No measurable performance degradation in existing features
+- **SC-026**: Feature discoverability: 70% of users find at least 3 of 5 features in first 10 minutes

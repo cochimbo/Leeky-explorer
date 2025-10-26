@@ -5,17 +5,19 @@
 
 ## Summary
 
-Implement four high-value, low-complexity features to enhance user productivity:
+Implement five high-value, low-complexity features to enhance user productivity:
 1. **Bookmarks (P1)**: Persistent favorite directories accessible via Ctrl+B
 2. **Disk Usage Indicators (P2)**: Visual progress bars in drive selector showing space usage
-3. **Navigation History (P3)**: Browser-like back/forward navigation with Alt+Left/Right
-4. **Text Editor (P4)**: Simple in-app editor for text files via F4 (edit mode in preview)
+3. **Navigation History (P3)**: Modal history viewer with Ctrl+H showing last 20 directories
+4. **Go To Path (P3)**: Quick navigation dialog via Ctrl+G to jump to any directory path
+5. **Text Editor (P4)**: Simple in-app editor for text files via F4 (edit mode in preview) - DEFERRED
 
 **Technical Approach**: 
 - Extend existing `config::state` module for bookmarks persistence
 - Enhance `ui::drive_selector` with disk usage visualization using existing `fs::disk_info`
-- Add history stack to `models::panel` for navigation tracking
-- Create new `ui::text_editor` modal component following existing modal patterns
+- Add history buffer to `models::panel` for navigation tracking (20-entry circular buffer)
+- Create new `ui::goto_dialog` for path input and validation
+- Create new `ui::text_editor` modal component following existing modal patterns (Phase 5)
 
 ## Technical Context
 
@@ -49,9 +51,10 @@ Implement four high-value, low-complexity features to enhance user productivity:
 
 **Scale/Scope**:
 - Support 50+ bookmarks
-- 100 history entries per panel
-- Files up to 1MB for editing
-- 4 independent features with incremental delivery
+- 20 history entries per panel (circular buffer)
+- Path input with environment variable expansion
+- Files up to 1MB for editing (Phase 5)
+- 5 independent features with incremental delivery (4 in v0.4.0, editor deferred)
 
 ## Constitution Check
 
@@ -93,15 +96,18 @@ src/
 ├── ui/
 │   ├── mod.rs                # [MODIFY] Export new modules
 │   ├── bookmark_manager.rs   # [NEW] Ctrl+B bookmark menu widget
-│   ├── text_editor.rs        # [NEW] Simple text editor modal
+│   ├── history_dialog.rs     # [NEW] Ctrl+H history viewer modal
+│   ├── goto_dialog.rs        # [NEW] Ctrl+G go to path dialog
+│   ├── text_editor.rs        # [NEW] Simple text editor modal (Phase 5)
 │   ├── drive_selector.rs     # [MODIFY] Add disk usage bars
 │   └── panel_widget.rs       # [MODIFY] Show disk space in status bar
 │
 ├── fs/
-│   └── disk_info.rs          # [MODIFY] Add usage percentage calculation
+│   ├── disk_info.rs          # [MODIFY] Add usage percentage calculation
+│   └── path_utils.rs         # [NEW or MODIFY] Path expansion utilities
 │
 ├── events/
-│   ├── keybindings.rs        # [MODIFY] Add Ctrl+B, Alt+Left/Right, F4 edit mode
+│   ├── keybindings.rs        # [MODIFY] Add Ctrl+B, Ctrl+H, Ctrl+G, F4 edit mode
 │   └── handler.rs            # [MODIFY] Handle new actions
 │
 └── app.rs                    # [MODIFY] Integrate new features
@@ -109,8 +115,9 @@ src/
 tests/
 ├── bookmark_test.rs          # [NEW] Bookmark operations
 ├── history_test.rs           # [NEW] Navigation history
+├── goto_test.rs              # [NEW] Go to path functionality
 ├── disk_usage_test.rs        # [NEW] Disk usage calculations
-└── text_editor_test.rs       # [NEW] Editor functionality
+└── text_editor_test.rs       # [NEW] Editor functionality (Phase 5)
 ```
 
 **Structure Decision**: Single project structure maintained. All features integrate into existing architecture through module extensions. No new external projects or services required. Follows established patterns for UI components (modals), state management (config module), and event handling (keybindings + handler).
