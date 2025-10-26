@@ -106,6 +106,10 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
             refresh_and_store(app)?;
             // T578: Clear marks when navigating to different directory
             app.selection_state.clear(app.active_panel);
+            // Clear search pattern when entering a directory
+            if app.search_mode {
+                app.deactivate_search();
+            }
         }
         Action::GoUp => {
             app.active_panel_mut().go_up()?;
@@ -114,6 +118,10 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
             app.store_all_entries(entries);
             // T578: Clear marks when navigating to parent directory
             app.selection_state.clear(app.active_panel);
+            // Clear search pattern when going up to parent directory
+            if app.search_mode {
+                app.deactivate_search();
+            }
         }
         Action::Refresh => {
             // Store current panel
@@ -1377,6 +1385,7 @@ fn handle_search_mode(app: &mut AppState, key: KeyEvent) -> Result<Action> {
         }
         crossterm::event::KeyCode::Enter => {
             // T415: Finalize filter and return to navigation
+            // Keep the filtered results but exit search mode
             app.search_mode = false;
             Ok(Action::None)
         }

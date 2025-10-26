@@ -51,6 +51,25 @@ pub fn render_panel(
     let content_width = area.width.saturating_sub(4); // Subtract borders and padding
     let layout = ColumnLayout::calculate(content_width, &panel.entries);
 
+    // Adjust area height if search bar is active to prevent overlap
+    let list_area = if is_active && search_mode {
+        Rect {
+            x: area.x,
+            y: area.y,
+            width: area.width,
+            height: area.height.saturating_sub(1), // Reserve 1 line for search bar
+        }
+    } else if is_active && panel.has_filter() {
+        Rect {
+            x: area.x,
+            y: area.y,
+            width: area.width,
+            height: area.height.saturating_sub(1), // Reserve 1 line for filter display
+        }
+    } else {
+        area
+    };
+
     // T409: Show "No results" message if filter is active but no entries
     let items: Vec<ListItem> = if panel.entries.is_empty() && panel.has_filter() {
         vec![ListItem::new(Line::from(Span::styled(
@@ -129,7 +148,7 @@ pub fn render_panel(
     let cursor_offset = if panel.entries.is_empty() { 0 } else { panel.cursor + 2 };
     state.select(Some(cursor_offset));
 
-    frame.render_stateful_widget(list, area, &mut state);
+    frame.render_stateful_widget(list, list_area, &mut state);
 
     // T408: Render search bar at bottom of panel if active
     if is_active && search_mode {
