@@ -171,9 +171,9 @@ pub fn render_confirm_dialog(frame: &mut Frame, message: &str, area: Rect, theme
     frame.render_widget(text, chunks[0]);
     
     let confirm_text = Paragraph::new(Line::from(vec![
-        Span::styled("Y", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+        Span::styled("y", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
         Span::raw("es / "),
-        Span::styled("N", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+        Span::styled("n", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
         Span::raw("o / "),
         Span::styled("Esc", Style::default().fg(Color::Gray).add_modifier(Modifier::BOLD)),
     ]))
