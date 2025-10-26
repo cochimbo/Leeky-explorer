@@ -2067,9 +2067,62 @@ fn handle_history_viewer_dialog(app: &mut AppState, key: KeyEvent) -> Result<Act
 fn handle_goto_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
     use crossterm::event::{KeyCode, KeyModifiers};
     
-    // Will be implemented in TASK-023
-    if let Some(DialogState::GoToPath { .. }) = &mut app.dialog_state {
+    // Get current directory before mutable borrow (needed for Enter handler)
+    let current_dir = app.active_panel().current_path.clone();
+    
+    if let Some(DialogState::GoToPath { input, error_message }) = &mut app.dialog_state {
         match (key.code, key.modifiers) {
+            // Text input: add character to input
+            (KeyCode::Char(c), KeyModifiers::NONE) | (KeyCode::Char(c), KeyModifiers::SHIFT) => {
+                input.push(c);
+                *error_message = None; // Clear error when typing
+            }
+            // Backspace: remove last character
+            (KeyCode::Backspace, _) => {
+                input.pop();
+                *error_message = None; // Clear error when editing
+            }
+            // Ctrl+V: Paste from clipboard (placeholder - clipboard not implemented yet)
+            (KeyCode::Char('v'), KeyModifiers::CONTROL) | (KeyCode::Char('V'), KeyModifiers::CONTROL) => {
+                // TODO: Implement clipboard paste if crossterm supports it
+                // For now, just clear error
+                *error_message = None;
+            }
+            // Enter: Validate and navigate
+            (KeyCode::Enter, _) => {
+                let input_path = input.trim().to_string();
+                
+                if input_path.is_empty() {
+                    *error_message = Some("Path cannot be empty".to_string());
+                    return Ok(Action::None);
+                }
+                
+                // Expand and validate path
+                match expand_and_validate_path(&input_path, &current_dir) {
+                    Ok(validated_path) => {
+                        // Close dialog
+                        app.close_dialog();
+                        
+                        // Navigate to the path
+                        let panel = app.active_panel_mut();
+                        panel.current_path = validated_path.clone();
+                        
+                        // Add to navigation history
+                        panel.history.push(validated_path);
+                        
+                        // Refresh panel
+                        if let Err(e) = panel.refresh_entries() {
+                            app.error_message = Some(format!("Failed to read directory: {}", e));
+                        } else {
+                            panel.cursor = 0;
+                            panel.scroll_offset = 0;
+                        }
+                    }
+                    Err(e) => {
+                        *error_message = Some(e);
+                    }
+                }
+            }
             // Escape: Close dialog
             (KeyCode::Esc, _) | (KeyCode::Char('g'), KeyModifiers::CONTROL) | (KeyCode::Char('G'), KeyModifiers::CONTROL) => {
                 app.close_dialog();
@@ -2080,3 +2133,124 @@ fn handle_goto_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
     
     Ok(Action::None)
 }
+
+/// Expand environment variables and validate path
+fn expand_and_validate_path(input: &str, current_dir: &std::path::Path) -> Result<std::path::PathBuf, String> {
+    use std::path::PathBuf;
+    
+    let input = input.trim();
+    
+    // Expand ~ to home directory
+    let expanded = if input.starts_with('~') {
+        if let Some(home) = dirs::home_dir() {
+            let rest = &input[1..];
+            if rest.is_empty() {
+                home.to_string_lossy().to_string()
+            } else {
+                format!("{}{}", home.display(), rest)
+            }
+        } else {
+            return Err("Could not determine home directory".to_string());
+        }
+    } else {
+        input.to_string()
+    };
+    
+    // Expand environment variables (%VAR% on Windows, $VAR on Unix)
+    let expanded = expand_env_vars(&expanded);
+    
+    // Create PathBuf
+    let mut path = PathBuf::from(&expanded);
+    
+    // If relative path, resolve from current directory
+    if path.is_relative() {
+        path = current_dir.join(path);
+    }
+    
+    // Canonicalize to resolve .. and . components
+    let path = match path.canonicalize() {
+        Ok(p) => p,
+        Err(e) => {
+            return Err(format!("Invalid path: {}", e));
+        }
+    };
+    
+    // Check if path exists
+    if !path.exists() {
+        return Err(format!("Path does not exist: {}", path.display()));
+    }
+    
+    // Check if it's a directory
+    if !path.is_dir() {
+        return Err(format!("Path is not a directory: {}", path.display()));
+    }
+    
+    // Check if we have read permissions
+    if let Err(e) = std::fs::read_dir(&path) {
+        return Err(format!("Cannot access directory: {}", e));
+    }
+    
+    Ok(path)
+}
+
+/// Expand environment variables in the path string
+fn expand_env_vars(input: &str) -> String {
+    let mut result = input.to_string();
+    
+    // Windows style: %VARIABLE%
+    #[cfg(target_os = "windows")]
+    {
+        while let Some(start) = result.find('%') {
+            if let Some(end) = result[start + 1..].find('%') {
+                let var_name = &result[start + 1..start + 1 + end];
+                if let Ok(value) = std::env::var(var_name) {
+                    result = format!("{}{}{}", &result[..start], value, &result[start + 2 + end..]);
+                } else {
+                    break; // Variable not found, stop processing
+                }
+            } else {
+                break; // No closing %, stop processing
+            }
+        }
+    }
+    
+    // Unix style: $VARIABLE or ${VARIABLE}
+    #[cfg(not(target_os = "windows"))]
+    {
+        // Handle ${VAR} style
+        while let Some(start) = result.find("${") {
+            if let Some(end) = result[start..].find('}') {
+                let var_name = &result[start + 2..start + end];
+                if let Ok(value) = std::env::var(var_name) {
+                    result = format!("{}{}{}", &result[..start], value, &result[start + end + 1..]);
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+        
+        // Handle $VAR style (simple case)
+        while let Some(start) = result.find('$') {
+            let rest = &result[start + 1..];
+            let end = rest.chars()
+                .take_while(|c| c.is_alphanumeric() || *c == '_')
+                .count();
+            
+            if end > 0 {
+                let var_name = &rest[..end];
+                if let Ok(value) = std::env::var(var_name) {
+                    result = format!("{}{}{}", &result[..start], value, &result[start + 1 + end..]);
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+    }
+    
+    result
+}
+
