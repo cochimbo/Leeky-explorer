@@ -232,9 +232,18 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
         }
         Action::ToggleGoToPath => {
             // TASK-021: Open Go To Path dialog
+            // Get initial suggestions from current directory
+            let current_path = app.active_panel().current_path.clone();
+            let initial_suggestions = get_directory_children(&current_path);
+            
+            // Initialize input with current path
+            let initial_input = current_path.to_string_lossy().to_string();
+            
             app.dialog_state = Some(DialogState::GoToPath {
-                input: String::new(),
+                input: initial_input,
                 error_message: None,
+                suggestions: initial_suggestions,
+                selected_suggestion: 0,
             });
         }
         Action::ExtractArchive => {
@@ -2070,17 +2079,53 @@ fn handle_goto_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
     // Get current directory before mutable borrow (needed for Enter handler)
     let current_dir = app.active_panel().current_path.clone();
     
-    if let Some(DialogState::GoToPath { input, error_message }) = &mut app.dialog_state {
+    if let Some(DialogState::GoToPath { input, error_message, suggestions, selected_suggestion }) = &mut app.dialog_state {
         match (key.code, key.modifiers) {
             // Text input: add character to input
             (KeyCode::Char(c), KeyModifiers::NONE) | (KeyCode::Char(c), KeyModifiers::SHIFT) => {
                 input.push(c);
                 *error_message = None; // Clear error when typing
+                
+                // Update suggestions based on new input
+                *suggestions = get_suggestions_for_input(input, &current_dir);
+                *selected_suggestion = 0;
             }
             // Backspace: remove last character
             (KeyCode::Backspace, _) => {
                 input.pop();
                 *error_message = None; // Clear error when editing
+                
+                // Update suggestions based on new input
+                *suggestions = get_suggestions_for_input(input, &current_dir);
+                *selected_suggestion = 0;
+            }
+            // Tab: Autocomplete
+            (KeyCode::Tab, _) => {
+                if !suggestions.is_empty() {
+                    let completed = autocomplete_path(input, suggestions);
+                    *input = completed;
+                    
+                    // Update suggestions again after completion
+                    *suggestions = get_suggestions_for_input(input, &current_dir);
+                    *selected_suggestion = 0;
+                }
+            }
+            // Up/Down: Navigate suggestions
+            (KeyCode::Up, _) => {
+                if !suggestions.is_empty() && *selected_suggestion > 0 {
+                    *selected_suggestion -= 1;
+                } else if !suggestions.is_empty() {
+                    // Wrap around to last item
+                    *selected_suggestion = suggestions.len() - 1;
+                }
+            }
+            (KeyCode::Down, _) => {
+                if !suggestions.is_empty() && *selected_suggestion + 1 < suggestions.len() {
+                    *selected_suggestion += 1;
+                } else if !suggestions.is_empty() {
+                    // Wrap around to first item
+                    *selected_suggestion = 0;
+                }
             }
             // Ctrl+V: Paste from clipboard (placeholder - clipboard not implemented yet)
             (KeyCode::Char('v'), KeyModifiers::CONTROL) | (KeyCode::Char('V'), KeyModifiers::CONTROL) => {
@@ -2088,8 +2133,24 @@ fn handle_goto_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
                 // For now, just clear error
                 *error_message = None;
             }
-            // Enter: Validate and navigate
+            // Enter: Select highlighted suggestion OR validate and navigate
             (KeyCode::Enter, _) => {
+                // If there are suggestions, use Enter to select the highlighted one
+                if !suggestions.is_empty() {
+                    let selected_path = &suggestions[*selected_suggestion];
+                    if let Some(path_str) = selected_path.to_str() {
+                        // Complete to the selected path with trailing separator
+                        *input = format!("{}{}", path_str, std::path::MAIN_SEPARATOR);
+                        
+                        // Update suggestions for the new path
+                        *suggestions = get_suggestions_for_input(input, &current_dir);
+                        *selected_suggestion = 0;
+                        *error_message = None;
+                        return Ok(Action::None);
+                    }
+                }
+                
+                // No suggestions or couldn't convert path, try to navigate
                 let input_path = input.trim().to_string();
                 
                 if input_path.is_empty() {
@@ -2190,7 +2251,29 @@ fn expand_and_validate_path(input: &str, current_dir: &std::path::Path) -> Resul
         return Err(format!("Cannot access directory: {}", e));
     }
     
-    Ok(path)
+    // Clean up Windows UNC prefix (\\?\) for display
+    let cleaned_path = clean_windows_path(path);
+    
+    Ok(cleaned_path)
+}
+
+/// Remove Windows UNC prefix (\\?\) from canonicalized paths
+#[cfg(target_os = "windows")]
+fn clean_windows_path(path: std::path::PathBuf) -> std::path::PathBuf {
+    use std::path::PathBuf;
+    
+    let path_str = path.to_string_lossy();
+    if path_str.starts_with(r"\\?\") {
+        // Remove the \\?\ prefix
+        PathBuf::from(&path_str[4..])
+    } else {
+        path
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn clean_windows_path(path: std::path::PathBuf) -> std::path::PathBuf {
+    path
 }
 
 /// Expand environment variables in the path string
@@ -2252,5 +2335,196 @@ fn expand_env_vars(input: &str) -> String {
     }
     
     result
+}
+
+/// Get all subdirectories of the given path
+fn get_directory_children(path: &std::path::Path) -> Vec<std::path::PathBuf> {
+    let mut children = Vec::new();
+    
+    if let Ok(entries) = std::fs::read_dir(path) {
+        for entry in entries.flatten() {
+            if let Ok(metadata) = entry.metadata() {
+                if metadata.is_dir() {
+                    children.push(entry.path());
+                }
+            }
+        }
+    }
+    
+    // Sort alphabetically for consistent display
+    children.sort();
+    children
+}
+
+/// Expand path variables (~, %VAR%, $VAR) without validation
+fn expand_path_variables_only(input: &str) -> String {
+    let input = input.trim();
+    
+    // Expand ~ to home directory
+    let expanded = if input.starts_with('~') {
+        if let Some(home) = dirs::home_dir() {
+            let rest = &input[1..];
+            if rest.is_empty() {
+                home.to_string_lossy().to_string()
+            } else {
+                format!("{}{}", home.display(), rest)
+            }
+        } else {
+            input.to_string()
+        }
+    } else {
+        input.to_string()
+    };
+    
+    // Expand environment variables
+    expand_env_vars(&expanded)
+}
+
+/// Get suggestions based on current input and working directory
+fn get_suggestions_for_input(input: &str, current_dir: &std::path::Path) -> Vec<std::path::PathBuf> {
+    use std::path::Path;
+    
+    if input.is_empty() {
+        // Show children of current directory when input is empty
+        return get_directory_children(current_dir);
+    }
+    
+    // Expand the input path
+    let expanded = expand_path_variables_only(input);
+    let input_path = Path::new(&expanded);
+    
+    // Check if input ends with a path separator (means we want to list that directory)
+    let ends_with_separator = input.ends_with(std::path::MAIN_SEPARATOR) 
+        || input.ends_with('/') 
+        || input.ends_with('\\');
+    
+    // Determine the directory to list and the prefix to filter by
+    let (dir_to_list, filter_prefix) = if input_path.is_absolute() {
+        // If ends with separator or path exists as a directory, list its children
+        if ends_with_separator && input_path.exists() && input_path.is_dir() {
+            (input_path.to_path_buf(), String::new())
+        } else if !ends_with_separator && input_path.exists() && input_path.is_dir() {
+            // Path exists as complete directory, list its children
+            (input_path.to_path_buf(), String::new())
+        } else if let Some(parent) = input_path.parent() {
+            // Path is partial, list parent and filter
+            if parent.exists() && parent.is_dir() {
+                let prefix = input_path.file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("")
+                    .to_string();
+                (parent.to_path_buf(), prefix)
+            } else {
+                // Parent doesn't exist, fallback to current dir
+                (current_dir.to_path_buf(), String::new())
+            }
+        } else {
+            // No parent (root), list the root itself
+            (input_path.to_path_buf(), String::new())
+        }
+    } else {
+        // Relative path: resolve against current_dir
+        let absolute = current_dir.join(input_path);
+        
+        if ends_with_separator && absolute.exists() && absolute.is_dir() {
+            (absolute, String::new())
+        } else if !ends_with_separator && absolute.exists() && absolute.is_dir() {
+            // Complete directory exists, list its children
+            (absolute, String::new())
+        } else if let Some(parent) = absolute.parent() {
+            if parent.exists() && parent.is_dir() {
+                let prefix = absolute.file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("")
+                    .to_string();
+                (parent.to_path_buf(), prefix)
+            } else {
+                (current_dir.to_path_buf(), String::new())
+            }
+        } else {
+            (current_dir.to_path_buf(), String::new())
+        }
+    };
+    
+    // Get children of the directory
+    let children = get_directory_children(&dir_to_list);
+    
+    // Filter by prefix if any
+    if filter_prefix.is_empty() {
+        children
+    } else {
+        let prefix_lower = filter_prefix.to_lowercase();
+        children
+            .into_iter()
+            .filter(|path| {
+                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                    name.to_lowercase().starts_with(&prefix_lower)
+                } else {
+                    false
+                }
+            })
+            .collect()
+    }
+}
+
+/// Autocomplete path based on suggestions (bash-like behavior)
+fn autocomplete_path(input: &str, suggestions: &[std::path::PathBuf]) -> String {
+    if suggestions.is_empty() {
+        return input.to_string();
+    }
+    
+    // If only one suggestion, complete to that path
+    if suggestions.len() == 1 {
+        if let Some(path_str) = suggestions[0].to_str() {
+            // Add trailing separator to indicate it's a directory
+            return format!("{}{}", path_str, std::path::MAIN_SEPARATOR);
+        }
+        return input.to_string();
+    }
+    
+    // Multiple suggestions: find common prefix
+    let names: Vec<String> = suggestions
+        .iter()
+        .filter_map(|p| {
+            p.file_name()
+                .and_then(|n| n.to_str())
+                .map(|s| s.to_string())
+        })
+        .collect();
+    
+    if names.is_empty() {
+        return input.to_string();
+    }
+    
+    // Find common prefix among all names
+    let first = &names[0];
+    let mut common_len = first.len();
+    
+    for name in &names[1..] {
+        let mut len = 0;
+        for (c1, c2) in first.chars().zip(name.chars()) {
+            if c1.to_lowercase().next() == c2.to_lowercase().next() {
+                len += c1.len_utf8();
+            } else {
+                break;
+            }
+        }
+        common_len = common_len.min(len);
+    }
+    
+    if common_len > 0 {
+        let common_prefix = &first[..common_len];
+        
+        // Build the completed path
+        if let Some(parent) = suggestions[0].parent() {
+            let completed = parent.join(common_prefix);
+            if let Some(completed_str) = completed.to_str() {
+                return completed_str.to_string();
+            }
+        }
+    }
+    
+    // If no common prefix, return input unchanged
+    input.to_string()
 }
 

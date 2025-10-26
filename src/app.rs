@@ -117,6 +117,8 @@ pub enum DialogState {
     GoToPath {
         input: String,
         error_message: Option<String>,
+        suggestions: Vec<std::path::PathBuf>,
+        selected_suggestion: usize,
     },
 }
 
