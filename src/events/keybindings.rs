@@ -17,6 +17,7 @@ pub enum Action {
     Rename,           // F2 to rename file/directory (name only, no extension)
     RenameWithExtension, // Shift+F2 to rename with extension
     Search,
+    ClearSearch,      // Shift+F3 to clear search pattern and filter
     ToggleSelection,  // T562: Space to mark/unmark
     SelectAll,        // T563: Ctrl+A to select all
     ClearSelection,   // T564: Esc to clear selection (when marks exist)
@@ -75,8 +76,9 @@ pub fn map_key_to_action(key: KeyEvent) -> Action {
         (KeyCode::F(6), _) => Action::Move,
         (KeyCode::F(7), _) => Action::CreateFolder,
         (KeyCode::F(8), _) => Action::Delete,
-        // F3 for search, F4 for preview (T626), F9 for extract (T839), Shift+F9 for compress (T938), F10 for drive selector (US4), F11 for theme selector (US5)
-        (KeyCode::F(3), _) => Action::Search,
+        // F3 for search, Shift+F3 to clear search, F4 for preview (T626), F9 for extract (T839), Shift+F9 for compress (T938), F10 for drive selector (US4), F12 for theme selector (US5)
+        (KeyCode::F(3), KeyModifiers::NONE) => Action::Search,
+        (KeyCode::F(3), KeyModifiers::SHIFT) => Action::ClearSearch,
         (KeyCode::F(4), _) => Action::OpenPreview,
         (KeyCode::F(9), KeyModifiers::NONE) => Action::ExtractArchive,
         (KeyCode::F(9), KeyModifiers::SHIFT) => Action::CompressArchive,

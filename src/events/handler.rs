@@ -106,9 +106,10 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
             refresh_and_store(app)?;
             // T578: Clear marks when navigating to different directory
             app.selection_state.clear(app.active_panel);
-            // Clear search pattern when entering a directory
+            // Exit search mode when entering a directory (panel clears its own filter)
             if app.search_mode {
-                app.deactivate_search();
+                app.search_mode = false;
+                app.search_pattern.clear();
             }
         }
         Action::GoUp => {
@@ -118,9 +119,10 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
             app.store_all_entries(entries);
             // T578: Clear marks when navigating to parent directory
             app.selection_state.clear(app.active_panel);
-            // Clear search pattern when going up to parent directory
+            // Exit search mode when going up to parent (panel clears its own filter)
             if app.search_mode {
-                app.deactivate_search();
+                app.search_mode = false;
+                app.search_pattern.clear();
             }
         }
         Action::Refresh => {
@@ -157,10 +159,20 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
             handle_rename_request(app, true)?; // true = name with extension
         }
         Action::Search => {
-            // T411: Activate search mode
-            app.activate_search();
-            // T580: Clear marks when entering search mode to avoid confusion
-            app.selection_state.clear(app.active_panel);
+            // T411: Activate search mode or clear if already active
+            if app.search_mode {
+                // If already in search mode, pressing F3 again clears and exits
+                app.deactivate_search();
+            } else {
+                // Activate search mode
+                app.activate_search();
+                // T580: Clear marks when entering search mode to avoid confusion
+                app.selection_state.clear(app.active_panel);
+            }
+        }
+        Action::ClearSearch => {
+            // Shift+F3: Clear search pattern and filter
+            app.deactivate_search();
         }
         Action::OpenPreview => {
             // T625-T626: Open preview for current file

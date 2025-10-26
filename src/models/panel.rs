@@ -145,6 +145,8 @@ impl Panel {
                 self.current_path = new_path;
                 self.cursor = 0;
                 self.scroll_offset = 0;
+                // Clear any active filter when entering a new directory
+                self.filter = None;
             }
         Ok(())
     }
@@ -171,6 +173,9 @@ impl Panel {
                 .map(|s| s.to_string());
             
             self.current_path = parent.to_path_buf();
+            
+            // Clear any active filter when going up to parent directory
+            self.filter = None;
             
             // Refresh entries to load parent directory contents
             let entries = crate::fs::navigator::read_dir(&self.current_path)?;
