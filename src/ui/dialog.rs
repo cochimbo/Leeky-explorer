@@ -52,6 +52,11 @@ pub fn render_dialog(frame: &mut Frame, dialog: &DialogState, area: Rect, theme:
         DialogState::BookmarkManager { state } => {
             crate::ui::bookmark_manager::render(frame, &app.bookmarks, state, theme);
         }
+        // TASK-018: Render navigation history dialog
+        DialogState::HistoryViewer { state } => {
+            let panel = app.active_panel();
+            crate::ui::history_dialog::render(frame, panel, state, theme);
+        }
     }
 }
 

@@ -109,6 +109,10 @@ pub enum DialogState {
     BookmarkManager {
         state: crate::ui::bookmark_manager::BookmarkManagerState,
     },
+    // TASK-018: Navigation history dialog
+    HistoryViewer {
+        state: crate::ui::history_dialog::HistoryDialogState,
+    },
 }
 
 #[derive(Debug, Clone)]

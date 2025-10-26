@@ -62,6 +62,11 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
         return handle_bookmark_manager_dialog(app, key);
     }
     
+    // TASK-018: Special handling for history viewer
+    if let Some(DialogState::HistoryViewer { .. }) = &app.dialog_state {
+        return handle_history_viewer_dialog(app, key);
+    }
+    
     // Special handling for compress options dialog
     if let Some(DialogState::CompressOptions { .. }) = &app.dialog_state {
         return handle_compress_options_dialog(app, key);
@@ -214,6 +219,11 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
             // TASK-008: Open bookmark manager dialog
             let state = crate::ui::bookmark_manager::BookmarkManagerState::new();
             app.dialog_state = Some(DialogState::BookmarkManager { state });
+        }
+        Action::ToggleHistoryViewer => {
+            // TASK-018: Open navigation history dialog
+            let state = crate::ui::history_dialog::HistoryDialogState::new();
+            app.dialog_state = Some(DialogState::HistoryViewer { state });
         }
         Action::ExtractArchive => {
             // T838-T839: Extract archive
@@ -1930,6 +1940,73 @@ fn handle_bookmark_manager_dialog(app: &mut AppState, key: KeyEvent) -> Result<A
             app.close_dialog();
         }
         _ => {}
+    }
+    
+    Ok(Action::None)
+}
+
+/// TASK-018: Handle navigation history viewer dialog input
+fn handle_history_viewer_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
+    use crossterm::event::{KeyCode, KeyModifiers};
+    
+    // First, collect the data we need from the immutable borrow
+    let history_entries = if let Some(DialogState::HistoryViewer { .. }) = &app.dialog_state {
+        let panel = app.active_panel();
+        panel.history.get_all().to_vec()
+    } else {
+        return Ok(Action::None);
+    };
+    
+    let history_count = history_entries.len();
+    
+    // Now handle the event with mutable borrow
+    if let Some(DialogState::HistoryViewer { state }) = &mut app.dialog_state {
+        match (key.code, key.modifiers) {
+            // Navigation
+            (KeyCode::Up, _) | (KeyCode::Char('k'), KeyModifiers::NONE) => {
+                state.move_up(history_count);
+            }
+            (KeyCode::Down, _) | (KeyCode::Char('j'), KeyModifiers::NONE) => {
+                state.move_down(history_count);
+            }
+            (KeyCode::Home, _) | (KeyCode::Char('g'), KeyModifiers::NONE) => {
+                state.selected = 0;
+            }
+            (KeyCode::End, _) | (KeyCode::Char('G'), KeyModifiers::SHIFT) => {
+                if history_count > 0 {
+                    state.selected = history_count - 1;
+                }
+            }
+            // Enter: Navigate to selected directory
+            (KeyCode::Enter, _) => {
+                if history_count > 0 && state.selected < history_count {
+                    let selected_path = history_entries[state.selected].clone();
+                    
+                    // Check if path still exists
+                    if selected_path.exists() {
+                        // Close dialog first
+                        app.close_dialog();
+                        
+                        // Navigate to the selected path
+                        let panel = app.active_panel_mut();
+                        panel.current_path = selected_path.clone();
+                        let _ = panel.refresh_entries();
+                        panel.cursor = 0;
+                        panel.scroll_offset = 0;
+                    } else {
+                        app.error_message = Some(format!(
+                            "Directory no longer exists: {}",
+                            selected_path.display()
+                        ));
+                    }
+                }
+            }
+            // Escape: Close dialog
+            (KeyCode::Esc, _) | (KeyCode::Char('h'), KeyModifiers::CONTROL) | (KeyCode::Char('H'), KeyModifiers::CONTROL) => {
+                app.close_dialog();
+            }
+            _ => {}
+        }
     }
     
     Ok(Action::None)

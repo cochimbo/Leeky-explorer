@@ -28,6 +28,7 @@ pub enum Action {
     OpenDriveSelector, // US4: F10 to open drive selector (Windows)
     OpenThemeSelector, // US5: F11 to open theme selector
     ToggleBookmarkManager, // TASK-005: Ctrl+B to toggle bookmark manager
+    ToggleHistoryViewer, // TASK-018: Ctrl+H to toggle navigation history
     ScrollPreviewUp,
     ScrollPreviewDown,
     PagePreviewUp,
@@ -88,6 +89,10 @@ pub fn map_key_to_action(key: KeyEvent) -> Action {
         // TASK-005: Ctrl+B for bookmarks
         (KeyCode::Char('b'), KeyModifiers::CONTROL) | (KeyCode::Char('B'), KeyModifiers::CONTROL) => {
             Action::ToggleBookmarkManager
+        }
+        // TASK-018: Ctrl+H for navigation history
+        (KeyCode::Char('h'), KeyModifiers::CONTROL) | (KeyCode::Char('H'), KeyModifiers::CONTROL) => {
+            Action::ToggleHistoryViewer
         }
         // T565-T566: Selection keybindings
         (KeyCode::Char(' '), KeyModifiers::NONE) => Action::ToggleSelection,
