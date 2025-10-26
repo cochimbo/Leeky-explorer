@@ -81,7 +81,7 @@ pub fn render(
     // Header
     let history_count = panel.history.count();
     let header_text = if history_count > 0 {
-        format!("Last {} visited directories (most recent at bottom)", history_count)
+        format!("Last {} visited directories (most recent at top)", history_count)
     } else {
         "No history available".to_string()
     };
@@ -91,7 +91,7 @@ pub fn render(
         .alignment(Alignment::Center);
     frame.render_widget(header, chunks[0]);
     
-    // History list (reversed so most recent is at bottom)
+    // History list (reversed so most recent is at top)
     let history_entries = panel.history.get_all();
     
     if history_entries.is_empty() {
@@ -103,6 +103,7 @@ pub fn render(
     } else {
         let items: Vec<ListItem> = history_entries
             .iter()
+            .rev() // Reverse to show most recent first
             .enumerate()
             .map(|(i, path)| {
                 let is_selected = i == state.selected;

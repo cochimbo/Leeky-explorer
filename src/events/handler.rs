@@ -1980,7 +1980,9 @@ fn handle_history_viewer_dialog(app: &mut AppState, key: KeyEvent) -> Result<Act
             // Enter: Navigate to selected directory
             (KeyCode::Enter, _) => {
                 if history_count > 0 && state.selected < history_count {
-                    let selected_path = history_entries[state.selected].clone();
+                    // Reverse index since UI shows most recent first
+                    let reversed_index = history_count - 1 - state.selected;
+                    let selected_path = history_entries[reversed_index].clone();
                     
                     // Check if path still exists
                     if selected_path.exists() {
