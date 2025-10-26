@@ -43,13 +43,11 @@ fn get_drive_label(path: &Path) -> String {
     #[cfg(target_os = "windows")]
     {
         // Extract drive letter (e.g., "C:", "D:")
-        if let Some(prefix) = path.components().next() {
-            if let std::path::Component::Prefix(prefix_component) = prefix {
-                // Format the disk letter properly
-                if let std::path::Prefix::Disk(letter) | std::path::Prefix::VerbatimDisk(letter) = prefix_component.kind() {
-                    return format!("{}:", letter as char);
-                }
-            }
+        if let Some(prefix) = path.components().next()
+            && let std::path::Component::Prefix(prefix_component) = prefix
+            && let std::path::Prefix::Disk(letter) | std::path::Prefix::VerbatimDisk(letter) = prefix_component.kind()
+        {
+            return format!("{}:", letter as char);
         }
         "Unknown".to_string()
     }
@@ -206,7 +204,7 @@ mod tests {
         let label = get_drive_label(&current_dir);
         println!("Current dir: {:?}, Label: {}", current_dir, label);
         // On Windows, should have a drive letter
-        assert!(label.len() > 0 && label != "Unknown", "Expected drive label, got: {}", label);
+        assert!(!label.is_empty() && label != "Unknown", "Expected drive label, got: {}", label);
     }
     
     #[test]

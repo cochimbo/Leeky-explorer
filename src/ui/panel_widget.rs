@@ -51,20 +51,13 @@ pub fn render_panel(
     let content_width = area.width.saturating_sub(4); // Subtract borders and padding
     let layout = ColumnLayout::calculate(content_width, &panel.entries);
 
-    // Adjust area height if search bar is active to prevent overlap
-    let list_area = if is_active && search_mode {
+    // Adjust area height if search bar or filter is active to prevent overlap
+    let list_area = if is_active && (search_mode || panel.has_filter()) {
         Rect {
             x: area.x,
             y: area.y,
             width: area.width,
-            height: area.height.saturating_sub(1), // Reserve 1 line for search bar
-        }
-    } else if is_active && panel.has_filter() {
-        Rect {
-            x: area.x,
-            y: area.y,
-            width: area.width,
-            height: area.height.saturating_sub(1), // Reserve 1 line for filter display
+            height: area.height.saturating_sub(1), // Reserve 1 line for search bar or filter
         }
     } else {
         area
@@ -105,12 +98,18 @@ pub fn render_panel(
             
             // Check if this is the selected item
             let is_selected = idx == panel.cursor;
-            let name_scroll = if is_selected { panel.text_scroll_offset } else { 0 };
-            let ext_scroll = if is_selected { panel.ext_scroll_offset } else { 0 };
-            let size_scroll = if is_selected { panel.size_scroll_offset } else { 0 };
-            let modified_scroll = if is_selected { panel.modified_scroll_offset } else { 0 };
-            let created_scroll = if is_selected { panel.created_scroll_offset } else { 0 };
-            let perms_scroll = if is_selected { panel.perms_scroll_offset } else { 0 };
+            let scroll_offsets = if is_selected {
+                ScrollOffsets {
+                    name: panel.text_scroll_offset,
+                    ext: panel.ext_scroll_offset,
+                    size: panel.size_scroll_offset,
+                    modified: panel.modified_scroll_offset,
+                    created: panel.created_scroll_offset,
+                    perms: panel.perms_scroll_offset,
+                }
+            } else {
+                ScrollOffsets::default()
+            };
             
             // Build columnar row
             let line = build_data_row(
@@ -118,12 +117,7 @@ pub fn render_panel(
                 &layout,
                 is_marked,
                 is_selected,
-                name_scroll,
-                ext_scroll,
-                size_scroll,
-                modified_scroll,
-                created_scroll,
-                perms_scroll,
+                &scroll_offsets,
                 style,
             );
             all_items.push(ListItem::new(line));
@@ -185,34 +179,34 @@ pub fn render_panel(
 
 /// Build header row with column titles
 fn build_header_row(layout: &ColumnLayout, theme: &Theme) -> Line<'static> {
-    let mut spans = Vec::new();
+    let header_style = Style::default().fg(theme.panel_fg).add_modifier(Modifier::BOLD);
     
-    // Icon column (empty header)
-    spans.push(Span::styled(
-        formatters::pad_text("", layout.icon_width, Alignment::Left),
-        Style::default().fg(theme.panel_fg).add_modifier(Modifier::BOLD),
-    ));
-    spans.push(Span::raw("  "));
-    
-    // Mark column (empty header)
-    spans.push(Span::styled(
-        formatters::pad_text("", layout.mark_width, Alignment::Left),
-        Style::default().fg(theme.panel_fg).add_modifier(Modifier::BOLD),
-    ));
-    spans.push(Span::raw("  "));
-    
-    // Name column
-    spans.push(Span::styled(
-        formatters::pad_text("Name", layout.name_width, Alignment::Left),
-        Style::default().fg(theme.panel_fg).add_modifier(Modifier::BOLD),
-    ));
-    spans.push(Span::raw("  "));
+    let mut spans = vec![
+        // Icon column (empty header)
+        Span::styled(
+            formatters::pad_text("", layout.icon_width, Alignment::Left),
+            header_style,
+        ),
+        Span::raw("  "),
+        // Mark column (empty header)
+        Span::styled(
+            formatters::pad_text("", layout.mark_width, Alignment::Left),
+            header_style,
+        ),
+        Span::raw("  "),
+        // Name column
+        Span::styled(
+            formatters::pad_text("Name", layout.name_width, Alignment::Left),
+            header_style,
+        ),
+        Span::raw("  "),
+    ];
     
     // Extension column (if visible)
     if layout.show_extension {
         spans.push(Span::styled(
             formatters::pad_text("Ext", layout.ext_width, Alignment::Left),
-            Style::default().fg(theme.panel_fg).add_modifier(Modifier::BOLD),
+            header_style,
         ));
         spans.push(Span::raw("  "));
     }
@@ -220,14 +214,14 @@ fn build_header_row(layout: &ColumnLayout, theme: &Theme) -> Line<'static> {
     // Size column
     spans.push(Span::styled(
         formatters::pad_text("Size", layout.size_width, Alignment::Right),
-        Style::default().fg(theme.panel_fg).add_modifier(Modifier::BOLD),
+        header_style,
     ));
     spans.push(Span::raw("  "));
     
     // Modified column
     spans.push(Span::styled(
         formatters::pad_text("Modified", layout.modified_width, Alignment::Center),
-        Style::default().fg(theme.panel_fg).add_modifier(Modifier::BOLD),
+        header_style,
     ));
     
     // Created column (if visible)
@@ -235,7 +229,7 @@ fn build_header_row(layout: &ColumnLayout, theme: &Theme) -> Line<'static> {
         spans.push(Span::raw("  "));
         spans.push(Span::styled(
             formatters::pad_text("Created", layout.created_width, Alignment::Center),
-            Style::default().fg(theme.panel_fg).add_modifier(Modifier::BOLD),
+            header_style,
         ));
     }
     
@@ -244,25 +238,32 @@ fn build_header_row(layout: &ColumnLayout, theme: &Theme) -> Line<'static> {
         spans.push(Span::raw("  "));
         spans.push(Span::styled(
             formatters::pad_text("Perms", layout.perms_width, Alignment::Center),
-            Style::default().fg(theme.panel_fg).add_modifier(Modifier::BOLD),
+            header_style,
         ));
     }
     
     Line::from(spans)
 }
 
+/// Scroll offsets for a file entry row
+#[derive(Default)]
+struct ScrollOffsets {
+    name: usize,
+    ext: usize,
+    size: usize,
+    modified: usize,
+    created: usize,
+    perms: usize,
+}
+
 /// Build data row for a file entry with all columns
+#[allow(clippy::too_many_arguments)]
 fn build_data_row(
     entry: &crate::models::file_entry::FileEntry,
     layout: &ColumnLayout,
     is_marked: bool,
     is_selected: bool,
-    name_scroll_offset: usize,
-    ext_scroll_offset: usize,
-    size_scroll_offset: usize,
-    modified_scroll_offset: usize,
-    created_scroll_offset: usize,
-    perms_scroll_offset: usize,
+    scroll_offsets: &ScrollOffsets,
     style: Style,
 ) -> Line<'static> {
     let mut spans = Vec::new();
@@ -270,7 +271,7 @@ fn build_data_row(
     // Icon column
     let icon = file_icons::get_icon_for_entry(entry);
     spans.push(Span::styled(
-        formatters::pad_text(&icon, layout.icon_width, Alignment::Left),
+        formatters::pad_text(icon, layout.icon_width, Alignment::Left),
         style,
     ));
     spans.push(Span::raw("  "));
@@ -284,11 +285,11 @@ fn build_data_row(
     spans.push(Span::raw("  "));
     
     // Name column (truncate if too long, or scroll if selected)
-    let name = if is_selected && name_scroll_offset > 0 {
+    let name = if is_selected && scroll_offsets.name > 0 {
         // Apply scroll offset for selected item
         let chars: Vec<char> = entry.name.chars().collect();
-        if name_scroll_offset < chars.len() {
-            chars[name_scroll_offset..].iter().collect()
+        if scroll_offsets.name < chars.len() {
+            chars[scroll_offsets.name..].iter().collect()
         } else {
             entry.name.clone()
         }
@@ -305,11 +306,11 @@ fn build_data_row(
     // Extension column (if visible, with scroll support)
     if layout.show_extension {
         let ext_full = formatters::format_extension(entry);
-        let ext = if is_selected && ext_scroll_offset > 0 && !ext_full.is_empty() {
+        let ext = if is_selected && scroll_offsets.ext > 0 && !ext_full.is_empty() {
             // Apply scroll offset for selected item's extension
             let chars: Vec<char> = ext_full.chars().collect();
-            if ext_scroll_offset < chars.len() {
-                chars[ext_scroll_offset..].iter().collect()
+            if scroll_offsets.ext < chars.len() {
+                chars[scroll_offsets.ext..].iter().collect()
             } else {
                 ext_full.clone()
             }
@@ -326,10 +327,10 @@ fn build_data_row(
     
     // Size column (with scroll support)
     let size_full = formatters::format_size(entry);
-    let size = if is_selected && size_scroll_offset > 0 && !size_full.is_empty() {
+    let size = if is_selected && scroll_offsets.size > 0 && !size_full.is_empty() {
         let chars: Vec<char> = size_full.chars().collect();
-        if size_scroll_offset < chars.len() {
-            chars[size_scroll_offset..].iter().collect()
+        if scroll_offsets.size < chars.len() {
+            chars[scroll_offsets.size..].iter().collect()
         } else {
             size_full.clone()
         }
@@ -344,10 +345,10 @@ fn build_data_row(
     
     // Modified column (with scroll support)
     let modified_full = formatters::format_date(Some(entry.modified));
-    let modified = if is_selected && modified_scroll_offset > 0 && !modified_full.is_empty() {
+    let modified = if is_selected && scroll_offsets.modified > 0 && !modified_full.is_empty() {
         let chars: Vec<char> = modified_full.chars().collect();
-        if modified_scroll_offset < chars.len() {
-            chars[modified_scroll_offset..].iter().collect()
+        if scroll_offsets.modified < chars.len() {
+            chars[scroll_offsets.modified..].iter().collect()
         } else {
             modified_full.clone()
         }
@@ -363,10 +364,10 @@ fn build_data_row(
     if layout.show_created {
         spans.push(Span::raw("  "));
         let created_full = formatters::format_date(entry.created);
-        let created = if is_selected && created_scroll_offset > 0 && !created_full.is_empty() {
+        let created = if is_selected && scroll_offsets.created > 0 && !created_full.is_empty() {
             let chars: Vec<char> = created_full.chars().collect();
-            if created_scroll_offset < chars.len() {
-                chars[created_scroll_offset..].iter().collect()
+            if scroll_offsets.created < chars.len() {
+                chars[scroll_offsets.created..].iter().collect()
             } else {
                 created_full.clone()
             }
@@ -383,10 +384,10 @@ fn build_data_row(
     if layout.show_permissions {
         spans.push(Span::raw("  "));
         let perms_full = formatters::format_permissions(entry);
-        let perms = if is_selected && perms_scroll_offset > 0 && !perms_full.is_empty() {
+        let perms = if is_selected && scroll_offsets.perms > 0 && !perms_full.is_empty() {
             let chars: Vec<char> = perms_full.chars().collect();
-            if perms_scroll_offset < chars.len() {
-                chars[perms_scroll_offset..].iter().collect()
+            if scroll_offsets.perms < chars.len() {
+                chars[scroll_offsets.perms..].iter().collect()
             } else {
                 perms_full.clone()
             }

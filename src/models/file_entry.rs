@@ -30,6 +30,7 @@ pub struct FileEntry {
 
 impl FileEntry {
     #[cfg(windows)]
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         name: String,
         entry_type: EntryType,

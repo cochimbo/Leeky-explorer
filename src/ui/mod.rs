@@ -225,9 +225,8 @@ pub fn render_footer(frame: &mut Frame, area: Rect, theme: &Theme) {
         Line::from(
             bindings
                 .iter()
-                .enumerate()
-                .flat_map(|(i, &(key, action, color))| {
-                    let bg = if i % 2 == 0 { theme.footer_bg } else { theme.footer_bg };
+                .flat_map(|&(key, action, color)| {
+                    let bg = theme.footer_bg;
                     vec![
                         Span::styled(
                             format!(" {} ", key),

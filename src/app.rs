@@ -227,11 +227,11 @@ impl AppState {
         const CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(5);
         
         // Check if we have a cached entry
-        if let Some((info, timestamp)) = self.disk_space_cache.get(path) {
-            if timestamp.elapsed() < CACHE_TTL {
-                // Cache is still valid
-                return Some(info.clone());
-            }
+        if let Some((info, timestamp)) = self.disk_space_cache.get(path)
+            && timestamp.elapsed() < CACHE_TTL
+        {
+            // Cache is still valid
+            return Some(info.clone());
         }
         
         // Cache miss or expired - query filesystem

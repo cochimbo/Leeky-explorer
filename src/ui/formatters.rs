@@ -15,13 +15,7 @@ fn visual_width(s: &str) -> usize {
 pub fn format_extension(entry: &FileEntry) -> String {
     match &entry.extension {
         Some(ext) => ext.clone(),
-        None => {
-            if entry.is_dir() {
-                "".to_string()
-            } else {
-                "".to_string()
-            }
-        }
+        None => String::new(),
     }
 }
 

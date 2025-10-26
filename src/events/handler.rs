@@ -1626,31 +1626,31 @@ fn handle_drive_selector_dialog(app: &mut AppState, key: KeyEvent) -> Result<Act
     match (key.code, key.modifiers) {
         // Up: move selection up
         (KeyCode::Up, _) | (KeyCode::Char('k'), KeyModifiers::NONE) => {
-            if let Some(DialogState::DriveSelector { selected, .. }) = &mut app.dialog_state {
-                if *selected > 0 {
-                    *selected -= 1;
-                }
+            if let Some(DialogState::DriveSelector { selected, .. }) = &mut app.dialog_state
+                && *selected > 0
+            {
+                *selected -= 1;
             }
         }
         // Down: move selection down
         (KeyCode::Down, _) | (KeyCode::Char('j'), KeyModifiers::NONE) => {
-            if let Some(DialogState::DriveSelector { selected, drives }) = &mut app.dialog_state {
-                if *selected < drives.len().saturating_sub(1) {
-                    *selected += 1;
-                }
+            if let Some(DialogState::DriveSelector { selected, drives }) = &mut app.dialog_state
+                && *selected < drives.len().saturating_sub(1)
+            {
+                *selected += 1;
             }
         }
         // Enter: select drive and navigate to it
         (KeyCode::Enter, _) => {
-            if let Some(DialogState::DriveSelector { drives, selected }) = &app.dialog_state {
-                if let Some((drive_path, _)) = drives.get(*selected) {
-                    let new_path = std::path::PathBuf::from(drive_path);
-                    // Change the active panel to this drive
-                    let panel = app.active_panel_mut();
-                    panel.current_path = new_path;
-                    panel.refresh_entries()?;
-                    panel.cursor = 0; // Reset cursor to top
-                }
+            if let Some(DialogState::DriveSelector { drives, selected }) = &app.dialog_state
+                && let Some((drive_path, _)) = drives.get(*selected)
+            {
+                let new_path = std::path::PathBuf::from(drive_path);
+                // Change the active panel to this drive
+                let panel = app.active_panel_mut();
+                panel.current_path = new_path;
+                panel.refresh_entries()?;
+                panel.cursor = 0; // Reset cursor to top
             }
             app.close_dialog();
         }
@@ -1671,29 +1671,29 @@ fn handle_theme_selector_dialog(app: &mut AppState, key: KeyEvent) -> Result<Act
     match (key.code, key.modifiers) {
         // Up: move selection up
         (KeyCode::Up, _) | (KeyCode::Char('k'), KeyModifiers::NONE) => {
-            if let Some(DialogState::ThemeSelector { selected, .. }) = &mut app.dialog_state {
-                if *selected > 0 {
-                    *selected -= 1;
-                }
+            if let Some(DialogState::ThemeSelector { selected, .. }) = &mut app.dialog_state
+                && *selected > 0
+            {
+                *selected -= 1;
             }
         }
         // Down: move selection down
         (KeyCode::Down, _) | (KeyCode::Char('j'), KeyModifiers::NONE) => {
-            if let Some(DialogState::ThemeSelector { selected, themes }) = &mut app.dialog_state {
-                if *selected < themes.len().saturating_sub(1) {
-                    *selected += 1;
-                }
+            if let Some(DialogState::ThemeSelector { selected, themes }) = &mut app.dialog_state
+                && *selected < themes.len().saturating_sub(1)
+            {
+                *selected += 1;
             }
         }
         // Enter: apply selected theme
         (KeyCode::Enter, _) => {
-            if let Some(DialogState::ThemeSelector { themes, selected }) = &app.dialog_state {
-                if let Some(theme) = themes.get(*selected).cloned() {
-                    // Apply theme immediately
-                    app.theme = theme;
-                    // Save state to persist theme selection
-                    let _ = app.save_state();
-                }
+            if let Some(DialogState::ThemeSelector { themes, selected }) = &app.dialog_state
+                && let Some(theme) = themes.get(*selected).cloned()
+            {
+                // Apply theme immediately
+                app.theme = theme;
+                // Save state to persist theme selection
+                let _ = app.save_state();
             }
             app.close_dialog();
         }
