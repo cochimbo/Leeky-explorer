@@ -172,9 +172,17 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
         Action::OpenThemeSelector => {
             // US5: Open theme selector dialog
             let themes = crate::ui::theme::Theme::all_themes();
+            
+            // Find the index of the currently active theme
+            let current_theme_name = &app.theme.name;
+            let selected = themes
+                .iter()
+                .position(|t| &t.name == current_theme_name)
+                .unwrap_or(0);
+            
             app.dialog_state = Some(DialogState::ThemeSelector {
                 themes,
-                selected: 0,
+                selected,
             });
         }
         Action::ExtractArchive => {

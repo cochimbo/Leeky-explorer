@@ -81,7 +81,7 @@ pub fn map_key_to_action(key: KeyEvent) -> Action {
         (KeyCode::F(9), KeyModifiers::NONE) => Action::ExtractArchive,
         (KeyCode::F(9), KeyModifiers::SHIFT) => Action::CompressArchive,
         (KeyCode::F(10), _) => Action::OpenDriveSelector,
-        (KeyCode::F(11), _) => Action::OpenThemeSelector,
+        (KeyCode::F(12), _) => Action::OpenThemeSelector,
         // T565-T566: Selection keybindings
         (KeyCode::Char(' '), KeyModifiers::NONE) => Action::ToggleSelection,
         (KeyCode::Char('a'), KeyModifiers::CONTROL) => Action::SelectAll,
