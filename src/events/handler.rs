@@ -998,8 +998,19 @@ fn handle_input_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
                 if let Some(ref context) = app.error_message {
                     if context.starts_with("RENAME:") {
                         // Rename bookmark
+                        // TASK-009: Sanitize bookmark name before renaming
+                        let sanitized_name = crate::config::bookmarks::sanitize_bookmark_name(&value);
+                        
+                        if sanitized_name.is_empty() {
+                            app.error_message = Some("Bookmark name cannot be empty".to_string());
+                            app.dialog_state = Some(DialogState::Error {
+                                message: "Bookmark name cannot be empty".to_string(),
+                            });
+                            return Ok(Action::None);
+                        }
+                        
                         let old_name = context.strip_prefix("RENAME:").unwrap();
-                        if let Err(e) = app.bookmarks.rename(old_name, value.clone()) {
+                        if let Err(e) = app.bookmarks.rename(old_name, sanitized_name) {
                             app.error_message = Some(format!("Failed to rename bookmark: {}", e));
                             app.dialog_state = Some(DialogState::Error {
                                 message: format!("Failed to rename bookmark: {}", e),
@@ -1014,8 +1025,19 @@ fn handle_input_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
                         return Ok(Action::None);
                     } else if !context.starts_with("Error") {
                         // Add bookmark (context contains the path)
+                        // TASK-009: Sanitize bookmark name before adding
+                        let sanitized_name = crate::config::bookmarks::sanitize_bookmark_name(&value);
+                        
+                        if sanitized_name.is_empty() {
+                            app.error_message = Some("Bookmark name cannot be empty".to_string());
+                            app.dialog_state = Some(DialogState::Error {
+                                message: "Bookmark name cannot be empty".to_string(),
+                            });
+                            return Ok(Action::None);
+                        }
+                        
                         let path = std::path::PathBuf::from(context.clone());
-                        if let Err(e) = app.bookmarks.add(value.clone(), path.clone()) {
+                        if let Err(e) = app.bookmarks.add(sanitized_name, path.clone()) {
                             app.error_message = Some(format!("Failed to add bookmark: {}", e));
                             app.dialog_state = Some(DialogState::Error {
                                 message: format!("Failed to add bookmark: {}", e),

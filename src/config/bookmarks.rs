@@ -4,6 +4,9 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
+/// Maximum number of bookmarks allowed (TASK-009)
+const MAX_BOOKMARKS: usize = 50;
+
 /// Manages a collection of bookmarks with JSON persistence
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BookmarkManager {
@@ -59,6 +62,11 @@ impl BookmarkManager {
 
     /// Add a new bookmark, checking for duplicates
     pub fn add(&mut self, name: String, path: PathBuf) -> Result<()> {
+        // TASK-009: Check maximum bookmarks limit
+        if self.bookmarks.len() >= MAX_BOOKMARKS {
+            anyhow::bail!("Maximum number of bookmarks ({}) reached", MAX_BOOKMARKS);
+        }
+        
         // Check for duplicate names
         if self.bookmarks.iter().any(|b| b.name == name) {
             anyhow::bail!("A bookmark with the name '{}' already exists", name);
@@ -151,6 +159,26 @@ impl BookmarkManager {
         
         Ok(removed)
     }
+}
+
+/// TASK-009: Sanitize bookmark name by removing invalid characters
+/// Replaces invalid characters with underscores and trims whitespace
+pub fn sanitize_bookmark_name(name: &str) -> String {
+    // Invalid characters for filenames/bookmarks: \ / : * ? " < > |
+    // Note: \n, \r, \t are treated as whitespace and removed by trim
+    let invalid_chars = ['\\', '/', ':', '*', '?', '"', '<', '>', '|'];
+    
+    // First trim whitespace (including \n, \r, \t)
+    let trimmed = name.trim();
+    
+    // Then replace invalid characters
+    let sanitized: String = trimmed
+        .chars()
+        .map(|c| if invalid_chars.contains(&c) { '_' } else { c })
+        .collect();
+    
+    // Limit length to 100 characters
+    sanitized.chars().take(100).collect()
 }
 
 #[cfg(test)]
@@ -312,5 +340,71 @@ mod tests {
         let updated_time = manager.get("Test").unwrap().last_accessed;
         
         assert!(updated_time > original_time);
+    }
+
+    // TASK-009: Edge case tests
+    #[test]
+    fn test_max_bookmarks_limit() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("bookmarks.json");
+        
+        let mut manager = BookmarkManager::load(file_path).unwrap();
+        
+        // Add maximum allowed bookmarks
+        for i in 0..50 {
+            manager.add(format!("Bookmark{}", i), PathBuf::from(format!("/path{}", i))).unwrap();
+        }
+        
+        assert_eq!(manager.count(), 50);
+        
+        // Try to add one more - should fail
+        let result = manager.add("ExtraBookmark".to_string(), PathBuf::from("/extra"));
+        assert!(result.is_err());
+        assert_eq!(manager.count(), 50);
+    }
+
+    #[test]
+    fn test_sanitize_bookmark_name() {
+        assert_eq!(sanitize_bookmark_name("Normal Name"), "Normal Name");
+        assert_eq!(sanitize_bookmark_name("Name/With\\Slash"), "Name_With_Slash");
+        assert_eq!(sanitize_bookmark_name("Name:With*Invalid?Chars"), "Name_With_Invalid_Chars");
+        assert_eq!(sanitize_bookmark_name("  Spaces  "), "Spaces");
+        assert_eq!(sanitize_bookmark_name("Name<With>Pipes|"), "Name_With_Pipes_");
+        assert_eq!(sanitize_bookmark_name("Name\"With\"Quotes"), "Name_With_Quotes");
+        
+        // Test length limit
+        let long_name = "a".repeat(150);
+        assert_eq!(sanitize_bookmark_name(&long_name).len(), 100);
+    }
+
+    #[test]
+    fn test_empty_name_sanitization() {
+        assert_eq!(sanitize_bookmark_name(""), "");
+        assert_eq!(sanitize_bookmark_name("   "), "");
+        assert_eq!(sanitize_bookmark_name("\n\t"), "");
+    }
+
+    #[test]
+    fn test_corrupt_file_recovery() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("bookmarks.json");
+        
+        // Create a corrupt JSON file
+        std::fs::write(&file_path, "{ invalid json ").unwrap();
+        
+        // Load should fail gracefully and not panic
+        let result = BookmarkManager::load(file_path.clone());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_missing_directory_for_bookmark_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("deep/nested/path/bookmarks.json");
+        
+        // Should create directories automatically
+        let manager = BookmarkManager::load(file_path.clone()).unwrap();
+        assert_eq!(manager.count(), 0);
+        assert!(file_path.exists());
     }
 }
