@@ -8,6 +8,7 @@ pub mod app;
 pub mod preview;
 pub mod archive;
 pub mod event_loop;
+pub mod search;  // TASK-040: Recursive search module
 
 use anyhow::Result;
 use app::AppState;

@@ -33,6 +33,7 @@ pub enum Action {
     ToggleBookmarkManager, // TASK-005: Ctrl+B to toggle bookmark manager
     ToggleHistoryViewer, // TASK-018: Ctrl+H to toggle navigation history
     ToggleGoToPath, // TASK-021: Ctrl+G to toggle Go To Path dialog
+    OpenRecursiveSearch, // TASK-040: Ctrl+F to open recursive search dialog
     ScrollPreviewUp,
     ScrollPreviewDown,
     PagePreviewUp,
@@ -102,6 +103,10 @@ pub fn map_key_to_action(key: KeyEvent) -> Action {
         // TASK-021: Ctrl+G for Go To Path
         (KeyCode::Char('g'), KeyModifiers::CONTROL) | (KeyCode::Char('G'), KeyModifiers::CONTROL) => {
             Action::ToggleGoToPath
+        }
+        // TASK-040: Ctrl+F for recursive search
+        (KeyCode::Char('f'), KeyModifiers::CONTROL) | (KeyCode::Char('F'), KeyModifiers::CONTROL) => {
+            Action::OpenRecursiveSearch
         }
         // T565-T566: Selection keybindings
         (KeyCode::Char(' '), KeyModifiers::NONE) => Action::ToggleSelection,

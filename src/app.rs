@@ -42,6 +42,8 @@ pub struct AppState {
     pub bookmarks: crate::config::bookmarks::BookmarkManager,
     // TASK-028: Text editor state
     pub editor_state: Option<Box<crate::ui::text_editor::TextEditor<'static>>>,
+    // TASK-040: Recursive search dialog
+    pub search_dialog: Option<crate::ui::search_dialog::SearchDialog>,
 }
 
 #[derive(Debug, Clone)]
@@ -218,6 +220,7 @@ impl AppState {
             theme, // US5: Set loaded theme
             bookmarks, // TASK-004: Initialize bookmarks
             editor_state: None, // TASK-028: No editor open initially
+            search_dialog: None, // TASK-040: No search dialog initially
         })
     }
 
@@ -553,6 +556,41 @@ impl AppState {
         // If contains null bytes, likely binary
         Ok(!buffer[..bytes_read].contains(&0))
     }
+    
+    // TASK-040: Recursive search dialog management
+    pub fn open_search_dialog(&mut self) {
+        let root = self.active_panel().current_path.clone();
+        self.search_dialog = Some(crate::ui::search_dialog::SearchDialog::new(root));
+    }
+    
+    pub fn close_search_dialog(&mut self) {
+        self.search_dialog = None;
+    }
+    
+    pub fn has_search_dialog(&self) -> bool {
+        self.search_dialog.is_some()
+    }
+    
+    pub fn navigate_to_search_result(&mut self, result: &crate::search::SearchResult) {
+        // Navigate to parent directory
+        if let Some(parent) = result.full_path.parent() {
+            // Update current path
+            self.active_panel_mut().current_path = parent.to_path_buf();
+            
+            // Refresh panel to load directory
+            let _ = self.active_panel_mut().refresh_entries();
+            
+            // Try to select the file
+            let file_name = result.file_name.clone();
+            if let Some(idx) = self.active_panel().entries.iter()
+                .position(|e| e.name == file_name) {
+                self.active_panel_mut().cursor = idx;
+            }
+        }
+        
+        // Close search dialog
+        self.close_search_dialog();
+    }
 
     // T411: Activate search mode
     pub fn activate_search(&mut self) {
@@ -778,6 +816,7 @@ impl Default for AppState {
                 theme: crate::ui::theme::Theme::default(), // US5: Default theme
                 bookmarks: crate::config::bookmarks::BookmarkManager::new(PathBuf::from("bookmarks.json")), // TASK-004: Fallback empty bookmarks
                 editor_state: None, // TASK-028: No editor open initially
+                search_dialog: None, // TASK-040: No search dialog initially
             }
         })
     }

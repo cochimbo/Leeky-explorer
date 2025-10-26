@@ -440,6 +440,11 @@ fn render_ui<B: ratatui::backend::Backend>(
             editor.render(f, f.area(), &app.theme);
         }
         
+        // Render search dialog if present (TASK-040)
+        if let Some(ref dialog) = app.search_dialog {
+            dialog.render(f, f.area(), &app.theme);
+        }
+        
         // Render dialog LAST so it appears on top of everything
         ui::render_dialog_if_present(f, app);
     })?;

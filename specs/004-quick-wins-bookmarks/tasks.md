@@ -2158,5 +2158,4 @@ cargo build --release
 1. Implement Phase 6 (Recursive Search)
 2. Complete TASK-032 (editor tests)
 3. Documentation (TASK-033 to 036)
-4. Release v0.5.0 with 6 major features!
 4. Release v0.4.0

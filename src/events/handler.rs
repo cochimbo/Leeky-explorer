@@ -71,6 +71,11 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
         return handle_dialog_action(app, action);
     }
     
+    // TASK-040: Handle recursive search dialog (before preview/editor)
+    if app.has_search_dialog() {
+        return handle_search_dialog(app, key);
+    }
+    
     // T627: Special handling for preview mode (after dialogs)
     if app.has_preview() {
         return handle_preview_mode(app, key);
@@ -276,6 +281,10 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
                 suggestions: initial_suggestions,
                 selected_suggestion: 0,
             });
+        }
+        Action::OpenRecursiveSearch => {
+            // TASK-040: Open recursive search dialog
+            app.open_search_dialog();
         }
         Action::ExtractArchive => {
             // T838-T839: Extract archive
@@ -1719,6 +1728,27 @@ fn handle_editor_mode(app: &mut AppState, key: KeyEvent) -> Result<Action> {
                     };
                     editor.input_key(ratatui_key);
                 }
+                Ok(Action::None)
+            }
+        }
+    } else {
+        Ok(Action::None)
+    }
+}
+
+/// TASK-040: Handle recursive search dialog
+fn handle_search_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
+    if let Some(dialog) = app.search_dialog.as_mut() {
+        match dialog.handle_key(key) {
+            crate::ui::search_dialog::DialogAction::Close => {
+                app.close_search_dialog();
+                Ok(Action::None)
+            }
+            crate::ui::search_dialog::DialogAction::Navigate(result) => {
+                app.navigate_to_search_result(&result);
+                Ok(Action::None)
+            }
+            crate::ui::search_dialog::DialogAction::Continue => {
                 Ok(Action::None)
             }
         }

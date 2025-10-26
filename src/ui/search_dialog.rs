@@ -185,7 +185,7 @@ impl SearchDialog {
         let visible_end = (visible_start + list_height).min(self.results.len());
         
         // Adjust scroll offset if selection is out of view
-        let scroll_offset = if self.selected_index >= visible_end {
+        let _scroll_offset = if self.selected_index >= visible_end {
             self.selected_index.saturating_sub(list_height.saturating_sub(1))
         } else if self.selected_index < visible_start {
             self.selected_index
