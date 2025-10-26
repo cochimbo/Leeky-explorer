@@ -147,7 +147,7 @@ pub fn render(
     }
     
     // Footer with instructions
-    let footer = Paragraph::new("↑↓: Navigate | Enter: Go to directory | Esc: Cancel")
+    let footer = Paragraph::new("↑↓: Navigate | Enter: Go | c: Clean invalid | Esc: Cancel")
         .style(Style::default().fg(theme.info_color))
         .alignment(Alignment::Center);
     frame.render_widget(footer, chunks[2]);

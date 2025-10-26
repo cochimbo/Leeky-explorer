@@ -50,6 +50,13 @@ impl NavigationHistory {
     pub fn clear(&mut self) {
         self.entries.clear();
     }
+    
+    /// Remove invalid paths (directories that no longer exist)
+    pub fn clean_invalid(&mut self) -> usize {
+        let before_count = self.entries.len();
+        self.entries.retain(|path| path.exists());
+        before_count - self.entries.len()
+    }
 }
 
 #[derive(Debug, Clone)]

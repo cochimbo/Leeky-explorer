@@ -1729,7 +1729,11 @@ fn handle_drive_selector_dialog(app: &mut AppState, key: KeyEvent) -> Result<Act
                 let new_path = std::path::PathBuf::from(drive_path);
                 // Change the active panel to this drive
                 let panel = app.active_panel_mut();
-                panel.current_path = new_path;
+                panel.current_path = new_path.clone();
+                
+                // Add to navigation history
+                panel.history.push(new_path);
+                
                 panel.refresh_entries()?;
                 panel.cursor = 0; // Reset cursor to top
             }
@@ -1821,10 +1825,14 @@ fn handle_bookmark_manager_dialog(app: &mut AppState, key: KeyEvent) -> Result<A
             if let Some((name, path, exists)) = bookmark_info {
                 if exists {
                     // Navigate active panel to bookmarked path
-                    app.active_panel_mut().current_path = path;
+                    let panel = app.active_panel_mut();
+                    panel.current_path = path.clone();
+                    
+                    // Add to navigation history
+                    panel.history.push(path);
                     
                     // Refresh panel entries to load the new directory
-                    app.active_panel_mut().refresh_entries()?;
+                    panel.refresh_entries()?;
                     let entries = app.active_panel().entries.clone();
                     app.store_all_entries(entries);
                     
@@ -2001,6 +2009,35 @@ fn handle_history_viewer_dialog(app: &mut AppState, key: KeyEvent) -> Result<Act
                             selected_path.display()
                         ));
                     }
+                }
+            }
+            // 'c': Clean invalid paths from history
+            (KeyCode::Char('c'), KeyModifiers::NONE) | (KeyCode::Char('C'), KeyModifiers::NONE) => {
+                // Clean invalid paths
+                let removed_count = {
+                    let panel = app.active_panel_mut();
+                    panel.history.clean_invalid()
+                };
+                
+                // Get new count and update selection
+                let new_count = {
+                    let panel = app.active_panel();
+                    panel.history.count()
+                };
+                
+                if let Some(DialogState::HistoryViewer { state }) = &mut app.dialog_state {
+                    if state.selected >= new_count && new_count > 0 {
+                        state.selected = new_count - 1;
+                    } else if new_count == 0 {
+                        state.selected = 0;
+                    }
+                }
+                
+                // Set message
+                if removed_count > 0 {
+                    app.error_message = Some(format!("Removed {} invalid path(s) from history", removed_count));
+                } else {
+                    app.error_message = Some("All paths in history are valid".to_string());
                 }
             }
             // Escape: Close dialog
