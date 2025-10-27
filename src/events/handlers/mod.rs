@@ -11,3 +11,13 @@ pub use collision::{
     process_batch_without_collision_check,
     process_single_file_operation,
 };
+
+pub use file_operations::{
+    start_copy_operation,
+    start_copy_operation_skip_check,
+    start_copy_operation_with_rename,
+    start_move_operation,
+    start_move_operation_skip_check,
+    start_move_operation_with_rename,
+    start_delete_operation,
+};
