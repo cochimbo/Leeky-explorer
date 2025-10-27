@@ -349,6 +349,25 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
             let state = crate::ui::connection_dialog::ConnectionDialogState::new();
             app.dialog_state = Some(DialogState::RemoteConnection { state });
         }
+        Action::DisconnectRemote => {
+            // Disconnect from remote filesystem
+            let panel = app.active_panel_mut();
+            if panel.vfs.is_some() {
+                // Get home directory as fallback
+                let fallback = dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("/"));
+                panel.disconnect_remote(fallback.clone());
+                
+                // Try to refresh panel
+                if let Err(e) = panel.refresh_entries() {
+                    log::error!("Failed to refresh panel after disconnect: {}", e);
+                    app.error_message = Some(format!("Disconnected but failed to load directory: {}", e));
+                } else {
+                    app.error_message = Some("Disconnected from remote filesystem".to_string());
+                }
+            } else {
+                app.error_message = Some("Not connected to any remote filesystem".to_string());
+            }
+        }
         Action::ExtractArchive => {
             // T838-T839: Extract archive
             // This needs to be async, so we'll handle it in main.rs

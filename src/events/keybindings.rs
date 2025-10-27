@@ -36,6 +36,7 @@ pub enum Action {
     ToggleGoToPath,   // Ctrl+G to toggle Go To Path dialog
     OpenRecursiveSearch, // Ctrl+Shift+F to open recursive search dialog
     OpenRemoteConnection, // Ctrl+N to open remote connection dialog
+    DisconnectRemote,     // Ctrl+Shift+M to disconnect from remote filesystem
     ScrollPreviewUp,
     ScrollPreviewDown,
     PagePreviewUp,
@@ -118,6 +119,10 @@ pub fn map_key_to_action(key: KeyEvent) -> Action {
         // Remote connections - Ctrl+M
         (KeyCode::Char('m'), KeyModifiers::CONTROL) | (KeyCode::Char('M'), KeyModifiers::CONTROL) if !has_shift => {
             Action::OpenRemoteConnection
+        }
+        // Disconnect from remote - Ctrl+Shift+M
+        (KeyCode::Char('m'), _) | (KeyCode::Char('M'), _) if has_ctrl_shift => {
+            Action::DisconnectRemote
         }
         // Selection - Ctrl+A without Shift
         (KeyCode::Char('a'), _) | (KeyCode::Char('A'), _) if has_ctrl && !has_shift => Action::SelectAll,
