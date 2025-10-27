@@ -2106,10 +2106,10 @@ cargo build --release
 
 ## Task Summary
 
-**Total Tasks**: 42  
+**Total Tasks**: 68  
 **Completed**: 31 tasks (TASK-001 through TASK-031) ✅  
-**Remaining**: 11 tasks (TASK-032 through TASK-042)  
-**Estimated Time Remaining**: ~14.75 hours
+**Remaining**: 37 tasks (TASK-032 through TASK-068)  
+**Estimated Time Remaining**: ~49.25 hours
 
 ### By Phase:
 - **Phase 0** (Foundation): 5 tasks, 4.75h ✅
@@ -2118,13 +2118,16 @@ cargo build --release
 - **Phase 3** (Navigation History): 5 tasks, 5h ✅
 - **Phase 4** (Go To Path): 6 tasks, 4.5h ✅
 - **Phase 5** (Text Editor): 5 tasks, 8h ✅
-- **Phase 6** (Recursive Search): 6 tasks, 11h ⬜ *(NEW!)*
+- **Phase 6** (Recursive Search): 6 tasks, 11h ⬜
+- **Phase 7** (SFTP Remote): 12 tasks, 21h ⬜ *(NEW!)*
+- **Phase 8** (SMB/Samba): 11 tasks, 16h ⬜ *(NEW!)*
+- **Remote Integration**: 3 tasks, 3.5h ⬜ *(NEW!)*
 - **Documentation**: 5 tasks, 2.25h ⬜
 
 ### By Priority:
 - **P1** (Critical): 18 tasks - All core features complete ✅
-- **P2** (High): 16 tasks - 10 complete, 6 remaining (search feature) ⬜
-- **P3** (Medium): 7 tasks - 6 complete, 1 remaining (optimizations)
+- **P2** (High): 39 tasks - 10 complete, 29 remaining (search + remote features) ⬜
+- **P3** (Medium): 10 tasks - 6 complete, 4 remaining (optimizations + integration)
 - **P4** (Low): 6 tasks - 5 complete, 1 remaining (integration tests)
 
 ### Completed Work:
@@ -2138,7 +2141,7 @@ cargo build --release
 - 31+ commits on branch `004-quick-wins-bookmarks`
 - 81+ tests passing
 - All Phase 0-5 features fully functional
-- Ready to implement Phase 6 (Recursive Search)
+- Ready to implement Phases 6-8
 
 ### Remaining Work:
 
@@ -2150,6 +2153,38 @@ cargo build --release
 - **TASK-041**: Performance optimizations - 1.5h
 - **TASK-042**: Integration tests - 2h
 
+**Phase 7 - SFTP Remote Access (21h)**:
+- **TASK-043**: Add SSH/SFTP dependencies - 0.5h
+- **TASK-044**: Create SFTP connection models - 2h
+- **TASK-045**: Implement SFTP session manager - 3h
+- **TASK-046**: Create RemoteFileEntry model - 1h
+- **TASK-047**: Add SFTP connection dialog UI - 2.5h
+- **TASK-048**: Integrate SFTP into Panel - 2h
+- **TASK-049**: Add SFTP keybindings and actions - 1h
+- **TASK-050**: Implement SFTP file operations - 3h
+- **TASK-051**: Add SFTP connection management UI - 1.5h
+- **TASK-052**: Add SFTP to bookmarks - 1.5h
+- **TASK-053**: Add SFTP edge case handling - 2h
+- **TASK-054**: Write SFTP integration tests - 2.5h
+
+**Phase 8 - SMB/Samba Network Shares (16h)**:
+- **TASK-055**: Add SMB/CIFS dependencies - 0.5h
+- **TASK-056**: Create SMB connection models - 1.5h
+- **TASK-057**: Implement SMB session manager - 3.5h
+- **TASK-058**: Add SMB connection dialog UI - 2h
+- **TASK-059**: Integrate SMB into Panel - 1.5h
+- **TASK-060**: Add SMB keybindings and actions - 0.5h
+- **TASK-061**: Implement SMB file operations - 2h
+- **TASK-062**: Add SMB network discovery (Windows) - 2h
+- **TASK-063**: Add SMB to bookmarks - 1h
+- **TASK-064**: Add SMB edge case handling - 2h
+- **TASK-065**: Write SMB integration tests - 2h
+
+**Remote Integration (3.5h)**:
+- **TASK-066**: Unified remote connection manager - 1.5h
+- **TASK-067**: Remote connection indicator panel - 1h
+- **TASK-068**: Update documentation for remote features - 1h
+
 **Testing & Documentation (3.75h)**:
 - **TASK-032**: Editor integration tests - 2h
 - **TASK-033**: Update README - 0.5h
@@ -2158,7 +2193,956 @@ cargo build --release
 - **TASK-036**: Requirements checklist - 0.5h
 
 **Next Steps**:
-1. Implement Phase 6 (Recursive Search)
-2. Complete TASK-032 (editor tests)
-3. Documentation (TASK-033 to 036)
-4. Release v0.4.0
+1. ⬜ Implement Phase 6 (Recursive Search) - 11h
+2. ⬜ Implement Phase 7 (SFTP Remote Access) - 21h
+3. ⬜ Implement Phase 8 (SMB/Samba) - 16h
+4. ⬜ Complete remote integration - 3.5h
+5. ⬜ Complete testing & documentation - 3.75h
+6. 🚀 Release v0.5.0 with full remote access support
+
+**Feature Roadmap**:
+- v0.4.0: Phases 0-6 (Bookmarks, Disk Usage, History, GoTo, Editor, Search)
+- v0.5.0: Phases 7-8 (SFTP + SMB/Samba remote access)
+
+---
+
+## Phase 7: SFTP Remote Access (P2)
+
+### TASK-043: Add SSH/SFTP dependencies ⬜
+**Priority**: P2 | **Time**: 0.5h | **Dependencies**: None
+
+**Description**: Add required crates for SSH/SFTP connectivity
+
+**Files**:
+- `Cargo.toml` - Add dependencies
+
+**Dependencies to add**:
+```toml
+ssh2 = "0.9"  # SSH2 protocol implementation
+```
+
+**Acceptance**:
+- [ ] ssh2 added to Cargo.toml
+- [ ] `cargo build` succeeds
+- [ ] No version conflicts
+
+---
+
+### TASK-044: Create SFTP connection models ⬜
+**Priority**: P2 | **Time**: 2h | **Dependencies**: TASK-043
+
+**Description**: Create core SFTP connection structs and enums
+
+**Files**:
+- `src/models/remote/sftp.rs` - NEW
+- `src/models/remote/mod.rs` - NEW
+- `src/models/mod.rs` - Add `pub mod remote;`
+
+**Implementation**:
+```rust
+use ssh2::Session;
+use std::path::PathBuf;
+use std::time::SystemTime;
+
+#[derive(Debug, Clone)]
+pub enum AuthMethod {
+    Password(String),
+    Key(PathBuf),
+    Agent,
+}
+
+#[derive(Debug)]
+pub struct SftpConnection {
+    pub connection_id: String,
+    pub hostname: String,
+    pub port: u16,
+    pub username: String,
+    pub auth_method: AuthMethod,
+    pub current_path: PathBuf,
+    pub session: Session,
+    pub connected_at: SystemTime,
+    pub last_activity: SystemTime,
+}
+
+impl SftpConnection {
+    pub fn new(hostname: String, port: u16, username: String, auth_method: AuthMethod) -> Self { ... }
+    pub fn connect(&mut self) -> Result<()> { ... }
+    pub fn disconnect(&mut self) -> Result<()> { ... }
+    pub fn is_connected(&self) -> bool { ... }
+}
+```
+
+**Acceptance**:
+- [ ] SftpConnection struct compiles
+- [ ] AuthMethod enum works correctly
+- [ ] Connection lifecycle methods defined
+- [ ] Unit tests for struct creation
+
+---
+
+### TASK-045: Implement SFTP session manager ⬜
+**Priority**: P2 | **Time**: 3h | **Dependencies**: TASK-044
+
+**Description**: Create manager for SFTP sessions with authentication
+
+**Files**:
+- `src/services/sftp_manager.rs` - NEW
+- `src/services/mod.rs` - Add `pub mod sftp_manager;`
+
+**Implementation**:
+```rust
+use crate::models::remote::sftp::*;
+use anyhow::Result;
+use ssh2::{Session, Sftp};
+use std::net::TcpStream;
+
+pub struct SftpManager {
+    active_connections: HashMap<String, SftpConnection>,
+}
+
+impl SftpManager {
+    pub fn new() -> Self { ... }
+    pub fn connect(&mut self, hostname: String, port: u16, username: String, auth: AuthMethod) -> Result<String> { ... }
+    pub fn disconnect(&mut self, connection_id: &str) -> Result<()> { ... }
+    pub fn list_directory(&self, connection_id: &str, path: &Path) -> Result<Vec<RemoteFileEntry>> { ... }
+    pub fn download_file(&self, connection_id: &str, remote_path: &Path, local_path: &Path) -> Result<()> { ... }
+    pub fn upload_file(&self, connection_id: &str, local_path: &Path, remote_path: &Path) -> Result<()> { ... }
+    pub fn delete_file(&self, connection_id: &str, path: &Path) -> Result<()> { ... }
+    pub fn create_directory(&self, connection_id: &str, path: &Path) -> Result<()> { ... }
+    pub fn rename(&self, connection_id: &str, old_path: &Path, new_path: &Path) -> Result<()> { ... }
+}
+```
+
+**Acceptance**:
+- [ ] Password authentication works
+- [ ] SSH key authentication works
+- [ ] Agent authentication works
+- [ ] Directory listing returns correct entries
+- [ ] File operations work correctly
+- [ ] Unit tests for all operations
+
+---
+
+### TASK-046: Create RemoteFileEntry model ⬜
+**Priority**: P2 | **Time**: 1h | **Dependencies**: TASK-044
+
+**Description**: Create unified remote file entry representation
+
+**Files**:
+- `src/models/remote/entry.rs` - NEW
+- `src/models/remote/mod.rs` - Add `pub mod entry;`
+
+**Implementation**:
+```rust
+use std::path::PathBuf;
+use std::time::SystemTime;
+
+#[derive(Debug, Clone)]
+pub enum ConnectionType {
+    Local,
+    Sftp(String),  // connection_id
+    Smb(String),   // connection_id
+}
+
+#[derive(Debug, Clone)]
+pub struct RemoteFileEntry {
+    pub name: String,
+    pub path: PathBuf,
+    pub size: u64,
+    pub modified_time: SystemTime,
+    pub is_directory: bool,
+    pub permissions: String,
+    pub is_readonly: bool,
+    pub connection_type: ConnectionType,
+}
+
+impl RemoteFileEntry {
+    pub fn from_sftp(sftp_file: ssh2::FileStat, path: PathBuf, connection_id: String) -> Self { ... }
+    pub fn is_remote(&self) -> bool { ... }
+}
+```
+
+**Acceptance**:
+- [ ] RemoteFileEntry compiles
+- [ ] ConnectionType enum works
+- [ ] Conversion from SFTP works
+- [ ] Unit tests for conversions
+
+---
+
+### TASK-047: Add SFTP connection dialog UI ⬜
+**Priority**: P2 | **Time**: 2.5h | **Dependencies**: TASK-044
+
+**Description**: Create dialog for SFTP connection parameters
+
+**Files**:
+- `src/app/state.rs` - Add SftpConnectionDialog to DialogState
+- `src/ui/dialogs/sftp_connection.rs` - NEW
+- `src/ui/dialogs/mod.rs` - Add `pub mod sftp_connection;`
+
+**Implementation**:
+```rust
+pub struct SftpConnectionDialog {
+    pub hostname: String,
+    pub port: String,  // As string for input
+    pub username: String,
+    pub auth_method: AuthMethodSelection,
+    pub password: String,
+    pub key_path: String,
+    pub focused_field: SftpField,
+}
+
+pub enum SftpField {
+    Hostname,
+    Port,
+    Username,
+    AuthMethod,
+    Password,
+    KeyPath,
+}
+
+pub enum AuthMethodSelection {
+    Password,
+    Key,
+    Agent,
+}
+
+pub fn render_sftp_connection_dialog(f: &mut Frame, app: &AppState, area: Rect) { ... }
+```
+
+**Acceptance**:
+- [ ] Dialog renders correctly
+- [ ] Can tab between fields
+- [ ] Auth method selection works
+- [ ] Shows/hides fields based on auth method
+- [ ] Enter initiates connection
+- [ ] Escape cancels dialog
+
+---
+
+### TASK-048: Integrate SFTP into Panel ⬜
+**Priority**: P2 | **Time**: 2h | **Dependencies**: TASK-045, TASK-046
+
+**Description**: Extend Panel to support SFTP connections
+
+**Files**:
+- `src/app/panel.rs` - Modify Panel struct
+- `src/models/entry.rs` - Extend FileEntry
+
+**Changes**:
+```rust
+pub struct Panel {
+    pub current_path: PathBuf,
+    pub connection_type: ConnectionType,  // NEW
+    pub connection_id: Option<String>,    // NEW
+    pub entries: Vec<FileEntry>,
+    // ... existing fields
+}
+
+impl Panel {
+    pub fn connect_sftp(&mut self, connection_id: String, root_path: PathBuf) -> Result<()> { ... }
+    pub fn disconnect_remote(&mut self) -> Result<()> { ... }
+    pub fn is_remote(&self) -> bool { ... }
+    pub fn refresh_remote_entries(&mut self, sftp_manager: &SftpManager) -> Result<()> { ... }
+}
+```
+
+**Acceptance**:
+- [ ] Panel can hold SFTP connection
+- [ ] Remote entries display correctly
+- [ ] Navigation works on remote filesystem
+- [ ] Connection indicator shows in UI
+
+---
+
+### TASK-049: Add SFTP keybindings and actions ⬜
+**Priority**: P2 | **Time**: 1h | **Dependencies**: TASK-047
+
+**Description**: Add keybindings for SFTP operations
+
+**Files**:
+- `src/events/keybindings.rs` - Add SFTP actions
+- `src/config/keybindings.toml` - Add SFTP keys
+
+**New Actions**:
+```rust
+pub enum Action {
+    // ... existing
+    ConnectSftp,       // Ctrl+Shift+S
+    DisconnectRemote,  // Ctrl+D
+}
+```
+
+**Keybindings**:
+```toml
+[keys.normal]
+"ctrl+shift+s" = "ConnectSftp"
+"ctrl+d" = "DisconnectRemote"
+```
+
+**Acceptance**:
+- [ ] Ctrl+Shift+S opens SFTP dialog
+- [ ] Ctrl+D disconnects active connection
+- [ ] Actions integrated into handler
+
+---
+
+### TASK-050: Implement SFTP file operations ⬜
+**Priority**: P2 | **Time**: 3h | **Dependencies**: TASK-048
+
+**Description**: Extend file operations to support SFTP transfers
+
+**Files**:
+- `src/events/handlers/file_operations.rs` - Modify operations
+- `src/operations/sftp_transfer.rs` - NEW
+
+**Implementation**:
+```rust
+// Detect remote-to-local, local-to-remote, remote-to-remote
+pub fn start_copy_operation(app: &mut AppState) -> Result<()> {
+    let source_type = app.active_panel().connection_type;
+    let dest_type = app.inactive_panel().connection_type;
+    
+    match (source_type, dest_type) {
+        (ConnectionType::Sftp(ref src_id), ConnectionType::Local) => {
+            // Download
+            download_file(app, src_id)?;
+        }
+        (ConnectionType::Local, ConnectionType::Sftp(ref dst_id)) => {
+            // Upload
+            upload_file(app, dst_id)?;
+        }
+        (ConnectionType::Sftp(ref src_id), ConnectionType::Sftp(ref dst_id)) => {
+            // Remote-to-remote (download then upload)
+            remote_to_remote_copy(app, src_id, dst_id)?;
+        }
+        _ => {
+            // Local-to-local (existing logic)
+        }
+    }
+    Ok(())
+}
+```
+
+**Acceptance**:
+- [ ] Download (SFTP → Local) works with progress
+- [ ] Upload (Local → SFTP) works with progress
+- [ ] Remote-to-remote copy works
+- [ ] Delete works on SFTP
+- [ ] Rename works on SFTP
+- [ ] Create folder works on SFTP
+- [ ] Error handling for network issues
+
+---
+
+### TASK-051: Add SFTP connection management UI ⬜
+**Priority**: P2 | **Time**: 1.5h | **Dependencies**: TASK-048
+
+**Description**: Show connection status and allow quick disconnect
+
+**Files**:
+- `src/ui/status_bar.rs` - Add connection indicator
+- `src/ui/panels.rs` - Add remote panel styling
+
+**UI Changes**:
+- Status bar shows "SFTP: user@host" when connected
+- Remote panels have different border color
+- Remote file entries show distinctive icon
+- Connection errors display prominently
+
+**Acceptance**:
+- [ ] Connection status visible in status bar
+- [ ] Remote panels visually distinct
+- [ ] Connection errors shown clearly
+- [ ] Disconnect prompt if operations pending
+
+---
+
+### TASK-052: Add SFTP to bookmarks ⬜
+**Priority**: P2 | **Time**: 1.5h | **Dependencies**: TASK-048
+
+**Description**: Allow saving SFTP connections as bookmarks
+
+**Files**:
+- `src/models/bookmark.rs` - Extend Bookmark
+- `src/config/bookmarks.rs` - Update serialization
+
+**Changes**:
+```rust
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Bookmark {
+    pub name: String,
+    pub path: PathBuf,
+    pub connection_type: ConnectionType,  // NEW
+    pub connection_params: Option<SftpConnectionParams>,  // NEW
+    pub created_at: DateTime<Utc>,
+    pub last_accessed: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SftpConnectionParams {
+    pub hostname: String,
+    pub port: u16,
+    pub username: String,
+    pub save_password: bool,
+    pub password: Option<String>,  // Encrypted
+    pub key_path: Option<PathBuf>,
+}
+```
+
+**Acceptance**:
+- [ ] SFTP bookmarks save connection params
+- [ ] Passwords optionally saved (encrypted)
+- [ ] Reconnect from bookmark works
+- [ ] Bookmarks show connection type
+
+---
+
+### TASK-053: Add SFTP edge case handling ⬜
+**Priority**: P2 | **Time**: 2h | **Dependencies**: TASK-050
+
+**Description**: Handle edge cases and error scenarios
+
+**Edge Cases**:
+- Connection timeout during transfer
+- SSH host key changes (MITM warning)
+- Network disconnection mid-operation
+- Remote disk full during upload
+- Permission denied errors
+- SSH key passphrase handling
+- Symbolic link handling
+
+**Files**:
+- `src/services/sftp_manager.rs` - Add error handling
+- `src/ui/dialogs/sftp_error.rs` - NEW
+
+**Acceptance**:
+- [ ] Timeout errors handled gracefully
+- [ ] Host key changes show warning dialog
+- [ ] Connection drops allow retry
+- [ ] Disk full errors are clear
+- [ ] Permission errors show clear message
+- [ ] Key passphrase prompts correctly
+- [ ] All edge cases have integration tests
+
+---
+
+### TASK-054: Write SFTP integration tests ⬜
+**Priority**: P3 | **Time**: 2.5h | **Dependencies**: TASK-053
+
+**Description**: Comprehensive tests for SFTP functionality
+
+**Files**:
+- `tests/integration/sftp_tests.rs` - NEW
+
+**Test Cases**:
+```rust
+#[test]
+fn test_sftp_password_auth() { ... }
+
+#[test]
+fn test_sftp_key_auth() { ... }
+
+#[test]
+fn test_sftp_agent_auth() { ... }
+
+#[test]
+fn test_sftp_download_file() { ... }
+
+#[test]
+fn test_sftp_upload_file() { ... }
+
+#[test]
+fn test_sftp_connection_timeout() { ... }
+
+#[test]
+fn test_sftp_host_key_verification() { ... }
+
+#[test]
+fn test_sftp_bookmark_reconnect() { ... }
+```
+
+**Acceptance**:
+- [ ] All authentication methods tested
+- [ ] File operations tested
+- [ ] Error scenarios tested
+- [ ] Mock SSH server for testing
+- [ ] All tests pass
+
+---
+
+## Phase 8: SMB/Samba Network Shares (P2)
+
+### TASK-055: Add SMB/CIFS dependencies ⬜
+**Priority**: P2 | **Time**: 0.5h | **Dependencies**: None
+
+**Description**: Add required crates for SMB/CIFS connectivity
+
+**Files**:
+- `Cargo.toml` - Add dependencies
+
+**Dependencies to add**:
+```toml
+# Windows-specific
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3", features = ["winnetwk", "winerror"] }
+
+# Linux-specific (libsmbclient wrapper or pure Rust impl)
+[target.'cfg(unix)'.dependencies]
+# TBD: Investigate pavao/smbclient-rs or similar
+```
+
+**Acceptance**:
+- [ ] Dependencies added per platform
+- [ ] `cargo build` succeeds on Windows
+- [ ] `cargo build` succeeds on Linux
+- [ ] No version conflicts
+
+---
+
+### TASK-056: Create SMB connection models ⬜
+**Priority**: P2 | **Time**: 1.5h | **Dependencies**: TASK-055
+
+**Description**: Create core SMB connection structs
+
+**Files**:
+- `src/models/remote/smb.rs` - NEW
+- `src/models/remote/mod.rs` - Add `pub mod smb;`
+
+**Implementation**:
+```rust
+use std::path::PathBuf;
+use std::time::SystemTime;
+
+#[derive(Debug)]
+pub struct SmbConnection {
+    pub connection_id: String,
+    pub server: String,
+    pub share_name: String,
+    pub unc_path: String,  // \\server\share
+    pub username: Option<String>,
+    pub domain: Option<String>,
+    pub current_path: PathBuf,
+    pub connected_at: SystemTime,
+    pub protocol_version: String,  // SMB2, SMB3
+}
+
+impl SmbConnection {
+    pub fn new(unc_path: String, username: Option<String>, domain: Option<String>) -> Self { ... }
+    pub fn connect(&mut self, password: Option<String>) -> Result<()> { ... }
+    pub fn disconnect(&mut self) -> Result<()> { ... }
+    pub fn is_connected(&self) -> bool { ... }
+}
+```
+
+**Acceptance**:
+- [ ] SmbConnection struct compiles
+- [ ] UNC path parsing works
+- [ ] Connection lifecycle methods defined
+- [ ] Unit tests for struct creation
+
+---
+
+### TASK-057: Implement SMB session manager ⬜
+**Priority**: P2 | **Time**: 3.5h | **Dependencies**: TASK-056
+
+**Description**: Create platform-specific SMB manager
+
+**Files**:
+- `src/services/smb_manager.rs` - NEW
+- `src/services/smb_manager_windows.rs` - NEW (Windows impl)
+- `src/services/smb_manager_unix.rs` - NEW (Linux impl)
+- `src/services/mod.rs` - Add `pub mod smb_manager;`
+
+**Implementation** (Windows using WNetAddConnection2):
+```rust
+use winapi::um::winnetwk::*;
+use crate::models::remote::smb::*;
+
+pub struct SmbManager {
+    active_connections: HashMap<String, SmbConnection>,
+}
+
+impl SmbManager {
+    pub fn new() -> Self { ... }
+    pub fn connect(&mut self, unc_path: String, username: Option<String>, password: Option<String>, domain: Option<String>) -> Result<String> { ... }
+    pub fn disconnect(&mut self, connection_id: &str) -> Result<()> { ... }
+    pub fn list_directory(&self, connection_id: &str, path: &Path) -> Result<Vec<RemoteFileEntry>> { ... }
+    // File operations use standard Windows APIs on UNC paths
+}
+```
+
+**Implementation** (Linux using smbclient or libsmbclient):
+```rust
+// Use smbclient command or libsmbclient bindings
+```
+
+**Acceptance**:
+- [ ] Windows implementation works with UNC paths
+- [ ] Linux implementation works with smbclient
+- [ ] Domain authentication works
+- [ ] Guest access works
+- [ ] Directory listing returns correct entries
+- [ ] Unit tests for all operations
+
+---
+
+### TASK-058: Add SMB connection dialog UI ⬜
+**Priority**: P2 | **Time**: 2h | **Dependencies**: TASK-056
+
+**Description**: Create dialog for SMB connection parameters
+
+**Files**:
+- `src/app/state.rs` - Add SmbConnectionDialog to DialogState
+- `src/ui/dialogs/smb_connection.rs` - NEW
+- `src/ui/dialogs/mod.rs` - Add `pub mod smb_connection;`
+
+**Implementation**:
+```rust
+pub struct SmbConnectionDialog {
+    pub unc_path: String,        // \\server\share or smb://server/share
+    pub username: String,
+    pub password: String,
+    pub domain: String,
+    pub use_guest: bool,
+    pub focused_field: SmbField,
+}
+
+pub enum SmbField {
+    UncPath,
+    Username,
+    Password,
+    Domain,
+}
+
+pub fn render_smb_connection_dialog(f: &mut Frame, app: &AppState, area: Rect) { ... }
+```
+
+**Acceptance**:
+- [ ] Dialog renders correctly
+- [ ] Can tab between fields
+- [ ] UNC path validation
+- [ ] Guest mode checkbox works
+- [ ] Enter initiates connection
+- [ ] Escape cancels dialog
+
+---
+
+### TASK-059: Integrate SMB into Panel ⬜
+**Priority**: P2 | **Time**: 1.5h | **Dependencies**: TASK-057, TASK-046
+
+**Description**: Extend Panel to support SMB connections
+
+**Files**:
+- `src/app/panel.rs` - Extend existing remote support
+- `src/models/remote/entry.rs` - Add SMB conversion
+
+**Changes**:
+```rust
+impl Panel {
+    pub fn connect_smb(&mut self, connection_id: String, root_path: PathBuf) -> Result<()> { ... }
+    pub fn refresh_smb_entries(&mut self, smb_manager: &SmbManager) -> Result<()> { ... }
+}
+
+impl RemoteFileEntry {
+    pub fn from_smb(smb_file: SmbFileInfo, path: PathBuf, connection_id: String) -> Self { ... }
+}
+```
+
+**Acceptance**:
+- [ ] Panel can hold SMB connection
+- [ ] SMB entries display correctly
+- [ ] Navigation works on SMB share
+- [ ] Connection indicator shows in UI
+
+---
+
+### TASK-060: Add SMB keybindings and actions ⬜
+**Priority**: P2 | **Time**: 0.5h | **Dependencies**: TASK-058
+
+**Description**: Add keybindings for SMB operations
+
+**Files**:
+- `src/events/keybindings.rs` - Add SMB actions
+- `src/config/keybindings.toml` - Add SMB keys
+
+**New Actions**:
+```rust
+pub enum Action {
+    // ... existing
+    ConnectSmb,        // Ctrl+Shift+N
+    // DisconnectRemote already exists from SFTP
+}
+```
+
+**Keybindings**:
+```toml
+[keys.normal]
+"ctrl+shift+n" = "ConnectSmb"
+```
+
+**Acceptance**:
+- [ ] Ctrl+Shift+N opens SMB dialog
+- [ ] Actions integrated into handler
+- [ ] Ctrl+D works for SMB disconnect
+
+---
+
+### TASK-061: Implement SMB file operations ⬜
+**Priority**: P2 | **Time**: 2h | **Dependencies**: TASK-059
+
+**Description**: Extend file operations to support SMB shares
+
+**Files**:
+- `src/events/handlers/file_operations.rs` - Add SMB cases
+- `src/operations/smb_transfer.rs` - NEW
+
+**Implementation**:
+```rust
+// Extend existing logic to handle SMB
+match (source_type, dest_type) {
+    (ConnectionType::Smb(ref src_id), ConnectionType::Local) => {
+        // Copy from share to local
+        copy_from_smb(app, src_id)?;
+    }
+    (ConnectionType::Local, ConnectionType::Smb(ref dst_id)) => {
+        // Copy from local to share
+        copy_to_smb(app, dst_id)?;
+    }
+    (ConnectionType::Smb(_), ConnectionType::Smb(_)) => {
+        // Share-to-share copy
+        smb_to_smb_copy(app)?;
+    }
+    // ... SFTP cases from TASK-050
+}
+```
+
+**Acceptance**:
+- [ ] Copy from share to local works
+- [ ] Copy from local to share works
+- [ ] Share-to-share copy works
+- [ ] Delete works on SMB share
+- [ ] Rename works on SMB share
+- [ ] Create folder works on SMB share
+- [ ] Locked file errors are clear
+
+---
+
+### TASK-062: Add SMB network discovery (Windows) ⬜
+**Priority**: P3 | **Time**: 2h | **Dependencies**: TASK-057
+
+**Description**: Add network browse capability on Windows
+
+**Files**:
+- `src/services/smb_discovery_windows.rs` - NEW
+- `src/ui/dialogs/network_browser.rs` - NEW
+
+**Implementation**:
+```rust
+// Use WNetOpenEnum/WNetEnumResource to discover network resources
+pub fn discover_network_shares() -> Result<Vec<NetworkResource>> { ... }
+
+pub struct NetworkResource {
+    pub server_name: String,
+    pub share_name: String,
+    pub unc_path: String,
+    pub share_type: ShareType,  // Disk, Print, etc.
+}
+```
+
+**Acceptance**:
+- [ ] Can enumerate network servers
+- [ ] Can enumerate shares on server
+- [ ] Network browser UI works
+- [ ] Selecting share pre-fills connection dialog
+- [ ] Only implemented on Windows
+
+---
+
+### TASK-063: Add SMB to bookmarks ⬜
+**Priority**: P2 | **Time**: 1h | **Dependencies**: TASK-059
+
+**Description**: Allow saving SMB connections as bookmarks
+
+**Files**:
+- `src/models/bookmark.rs` - Extend connection params
+- `src/config/bookmarks.rs` - Update serialization
+
+**Changes**:
+```rust
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SmbConnectionParams {
+    pub unc_path: String,
+    pub username: Option<String>,
+    pub domain: Option<String>,
+    pub save_password: bool,
+    pub password: Option<String>,  // Encrypted
+}
+
+// Update Bookmark to support SmbConnectionParams
+```
+
+**Acceptance**:
+- [ ] SMB bookmarks save connection params
+- [ ] Passwords optionally saved (encrypted)
+- [ ] Reconnect from bookmark works
+- [ ] Bookmarks show SMB connection type
+
+---
+
+### TASK-064: Add SMB edge case handling ⬜
+**Priority**: P2 | **Time**: 2h | **Dependencies**: TASK-061
+
+**Description**: Handle SMB edge cases and error scenarios
+
+**Edge Cases**:
+- Domain authentication failure
+- Share suddenly disconnected
+- Locked files (opened by other users)
+- Credential expiry in domain environments
+- Guest access denied
+- Network timeouts
+- Different SMB protocol versions
+- Large file transfers over slow networks
+
+**Files**:
+- `src/services/smb_manager.rs` - Add error handling
+- `src/ui/dialogs/smb_error.rs` - NEW
+
+**Acceptance**:
+- [ ] Auth failures show clear error
+- [ ] Disconnection allows reconnect
+- [ ] Locked file errors are specific
+- [ ] Credential expiry prompts re-auth
+- [ ] Guest access failures handled
+- [ ] Timeouts don't freeze UI
+- [ ] All edge cases have integration tests
+
+---
+
+### TASK-065: Write SMB integration tests ⬜
+**Priority**: P3 | **Time**: 2h | **Dependencies**: TASK-064
+
+**Description**: Comprehensive tests for SMB functionality
+
+**Files**:
+- `tests/integration/smb_tests.rs` - NEW
+
+**Test Cases**:
+```rust
+#[test]
+#[cfg(windows)]
+fn test_smb_unc_path_parsing() { ... }
+
+#[test]
+fn test_smb_domain_auth() { ... }
+
+#[test]
+fn test_smb_guest_access() { ... }
+
+#[test]
+fn test_smb_copy_from_share() { ... }
+
+#[test]
+fn test_smb_locked_file_error() { ... }
+
+#[test]
+fn test_smb_bookmark_reconnect() { ... }
+
+#[test]
+#[cfg(windows)]
+fn test_smb_network_discovery() { ... }
+```
+
+**Acceptance**:
+- [ ] Platform-specific tests work
+- [ ] Mock SMB server for testing
+- [ ] All scenarios tested
+- [ ] All tests pass
+
+---
+
+## Remote Features - Final Integration
+
+### TASK-066: Add unified remote connection manager ⬜
+**Priority**: P2 | **Time**: 1.5h | **Dependencies**: TASK-053, TASK-064
+
+**Description**: Create unified manager for all remote connections
+
+**Files**:
+- `src/services/remote_manager.rs` - NEW
+- `src/app/state.rs` - Integrate RemoteManager
+
+**Implementation**:
+```rust
+pub struct RemoteManager {
+    sftp_manager: SftpManager,
+    smb_manager: SmbManager,
+    active_connections: HashMap<String, ConnectionType>,
+}
+
+impl RemoteManager {
+    pub fn new() -> Self { ... }
+    pub fn connect(&mut self, conn_type: ConnectionType, params: ConnectionParams) -> Result<String> { ... }
+    pub fn disconnect(&mut self, connection_id: &str) -> Result<()> { ... }
+    pub fn get_connection_info(&self, connection_id: &str) -> Option<&dyn RemoteConnection> { ... }
+    pub fn list_active_connections(&self) -> Vec<ConnectionInfo> { ... }
+}
+```
+
+**Acceptance**:
+- [ ] Unified interface for SFTP and SMB
+- [ ] Connection lifecycle managed centrally
+- [ ] Easy to add new connection types
+- [ ] Integrated into AppState
+
+---
+
+### TASK-067: Add remote connection indicator panel ⬜
+**Priority**: P3 | **Time**: 1h | **Dependencies**: TASK-066
+
+**Description**: Show all active remote connections
+
+**Files**:
+- `src/ui/widgets/connections_panel.rs` - NEW
+- `src/ui/mod.rs` - Add widget
+
+**UI**:
+- Show list of active connections
+- Display type (SFTP/SMB), host, status
+- Allow quick disconnect
+- Show data transfer stats
+
+**Acceptance**:
+- [ ] Connections panel renders
+- [ ] Shows all active connections
+- [ ] Can disconnect from panel
+- [ ] Transfer stats visible
+
+---
+
+### TASK-068: Update documentation for remote features ⬜
+**Priority**: P3 | **Time**: 1h | **Dependencies**: TASK-065, TASK-067
+
+**Description**: Document SFTP and SMB features
+
+**Files**:
+- `README.md` - Add remote features section
+- `docs/REMOTE_ACCESS.md` - NEW detailed guide
+- `CHANGELOG.md` - Add v0.5.0 notes
+
+**Documentation**:
+- SFTP connection guide
+- SMB/Samba connection guide
+- Supported authentication methods
+- Troubleshooting section
+- Platform-specific notes
+
+**Acceptance**:
+- [ ] README updated
+- [ ] REMOTE_ACCESS.md created
+- [ ] CHANGELOG updated
+- [ ] Examples provided
+
+---
+
