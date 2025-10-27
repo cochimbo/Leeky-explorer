@@ -1,6 +1,6 @@
 // VFS-aware file operations (for mixed local/remote operations)
 use anyhow::Result;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 
@@ -207,7 +207,21 @@ pub async fn copy_dir_recursive_vfs(
         }
         
         let src_path = &entry.path;
-        let dst_path = dst.join(&entry.name);
+        
+        // Build destination path - normalize if dest is remote
+        let dst_path = if dst_vfs.is_some() {
+            // Remote destination - ensure Unix-style path
+            let dst_str = dst.to_string_lossy();
+            let normalized = if dst_str.ends_with('/') {
+                format!("{}{}", dst_str, entry.name)
+            } else {
+                format!("{}/{}", dst_str, entry.name)
+            };
+            PathBuf::from(normalized)
+        } else {
+            // Local destination - use normal join
+            dst.join(&entry.name)
+        };
         
         if entry.entry_type == crate::remote::VfsEntryType::Directory {
             // Recursive copy

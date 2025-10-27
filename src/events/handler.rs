@@ -712,6 +712,10 @@ fn start_copy_operation(app: &mut AppState) -> Result<()> {
 fn start_copy_operation_skip_check(app: &mut AppState) -> Result<()> {
     let dest_panel_path = app.inactive_panel().current_path.clone();
     
+    // Get VFS references from both panels
+    let source_vfs = app.active_panel().vfs.clone();
+    let dest_vfs = app.inactive_panel().vfs.clone();
+    
     // T574: Check if batch operation or single
     if app.has_selection() {
         let marked_paths = app.selection_state.get_marked(app.active_panel);
@@ -722,25 +726,30 @@ fn start_copy_operation_skip_check(app: &mut AppState) -> Result<()> {
         let mut operations = Vec::new();
         
         for path in &marked_paths {
-            if let Ok(metadata) = std::fs::metadata(path) {
-                total_bytes += metadata.len();
-                if let Some(file_name) = path.file_name() {
-                    let file_name = file_name.to_string_lossy().to_string();
-                    let mut destination = dest_panel_path.join(&file_name);
-                    
-                    // BUG-003 FIX: Check if copying to same directory
-                    if let (Some(src_parent), Some(dst_parent)) = (path.parent(), destination.parent())
-                        && src_parent == dst_parent {
-                            // Copying to same directory - generate new name with suffix
-                            destination = crate::fs::operations::generate_collision_free_name(&destination);
-                        }
-                    
-                    operations.push((path.clone(), destination, file_name));
-                }
+            // Get size using VFS if available
+            let size = if let Some(vfs) = &source_vfs {
+                vfs.metadata(path).map(|m| m.size).unwrap_or(0)
+            } else {
+                std::fs::metadata(path).map(|m| m.len()).unwrap_or(0)
+            };
+            
+            total_bytes += size;
+            if let Some(file_name) = path.file_name() {
+                let file_name = file_name.to_string_lossy().to_string();
+                let mut destination = dest_panel_path.join(&file_name);
+                
+                // BUG-003 FIX: Check if copying to same directory
+                if let (Some(src_parent), Some(dst_parent)) = (path.parent(), destination.parent())
+                    && src_parent == dst_parent {
+                        // Copying to same directory - generate new name with suffix
+                        destination = crate::fs::operations::generate_collision_free_name(&destination);
+                    }
+                
+                operations.push((path.clone(), destination, file_name));
             }
         }
         
-        let operation = Operation::copy_batch(operations, total_bytes, count);
+        let operation = Operation::copy_batch_vfs(operations, total_bytes, count, source_vfs, dest_vfs);
         app.current_operation = Some(operation);
         
         app.dialog_state = Some(DialogState::Progress {
@@ -765,7 +774,7 @@ fn start_copy_operation_skip_check(app: &mut AppState) -> Result<()> {
             
             let total_files = 1; // Single file or directory
             
-            let operation = Operation::copy(source, destination, total_bytes, total_files);
+            let operation = Operation::copy_vfs(source, destination, total_bytes, total_files, source_vfs, dest_vfs);
             app.current_operation = Some(operation);
             
             app.dialog_state = Some(DialogState::Progress {
@@ -781,6 +790,10 @@ fn start_copy_operation_skip_check(app: &mut AppState) -> Result<()> {
 fn start_copy_operation_with_rename(app: &mut AppState) -> Result<()> {
     let dest_panel_path = app.inactive_panel().current_path.clone();
     
+    // Get VFS references from both panels
+    let source_vfs = app.active_panel().vfs.clone();
+    let dest_vfs = app.inactive_panel().vfs.clone();
+    
     // T574: Check if batch operation or single
     if app.has_selection() {
         let marked_paths = app.selection_state.get_marked(app.active_panel);
@@ -791,21 +804,26 @@ fn start_copy_operation_with_rename(app: &mut AppState) -> Result<()> {
         let mut operations = Vec::new();
         
         for path in &marked_paths {
-            if let Ok(metadata) = std::fs::metadata(path) {
-                total_bytes += metadata.len();
-                if let Some(file_name) = path.file_name() {
-                    let file_name = file_name.to_string_lossy().to_string();
-                    let destination = dest_panel_path.join(&file_name);
-                    
-                    // Always generate collision-free name
-                    let final_destination = crate::fs::operations::generate_collision_free_name(&destination);
-                    
-                    operations.push((path.clone(), final_destination, file_name));
-                }
+            // Get size using VFS if available
+            let size = if let Some(vfs) = &source_vfs {
+                vfs.metadata(path).map(|m| m.size).unwrap_or(0)
+            } else {
+                std::fs::metadata(path).map(|m| m.len()).unwrap_or(0)
+            };
+            
+            total_bytes += size;
+            if let Some(file_name) = path.file_name() {
+                let file_name = file_name.to_string_lossy().to_string();
+                let destination = dest_panel_path.join(&file_name);
+                
+                // Always generate collision-free name
+                let final_destination = crate::fs::operations::generate_collision_free_name(&destination);
+                
+                operations.push((path.clone(), final_destination, file_name));
             }
         }
         
-        let operation = Operation::copy_batch(operations, total_bytes, count);
+        let operation = Operation::copy_batch_vfs(operations, total_bytes, count, source_vfs, dest_vfs);
         app.current_operation = Some(operation);
         
         app.dialog_state = Some(DialogState::Progress {
@@ -826,7 +844,7 @@ fn start_copy_operation_with_rename(app: &mut AppState) -> Result<()> {
             
             let total_files = 1; // Single file or directory
             
-            let operation = Operation::copy(source, final_destination, total_bytes, total_files);
+            let operation = Operation::copy_vfs(source, final_destination, total_bytes, total_files, source_vfs, dest_vfs);
             app.current_operation = Some(operation);
             
             app.dialog_state = Some(DialogState::Progress {
@@ -980,6 +998,10 @@ fn start_move_operation(app: &mut AppState) -> Result<()> {
 fn start_move_operation_skip_check(app: &mut AppState) -> Result<()> {
     let dest_panel_path = app.inactive_panel().current_path.clone();
     
+    // Get VFS references from both panels
+    let source_vfs = app.active_panel().vfs.clone();
+    let dest_vfs = app.inactive_panel().vfs.clone();
+    
     // T574: Check if batch operation or single
     if app.has_selection() {
         let marked_paths = app.selection_state.get_marked(app.active_panel);
@@ -989,17 +1011,22 @@ fn start_move_operation_skip_check(app: &mut AppState) -> Result<()> {
         let mut operations = Vec::new();
         
         for path in &marked_paths {
-            if let Ok(metadata) = std::fs::metadata(path) {
-                total_bytes += metadata.len();
-                if let Some(file_name) = path.file_name() {
-                    let file_name = file_name.to_string_lossy().to_string();
-                    let destination = dest_panel_path.join(&file_name);
-                    operations.push((path.clone(), destination, file_name));
-                }
+            // Get size using VFS if available
+            let size = if let Some(vfs) = &source_vfs {
+                vfs.metadata(path).map(|m| m.size).unwrap_or(0)
+            } else {
+                std::fs::metadata(path).map(|m| m.len()).unwrap_or(0)
+            };
+            
+            total_bytes += size;
+            if let Some(file_name) = path.file_name() {
+                let file_name = file_name.to_string_lossy().to_string();
+                let destination = dest_panel_path.join(&file_name);
+                operations.push((path.clone(), destination, file_name));
             }
         }
         
-        let operation = Operation::move_batch(operations, total_bytes, count);
+        let operation = Operation::move_batch_vfs(operations, total_bytes, count, source_vfs, dest_vfs);
         app.current_operation = Some(operation);
         
         app.dialog_state = Some(DialogState::Progress {
@@ -1017,7 +1044,7 @@ fn start_move_operation_skip_check(app: &mut AppState) -> Result<()> {
             
             let total_files = 1; // Single file or directory
             
-            let operation = Operation::move_op(source, destination, total_bytes, total_files);
+            let operation = Operation::move_vfs(source, destination, total_bytes, total_files, source_vfs, dest_vfs);
             app.current_operation = Some(operation);
             
             app.dialog_state = Some(DialogState::Progress {
@@ -1033,6 +1060,10 @@ fn start_move_operation_skip_check(app: &mut AppState) -> Result<()> {
 fn start_move_operation_with_rename(app: &mut AppState) -> Result<()> {
     let dest_panel_path = app.inactive_panel().current_path.clone();
     
+    // Get VFS references from both panels
+    let source_vfs = app.active_panel().vfs.clone();
+    let dest_vfs = app.inactive_panel().vfs.clone();
+    
     // T574: Check if batch operation or single
     if app.has_selection() {
         let marked_paths = app.selection_state.get_marked(app.active_panel);
@@ -1042,21 +1073,26 @@ fn start_move_operation_with_rename(app: &mut AppState) -> Result<()> {
         let mut operations = Vec::new();
         
         for path in &marked_paths {
-            if let Ok(metadata) = std::fs::metadata(path) {
-                total_bytes += metadata.len();
-                if let Some(file_name) = path.file_name() {
-                    let file_name = file_name.to_string_lossy().to_string();
-                    let destination = dest_panel_path.join(&file_name);
-                    
-                    // Always generate collision-free name
-                    let final_destination = crate::fs::operations::generate_collision_free_name(&destination);
-                    
-                    operations.push((path.clone(), final_destination, file_name));
-                }
+            // Get size using VFS if available
+            let size = if let Some(vfs) = &source_vfs {
+                vfs.metadata(path).map(|m| m.size).unwrap_or(0)
+            } else {
+                std::fs::metadata(path).map(|m| m.len()).unwrap_or(0)
+            };
+            
+            total_bytes += size;
+            if let Some(file_name) = path.file_name() {
+                let file_name = file_name.to_string_lossy().to_string();
+                let destination = dest_panel_path.join(&file_name);
+                
+                // Always generate collision-free name
+                let final_destination = crate::fs::operations::generate_collision_free_name(&destination);
+                
+                operations.push((path.clone(), final_destination, file_name));
             }
         }
         
-        let operation = Operation::move_batch(operations, total_bytes, count);
+        let operation = Operation::move_batch_vfs(operations, total_bytes, count, source_vfs, dest_vfs);
         app.current_operation = Some(operation);
         
         app.dialog_state = Some(DialogState::Progress {
@@ -1077,7 +1113,7 @@ fn start_move_operation_with_rename(app: &mut AppState) -> Result<()> {
             
             let total_files = 1; // Single file or directory
             
-            let operation = Operation::move_op(source, final_destination, total_bytes, total_files);
+            let operation = Operation::move_vfs(source, final_destination, total_bytes, total_files, source_vfs, dest_vfs);
             app.current_operation = Some(operation);
             
             app.dialog_state = Some(DialogState::Progress {
