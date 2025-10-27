@@ -21,6 +21,11 @@ pub use file_operations::{
     start_move_operation_skip_check,
     start_move_operation_with_rename,
     start_delete_operation,
+    handle_copy_request,
+    handle_move_request,
+    handle_delete_request,
+    handle_create_folder_request,
+    handle_rename_request,
 };
 
 pub use modes::{

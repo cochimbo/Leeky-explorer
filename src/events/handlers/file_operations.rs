@@ -754,3 +754,140 @@ pub fn start_delete_operation(app: &mut AppState) -> Result<()> {
     
     Ok(())
 }
+
+/// Handle copy request - show confirmation dialog
+pub fn handle_copy_request(app: &mut AppState) -> Result<()> {
+    use crate::app::ConfirmAction;
+    
+    // T570: Check if there are marked items first
+    if app.has_selection() {
+        let marked_count = app.selection_state.count(app.active_panel);
+        let dest_path = app.inactive_panel().current_path.clone();
+        let message = format!(
+            "Copy {} items to '{}'?",
+            marked_count,
+            dest_path.display()
+        );
+        app.show_confirm_dialog(message, ConfirmAction::Copy);
+    } else {
+        // Single item copy
+        let source_panel = app.active_panel();
+        let dest_panel = app.inactive_panel();
+        
+        if let Some(entry) = source_panel.selected_entry() {
+            let dest_path = dest_panel.current_path.clone();
+            let message = format!(
+                "Copy '{}' to '{}'?",
+                entry.name,
+                dest_path.display()
+            );
+            app.show_confirm_dialog(message, ConfirmAction::Copy);
+        }
+    }
+    
+    Ok(())
+}
+
+/// Handle move request - show confirmation dialog
+pub fn handle_move_request(app: &mut AppState) -> Result<()> {
+    use crate::app::ConfirmAction;
+    
+    // T571: Check if there are marked items first
+    if app.has_selection() {
+        let marked_count = app.selection_state.count(app.active_panel);
+        let dest_path = app.inactive_panel().current_path.clone();
+        let message = format!(
+            "Move {} items to '{}'?",
+            marked_count,
+            dest_path.display()
+        );
+        app.show_confirm_dialog(message, ConfirmAction::Move);
+    } else {
+        // Single item move
+        let source_panel = app.active_panel();
+        let dest_panel = app.inactive_panel();
+        
+        if let Some(entry) = source_panel.selected_entry() {
+            let dest_path = dest_panel.current_path.clone();
+            let message = format!(
+                "Move '{}' to '{}'?",
+                entry.name,
+                dest_path.display()
+            );
+            app.show_confirm_dialog(message, ConfirmAction::Move);
+        }
+    }
+    
+    Ok(())
+}
+
+/// Handle delete request - show confirmation dialog
+pub fn handle_delete_request(app: &mut AppState) -> Result<()> {
+    use crate::app::ConfirmAction;
+    
+    // T572: Check if there are marked items first
+    if app.has_selection() {
+        let marked_count = app.selection_state.count(app.active_panel);
+        let message = format!(
+            "Delete {} selected items?",
+            marked_count
+        );
+        app.show_confirm_dialog(message, ConfirmAction::Delete);
+    } else {
+        // Single item delete
+        let panel = app.active_panel();
+        
+        if let Some(entry) = panel.selected_entry() {
+            let message = format!(
+                "Delete '{}'?",
+                entry.name
+            );
+            app.show_confirm_dialog(message, ConfirmAction::Delete);
+        }
+    }
+    
+    Ok(())
+}
+
+/// Handle create folder request - show input dialog
+pub fn handle_create_folder_request(app: &mut AppState) -> Result<()> {
+    app.show_input_dialog("Enter new folder name:".to_string());
+    Ok(())
+}
+
+/// Handle rename request - show rename dialog
+pub fn handle_rename_request(app: &mut AppState, include_extension: bool) -> Result<()> {
+    // Get the current selected entry
+    let panel = app.active_panel();
+    if let Some(entry) = panel.selected_entry() {
+        let old_path = entry.path.clone();
+        let current_name = entry.name.clone();
+        
+        // For F2 (name only), extract just the name without extension
+        let display_name = if !include_extension && old_path.is_file() {
+            // Get stem (name without extension)
+            old_path.file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or(&current_name)
+                .to_string()
+        } else {
+            // For directories or Shift+F2, use full name
+            current_name.clone()
+        };
+        
+        // Show rename dialog with appropriate name pre-loaded
+        let prompt = if include_extension {
+            format!("Rename '{}' to (with extension):", current_name)
+        } else {
+            format!("Rename '{}' to:", current_name)
+        };
+        
+        app.dialog_state = Some(DialogState::Rename {
+            prompt,
+            value: display_name,
+            old_path,
+            include_extension,
+        });
+    }
+    Ok(())
+}

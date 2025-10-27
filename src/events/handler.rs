@@ -1,12 +1,9 @@
 // Event handler
 use anyhow::Result;
-use crossterm::event::{KeyEvent, KeyCode, KeyEventKind, KeyEventState};
-use std::path::PathBuf;
-use std::sync::Arc;
+use crossterm::event::{KeyEvent, KeyCode, KeyEventKind};
 
 use crate::app::{AppState, ConfirmAction, DialogState};
-use crate::events::keybindings::{map_key_to_action, map_key_to_input_action, Action};
-use crate::models::operation::Operation;
+use crate::events::keybindings::{map_key_to_action, Action};
 
 // Import modular handlers
 use crate::events::handlers;
@@ -206,19 +203,19 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
             app.active_panel = current_panel;
         }
         Action::Copy => {
-            handle_copy_request(app)?;
+            handlers::file_operations::handle_copy_request(app)?;
         }
         Action::Move => {
-            handle_move_request(app)?;
+            handlers::file_operations::handle_move_request(app)?;
         }
         Action::Delete => {
-            handle_delete_request(app)?;
+            handlers::file_operations::handle_delete_request(app)?;
         }
         Action::CreateFolder => {
-            handle_create_folder_request(app)?;
+            handlers::file_operations::handle_create_folder_request(app)?;
         }
         Action::Rename => {
-            handle_rename_request(app, true)?; // true = allow extension change with Ctrl+R
+            handlers::file_operations::handle_rename_request(app, true)?; // true = allow extension change with Ctrl+R
         }
         Action::Search => {
             // T411: Activate search mode or clear if already active
@@ -373,66 +370,6 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
     Ok(action)
 }
 
-fn handle_copy_request(app: &mut AppState) -> Result<()> {
-    // T570: Check if there are marked items first
-    if app.has_selection() {
-        let marked_count = app.selection_state.count(app.active_panel);
-        let dest_path = app.inactive_panel().current_path.clone();
-        let message = format!(
-            "Copy {} items to '{}'?",
-            marked_count,
-            dest_path.display()
-        );
-        app.show_confirm_dialog(message, ConfirmAction::Copy);
-    } else {
-        // Single item copy
-        let source_panel = app.active_panel();
-        let dest_panel = app.inactive_panel();
-        
-        if let Some(entry) = source_panel.selected_entry() {
-            let dest_path = dest_panel.current_path.clone();
-            let message = format!(
-                "Copy '{}' to '{}'?",
-                entry.name,
-                dest_path.display()
-            );
-            app.show_confirm_dialog(message, ConfirmAction::Copy);
-        }
-    }
-    
-    Ok(())
-}
-
-fn handle_move_request(app: &mut AppState) -> Result<()> {
-    // T571: Check if there are marked items first
-    if app.has_selection() {
-        let marked_count = app.selection_state.count(app.active_panel);
-        let dest_path = app.inactive_panel().current_path.clone();
-        let message = format!(
-            "Move {} items to '{}'?",
-            marked_count,
-            dest_path.display()
-        );
-        app.show_confirm_dialog(message, ConfirmAction::Move);
-    } else {
-        // Single item move
-        let source_panel = app.active_panel();
-        let dest_panel = app.inactive_panel();
-        
-        if let Some(entry) = source_panel.selected_entry() {
-            let dest_path = dest_panel.current_path.clone();
-            let message = format!(
-                "Move '{}' to '{}'?",
-                entry.name,
-                dest_path.display()
-            );
-            app.show_confirm_dialog(message, ConfirmAction::Move);
-        }
-    }
-    
-    Ok(())
-}
-
 fn handle_dialog_action(app: &mut AppState, action: Action) -> Result<Action> {
     // Handle ExtractOptions dialog separately
     if let Some(DialogState::ExtractOptions { selected: _, .. }) = &app.dialog_state {
@@ -509,72 +446,6 @@ fn handle_dialog_action(app: &mut AppState, action: Action) -> Result<Action> {
     }
     
     Ok(Action::None)
-}
-
-fn handle_delete_request(app: &mut AppState) -> Result<()> {
-    // T572: Check if there are marked items first
-    if app.has_selection() {
-        let marked_count = app.selection_state.count(app.active_panel);
-        let message = format!(
-            "Delete {} selected items?",
-            marked_count
-        );
-        app.show_confirm_dialog(message, ConfirmAction::Delete);
-    } else {
-        // Single item delete
-        let panel = app.active_panel();
-        
-        if let Some(entry) = panel.selected_entry() {
-            let message = format!(
-                "Delete '{}'?",
-                entry.name
-            );
-            app.show_confirm_dialog(message, ConfirmAction::Delete);
-        }
-    }
-    
-    Ok(())
-}
-
-fn handle_create_folder_request(app: &mut AppState) -> Result<()> {
-    app.show_input_dialog("Enter new folder name:".to_string());
-    Ok(())
-}
-
-fn handle_rename_request(app: &mut AppState, include_extension: bool) -> Result<()> {
-    // Get the current selected entry
-    let panel = app.active_panel();
-    if let Some(entry) = panel.selected_entry() {
-        let old_path = entry.path.clone();
-        let current_name = entry.name.clone();
-        
-        // For F2 (name only), extract just the name without extension
-        let display_name = if !include_extension && old_path.is_file() {
-            // Get stem (name without extension)
-            old_path.file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or(&current_name)
-                .to_string()
-        } else {
-            // For directories or Shift+F2, use full name
-            current_name.clone()
-        };
-        
-        // Show rename dialog with appropriate name pre-loaded
-        let prompt = if include_extension {
-            format!("Rename '{}' to (with extension):", current_name)
-        } else {
-            format!("Rename '{}' to:", current_name)
-        };
-        
-        app.dialog_state = Some(DialogState::Rename {
-            prompt,
-            value: display_name,
-            old_path,
-            include_extension,
-        });
-    }
-    Ok(())
 }
 
 // Helper to refresh panel entries and store unfiltered list
