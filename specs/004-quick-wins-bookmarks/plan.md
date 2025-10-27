@@ -387,3 +387,64 @@ Phase 2 (Disk Usage) ← PARALLEL, no dependencies
 - History: 50% of users discover and use within first session
 - Editor: (if included) 30% of users try editor feature
 - Overall: Zero critical bugs, <5 minor bugs in first month
+
+---
+
+## Future Enhancements
+
+### File-Level Collision Handling for Folder Operations
+
+**Priority**: Medium (deferred from remote operations bugfix session)
+**Estimated Effort**: 4-6 hours
+**Status**: Documented, not scheduled
+
+**Current Behavior**:
+When copying/moving a folder to a destination where a folder with the same name exists, the system shows a single collision dialog for the folder. Selecting "Overwrite" deletes the entire destination folder and copies all source files without checking individual file collisions.
+
+**Expected Behavior** (User Request):
+When copying/moving a folder to a destination where a folder with the same name exists, the system should:
+1. Detect collision at folder level
+2. Offer "Replace" (current behavior - delete entire folder) or "Merge" option
+3. If "Merge" selected, scan both folder contents
+4. For each conflicting file, show collision dialog with options:
+   - Overwrite this file
+   - Overwrite all remaining files
+   - Rename this file
+   - Skip this file
+   - Skip all remaining files
+   - Cancel operation
+5. Maintain collision decision state across recursive directory traversal
+
+**Technical Requirements**:
+- Modify `copy_dir_recursive_vfs()` in `src/fs/vfs_operations.rs` to:
+  - Pre-scan destination directory for existing files
+  - Build list of collisions before starting copy
+  - Show CollisionPrompt for each conflicting file
+  - Support "Overwrite All" and "Skip All" modes to avoid dialog fatigue
+  - Maintain state context across recursive calls
+- Extend `CollisionPrompt` to support:
+  - "Merge" vs "Replace" choice for folder-level collision
+  - "Apply to all" checkbox for file-level collisions within folder
+- Update `continue_batch_operation()` to handle nested collision context
+
+**Benefits**:
+- Aligns with standard file manager behavior (Total Commander, Midnight Commander, etc.)
+- Prevents accidental data loss from full folder replacement
+- Gives users fine-grained control over folder merge operations
+- Especially important for remote operations (SFTP, SMB) where re-transfers are costly
+
+**Alternatives Considered**:
+1. **Full file-level collision system** (chosen approach): Most flexible, matches user expectations
+2. **Simple "Merge" option**: Copy all files, overwrite silently - Less safe
+3. **Keep atomic behavior**: Current behavior - Doesn't meet user needs
+
+**Related Issues**:
+- User quote: "lo que dices no tiene absolutamente ningun tipo de sentido, la carpeta tiene muchos archivos y la carpeta de destino tambien, con lo cual hay una lista que sobreescribir"
+- Context: Discovered during Phase 8 SMB development (remote operations bugfix session)
+- Session outcome: Implemented pending_batch continuation system (working), but identified deeper architectural limitation for folder contents
+
+**Implementation Notes**:
+- Should be implemented before SMB release (Phase 8) to ensure consistent behavior across all filesystem types (local, SFTP, SMB)
+- Consider performance impact of pre-scanning large directories
+- May need progress indicator for folder scan phase
+- Test with nested directories (folder within folder collisions)

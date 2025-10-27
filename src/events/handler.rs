@@ -295,8 +295,8 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
                     .unwrap_or("Bookmark")
                     .to_string();
                 
-                // Use error_message to pass the path as context (like existing bookmark code does)
-                app.error_message = Some(current_path.to_string_lossy().to_string());
+                // Use error_message to pass the path as context with BOOKMARK: prefix
+                app.error_message = Some(format!("BOOKMARK:{}", current_path.to_string_lossy()));
                 app.dialog_state = Some(DialogState::Input {
                     prompt: "Bookmark name:".to_string(),
                     value: default_name,

@@ -26,7 +26,8 @@ pub fn handle_collision(app: &mut AppState, key: KeyEvent) -> Result<Action> {
         // Enter: confirm selected option
         (KeyCode::Enter, _) => {
             if let Some(DialogState::CollisionPrompt { 
-                file_path,
+                source_path,
+                file_path: _,
                 selected, 
                 operation, 
                 remaining_files,
@@ -36,7 +37,7 @@ pub fn handle_collision(app: &mut AppState, key: KeyEvent) -> Result<Action> {
             }) = &app.dialog_state {
                 let selected_option = *selected;
                 let operation_type = operation.clone();
-                let collision_file = std::path::PathBuf::from(file_path);
+                let collision_source = source_path.clone();
                 let remaining = remaining_files.clone();
                 let dest = dest_path.clone();
                 let src_vfs = source_vfs.clone();
@@ -47,17 +48,25 @@ pub fn handle_collision(app: &mut AppState, key: KeyEvent) -> Result<Action> {
                 match selected_option {
                     0 => {
                         // Overwrite this file - process just this one, then continue with remaining
-                        process_single_file_operation(&collision_file, &dest, &src_vfs, &dst_vfs, operation_type.clone(), true, app)?;
+                        log::info!("[COLLISION] Overwrite selected, processing file and saving {} remaining files to pending_batch", remaining.len());
+                        process_single_file_operation(&collision_source, &dest, &src_vfs, &dst_vfs, operation_type.clone(), true, app)?;
                         
-                        // If there are remaining files, continue processing them
+                        // Save remaining files to process after this operation completes
                         if !remaining.is_empty() {
-                            continue_batch_operation(remaining, dest, src_vfs, dst_vfs, operation_type, app)?;
+                            app.pending_batch = Some(crate::app::PendingBatch {
+                                remaining_files: remaining.clone(),
+                                dest_path: dest.clone(),
+                                source_vfs: src_vfs.clone(),
+                                dest_vfs: dst_vfs.clone(),
+                                operation: operation_type.clone(),
+                            });
+                            log::info!("[COLLISION] Saved pending_batch with {} files", remaining.len());
                         }
                         return Ok(Action::None);
                     }
                     1 => {
                         // Overwrite All - process this one and all remaining without checking
-                        process_single_file_operation(&collision_file, &dest, &src_vfs, &dst_vfs, operation_type.clone(), true, app)?;
+                        process_single_file_operation(&collision_source, &dest, &src_vfs, &dst_vfs, operation_type.clone(), true, app)?;
                         
                         // Process all remaining files with overwrite enabled
                         if !remaining.is_empty() {
@@ -67,11 +76,19 @@ pub fn handle_collision(app: &mut AppState, key: KeyEvent) -> Result<Action> {
                     }
                     2 => {
                         // Rename - process this file with a new name, then continue with remaining
-                        process_single_file_operation(&collision_file, &dest, &src_vfs, &dst_vfs, operation_type.clone(), false, app)?;
+                        log::info!("[COLLISION] Rename selected, processing file and saving {} remaining files to pending_batch", remaining.len());
+                        process_single_file_operation(&collision_source, &dest, &src_vfs, &dst_vfs, operation_type.clone(), false, app)?;
                         
-                        // Continue with remaining files
+                        // Save remaining files to process after this operation completes
                         if !remaining.is_empty() {
-                            continue_batch_operation(remaining, dest, src_vfs, dst_vfs, operation_type, app)?;
+                            app.pending_batch = Some(crate::app::PendingBatch {
+                                remaining_files: remaining.clone(),
+                                dest_path: dest.clone(),
+                                source_vfs: src_vfs.clone(),
+                                dest_vfs: dst_vfs.clone(),
+                                operation: operation_type.clone(),
+                            });
+                            log::info!("[COLLISION] Saved pending_batch with {} files", remaining.len());
                         }
                         return Ok(Action::None);
                     }
@@ -178,8 +195,8 @@ pub fn handle_input_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> 
                             app.dialog_state = Some(DialogState::BookmarkManager { state });
                         }
                         return Ok(Action::None);
-                    } else if !context.starts_with("Error") {
-                        // Add bookmark (context contains the path)
+                    } else if context.starts_with("BOOKMARK:") {
+                        // Add bookmark (context contains the path with BOOKMARK: prefix)
                         // TASK-009: Sanitize bookmark name before adding
                         let sanitized_name = crate::config::bookmarks::sanitize_bookmark_name(&value);
                         
@@ -191,7 +208,8 @@ pub fn handle_input_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> 
                             return Ok(Action::None);
                         }
                         
-                        let path = std::path::PathBuf::from(context.clone());
+                        let path_str = context.strip_prefix("BOOKMARK:").unwrap();
+                        let path = std::path::PathBuf::from(path_str);
                         if let Err(e) = app.bookmarks.add(sanitized_name, path.clone()) {
                             app.error_message = Some(format!("Failed to add bookmark: {}", e));
                             app.dialog_state = Some(DialogState::Error {
@@ -651,6 +669,13 @@ pub fn handle_drive_selector_dialog(app: &mut AppState, key: KeyEvent) -> Result
                 let new_path = std::path::PathBuf::from(drive_path);
                 // Change the active panel to this drive
                 let panel = app.active_panel_mut();
+                
+                // Disconnect from remote if currently connected
+                if panel.is_remote() {
+                    panel.vfs = None;
+                    panel.connection_info = None;
+                }
+                
                 panel.current_path = new_path.clone();
                 
                 // Add to navigation history
@@ -744,6 +769,13 @@ pub fn handle_bookmark_manager_dialog(app: &mut AppState, key: KeyEvent) -> Resu
                 if exists {
                     // Navigate active panel to bookmarked path
                     let panel = app.active_panel_mut();
+                    
+                    // Disconnect from remote if currently connected
+                    if panel.is_remote() {
+                        panel.vfs = None;
+                        panel.connection_info = None;
+                    }
+                    
                     panel.current_path = path.clone();
                     
                     // Add to navigation history
@@ -915,6 +947,13 @@ pub fn handle_history_viewer_dialog(app: &mut AppState, key: KeyEvent) -> Result
                         
                         // Navigate to the selected path
                         let panel = app.active_panel_mut();
+                        
+                        // Disconnect from remote if currently connected
+                        if panel.is_remote() {
+                            panel.vfs = None;
+                            panel.connection_info = None;
+                        }
+                        
                         panel.current_path = selected_path.clone();
                         let _ = panel.refresh_entries();
                         panel.cursor = 0;
@@ -1059,6 +1098,13 @@ pub fn handle_goto_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
                         
                         // Navigate to the path
                         let panel = app.active_panel_mut();
+                        
+                        // Disconnect from remote if currently connected and navigating to local path
+                        if panel.is_remote() {
+                            panel.vfs = None;
+                            panel.connection_info = None;
+                        }
+                        
                         panel.current_path = validated_path.clone();
                         
                         // Add to navigation history

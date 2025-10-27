@@ -8,6 +8,28 @@ use std::path::PathBuf;
 use crate::app::{AppState, DialogState};
 use crate::models::operation::Operation;
 
+/// Helper function to join paths correctly for remote destinations
+/// When dest_vfs is Some (remote), use Unix-style paths
+pub fn join_path_for_vfs(
+    base: &std::path::Path,
+    name: &str,
+    dest_is_remote: bool,
+) -> std::path::PathBuf {
+    if dest_is_remote {
+        // Remote destination - ensure Unix-style path
+        let base_str = base.to_string_lossy();
+        let normalized = if base_str.ends_with('/') {
+            format!("{}{}", base_str, name)
+        } else {
+            format!("{}/{}", base_str, name)
+        };
+        std::path::PathBuf::from(normalized)
+    } else {
+        // Local destination - use normal join
+        base.join(name)
+    }
+}
+
 /// Start copy operation with collision detection
 pub fn start_copy_operation(app: &mut AppState) -> Result<()> {
     let dest_panel_path = app.inactive_panel().current_path.clone();
@@ -70,7 +92,7 @@ pub fn start_copy_operation(app: &mut AppState) -> Result<()> {
         let source_vfs = app.active_panel().vfs.clone();
         let dest_vfs = app.inactive_panel().vfs.clone();
         
-        let collision_result: Option<(String, Vec<PathBuf>)> = if app.has_selection() {
+        let collision_result: Option<(PathBuf, String, Vec<PathBuf>)> = if app.has_selection() {
             // Check marked items for collisions
             let marked_paths = app.selection_state.get_marked(app.active_panel);
             let mut collision_info = None;
@@ -79,7 +101,7 @@ pub fn start_copy_operation(app: &mut AppState) -> Result<()> {
                 let file_name = path.file_name()
                     .map(|n| n.to_string_lossy().to_string())
                     .unwrap_or_default();
-                let dest = dest_panel_path.join(&file_name);
+                let dest = join_path_for_vfs(&dest_panel_path, &file_name, dest_vfs.is_some());
                 
                 // Check if destination exists using VFS if available
                 let exists = if let Some(vfs) = &dest_vfs {
@@ -91,7 +113,7 @@ pub fn start_copy_operation(app: &mut AppState) -> Result<()> {
                 if exists {
                     // Found collision - collect remaining files
                     let remaining: Vec<PathBuf> = marked_paths.iter().skip(i + 1).cloned().collect();
-                    collision_info = Some((dest.to_string_lossy().to_string(), remaining));
+                    collision_info = Some((path.clone(), dest.to_string_lossy().to_string(), remaining));
                     break;
                 }
             }
@@ -99,7 +121,8 @@ pub fn start_copy_operation(app: &mut AppState) -> Result<()> {
         } else {
             // Check single item
             app.active_panel().selected_entry().and_then(|entry| {
-                let dest = dest_panel_path.join(&entry.name);
+                let source_path = entry.path.clone();
+                let dest = join_path_for_vfs(&dest_panel_path, &entry.name, dest_vfs.is_some());
                 
                 // Check if destination exists using VFS if available
                 let exists = if let Some(vfs) = &dest_vfs {
@@ -109,7 +132,7 @@ pub fn start_copy_operation(app: &mut AppState) -> Result<()> {
                 };
                 
                 if exists {
-                    Some((dest.to_string_lossy().to_string(), Vec::new()))
+                    Some((source_path, dest.to_string_lossy().to_string(), Vec::new()))
                 } else {
                     None
                 }
@@ -117,8 +140,9 @@ pub fn start_copy_operation(app: &mut AppState) -> Result<()> {
         };
         
         // If collision detected, show collision dialog
-        if let Some((collision_path, remaining_files)) = collision_result {
+        if let Some((source_path, collision_path, remaining_files)) = collision_result {
             app.dialog_state = Some(DialogState::CollisionPrompt {
+                source_path,
                 file_path: collision_path,
                 selected: 0,
                 operation: crate::app::CollisionOperation::Copy,
@@ -142,21 +166,26 @@ pub fn start_copy_operation(app: &mut AppState) -> Result<()> {
         let mut operations = Vec::new();
         
         for path in &marked_paths {
-            if let Ok(metadata) = std::fs::metadata(path) {
-                total_bytes += metadata.len();
-                if let Some(file_name) = path.file_name() {
-                    let file_name = file_name.to_string_lossy().to_string();
-                    let destination = dest_panel_path.join(&file_name);
-                    
-                    // BUG-003/BUG-005 FIX: Generate new name if copying to same directory
-                    let final_destination = if copying_to_same_dir {
-                        crate::fs::operations::generate_collision_free_name(&destination)
-                    } else {
-                        destination
-                    };
-                    
-                    operations.push((path.clone(), final_destination, file_name));
-                }
+            // Get size using VFS if available, otherwise local fs
+            let size = if let Some(vfs) = &source_vfs {
+                vfs.metadata(path).map(|m| m.size).unwrap_or(0)
+            } else {
+                std::fs::metadata(path).map(|m| m.len()).unwrap_or(0)
+            };
+            
+            total_bytes += size;
+            if let Some(file_name) = path.file_name() {
+                let file_name = file_name.to_string_lossy().to_string();
+                let destination = join_path_for_vfs(&dest_panel_path, &file_name, dest_vfs.is_some());
+                
+                // BUG-003/BUG-005 FIX: Generate new name if copying to same directory
+                let final_destination = if copying_to_same_dir {
+                    crate::fs::operations::generate_collision_free_name(&destination)
+                } else {
+                    destination
+                };
+                
+                operations.push((path.clone(), final_destination, file_name));
             }
         }
         
@@ -202,7 +231,7 @@ pub fn start_copy_operation(app: &mut AppState) -> Result<()> {
         
         if let Some(entry) = source_panel.selected_entry() {
             let source = entry.path.clone();
-            let mut destination = dest_panel_path.join(&entry.name);
+            let mut destination = join_path_for_vfs(&dest_panel_path, &entry.name, dest_vfs.is_some());
             let entry_name = entry.name.clone();
             let total_bytes = entry.size;
             
@@ -259,7 +288,7 @@ pub fn start_copy_operation_skip_check(app: &mut AppState) -> Result<()> {
         let mut operations = Vec::new();
         
         for path in &marked_paths {
-            // Get size using VFS if available
+            // Get size using VFS if available, otherwise local fs
             let size = if let Some(vfs) = &source_vfs {
                 vfs.metadata(path).map(|m| m.size).unwrap_or(0)
             } else {
@@ -269,7 +298,7 @@ pub fn start_copy_operation_skip_check(app: &mut AppState) -> Result<()> {
             total_bytes += size;
             if let Some(file_name) = path.file_name() {
                 let file_name = file_name.to_string_lossy().to_string();
-                let mut destination = dest_panel_path.join(&file_name);
+                let mut destination = join_path_for_vfs(&dest_panel_path, &file_name, dest_vfs.is_some());
                 
                 // BUG-003 FIX: Check if copying to same directory
                 if let (Some(src_parent), Some(dst_parent)) = (path.parent(), destination.parent())
@@ -294,7 +323,7 @@ pub fn start_copy_operation_skip_check(app: &mut AppState) -> Result<()> {
         
         if let Some(entry) = source_panel.selected_entry() {
             let source = entry.path.clone();
-            let mut destination = dest_panel_path.join(&entry.name);
+            let mut destination = join_path_for_vfs(&dest_panel_path, &entry.name, dest_vfs.is_some());
             let entry_name = entry.name.clone();
             let total_bytes = entry.size;
             
@@ -337,7 +366,7 @@ pub fn start_copy_operation_with_rename(app: &mut AppState) -> Result<()> {
         let mut operations = Vec::new();
         
         for path in &marked_paths {
-            // Get size using VFS if available
+            // Get size using VFS if available, otherwise local fs
             let size = if let Some(vfs) = &source_vfs {
                 vfs.metadata(path).map(|m| m.size).unwrap_or(0)
             } else {
@@ -347,7 +376,7 @@ pub fn start_copy_operation_with_rename(app: &mut AppState) -> Result<()> {
             total_bytes += size;
             if let Some(file_name) = path.file_name() {
                 let file_name = file_name.to_string_lossy().to_string();
-                let destination = dest_panel_path.join(&file_name);
+                let destination = join_path_for_vfs(&dest_panel_path, &file_name, dest_vfs.is_some());
                 
                 // Always generate collision-free name
                 let final_destination = crate::fs::operations::generate_collision_free_name(&destination);
@@ -368,7 +397,7 @@ pub fn start_copy_operation_with_rename(app: &mut AppState) -> Result<()> {
         
         if let Some(entry) = source_panel.selected_entry() {
             let source = entry.path.clone();
-            let destination = dest_panel_path.join(&entry.name);
+            let destination = join_path_for_vfs(&dest_panel_path, &entry.name, dest_vfs.is_some());
             let entry_name = entry.name.clone();
             let total_bytes = entry.size;
             
@@ -425,7 +454,7 @@ pub fn start_move_operation(app: &mut AppState) -> Result<()> {
     
     // T844: Check for collisions first
     // For remote dest, use VFS exists check
-    let collision_result: Option<(String, Vec<PathBuf>)> = if app.has_selection() {
+    let collision_result: Option<(PathBuf, String, Vec<PathBuf>)> = if app.has_selection() {
         // Check marked items for collisions
         let marked_paths = app.selection_state.get_marked(app.active_panel);
         let mut collision_info = None;
@@ -434,7 +463,7 @@ pub fn start_move_operation(app: &mut AppState) -> Result<()> {
             let file_name = path.file_name()
                 .map(|n| n.to_string_lossy().to_string())
                 .unwrap_or_default();
-            let dest = dest_panel_path.join(&file_name);
+            let dest = join_path_for_vfs(&dest_panel_path, &file_name, dest_vfs.is_some());
             
             let exists = if let Some(vfs) = &dest_vfs {
                 vfs.exists(&dest).unwrap_or(false)
@@ -445,7 +474,7 @@ pub fn start_move_operation(app: &mut AppState) -> Result<()> {
             if exists {
                 // Found collision - collect remaining files
                 let remaining: Vec<PathBuf> = marked_paths.iter().skip(i + 1).cloned().collect();
-                collision_info = Some((dest.to_string_lossy().to_string(), remaining));
+                collision_info = Some((path.clone(), dest.to_string_lossy().to_string(), remaining));
                 break;
             }
         }
@@ -453,7 +482,8 @@ pub fn start_move_operation(app: &mut AppState) -> Result<()> {
     } else {
         // Check single item
         app.active_panel().selected_entry().and_then(|entry| {
-            let dest = dest_panel_path.join(&entry.name);
+            let source_path = entry.path.clone();
+            let dest = join_path_for_vfs(&dest_panel_path, &entry.name, dest_vfs.is_some());
             
             let exists = if let Some(vfs) = &dest_vfs {
                 vfs.exists(&dest).unwrap_or(false)
@@ -462,7 +492,7 @@ pub fn start_move_operation(app: &mut AppState) -> Result<()> {
             };
             
             if exists {
-                Some((dest.to_string_lossy().to_string(), Vec::new()))
+                Some((source_path, dest.to_string_lossy().to_string(), Vec::new()))
             } else {
                 None
             }
@@ -470,8 +500,9 @@ pub fn start_move_operation(app: &mut AppState) -> Result<()> {
     };
     
     // If collision detected, show collision dialog
-    if let Some((collision_path, remaining_files)) = collision_result {
+    if let Some((source_path, collision_path, remaining_files)) = collision_result {
         app.dialog_state = Some(DialogState::CollisionPrompt {
+            source_path,
             file_path: collision_path,
             selected: 0,
             operation: crate::app::CollisionOperation::Move,
@@ -489,24 +520,34 @@ pub fn start_move_operation(app: &mut AppState) -> Result<()> {
         let marked_paths = app.selection_state.get_marked(app.active_panel);
         let count = marked_paths.len();
         
+        log::info!("[MOVE] Starting batch move operation with {} items", count);
+        log::info!("[MOVE] Source VFS: {}, Dest VFS: {}", source_vfs.is_some(), dest_vfs.is_some());
+        
         let mut total_bytes = 0u64;
         let mut operations = Vec::new();
         
-        for path in &marked_paths {
-            // Get size using VFS if available
+        for (i, path) in marked_paths.iter().enumerate() {
+            log::info!("[MOVE] Processing item {}: {}", i+1, path.display());
+            
+            // Get size using VFS if available, otherwise local fs
             let size = if let Some(vfs) = &source_vfs {
                 vfs.metadata(path).map(|m| m.size).unwrap_or(0)
             } else {
                 std::fs::metadata(path).map(|m| m.len()).unwrap_or(0)
             };
             
+            log::info!("[MOVE] Item size: {} bytes", size);
+            
             total_bytes += size;
             if let Some(file_name) = path.file_name() {
                 let file_name = file_name.to_string_lossy().to_string();
-                let destination = dest_panel_path.join(&file_name);
+                let destination = join_path_for_vfs(&dest_panel_path, &file_name, dest_vfs.is_some());
+                log::info!("[MOVE] Destination: {}", destination.display());
                 operations.push((path.clone(), destination, file_name));
             }
         }
+        
+        log::info!("[MOVE] Total operations: {}, Total bytes: {}", operations.len(), total_bytes);
         
         let operation = Operation::move_batch_vfs(operations, total_bytes, count, source_vfs, dest_vfs);
         app.current_operation = Some(operation);
@@ -520,7 +561,7 @@ pub fn start_move_operation(app: &mut AppState) -> Result<()> {
         
         if let Some(entry) = source_panel.selected_entry() {
             let source = entry.path.clone();
-            let destination = dest_panel_path.join(&entry.name);
+            let destination = join_path_for_vfs(&dest_panel_path, &entry.name, dest_vfs.is_some());
             let entry_name = entry.name.clone();
             let total_bytes = entry.size;
             
@@ -555,7 +596,7 @@ pub fn start_move_operation_skip_check(app: &mut AppState) -> Result<()> {
         let mut operations = Vec::new();
         
         for path in &marked_paths {
-            // Get size using VFS if available
+            // Get size using VFS if available, otherwise local fs
             let size = if let Some(vfs) = &source_vfs {
                 vfs.metadata(path).map(|m| m.size).unwrap_or(0)
             } else {
@@ -565,7 +606,7 @@ pub fn start_move_operation_skip_check(app: &mut AppState) -> Result<()> {
             total_bytes += size;
             if let Some(file_name) = path.file_name() {
                 let file_name = file_name.to_string_lossy().to_string();
-                let destination = dest_panel_path.join(&file_name);
+                let destination = join_path_for_vfs(&dest_panel_path, &file_name, dest_vfs.is_some());
                 operations.push((path.clone(), destination, file_name));
             }
         }
@@ -582,7 +623,7 @@ pub fn start_move_operation_skip_check(app: &mut AppState) -> Result<()> {
         
         if let Some(entry) = source_panel.selected_entry() {
             let source = entry.path.clone();
-            let destination = dest_panel_path.join(&entry.name);
+            let destination = join_path_for_vfs(&dest_panel_path, &entry.name, dest_vfs.is_some());
             let entry_name = entry.name.clone();
             let total_bytes = entry.size;
             
@@ -617,7 +658,7 @@ pub fn start_move_operation_with_rename(app: &mut AppState) -> Result<()> {
         let mut operations = Vec::new();
         
         for path in &marked_paths {
-            // Get size using VFS if available
+            // Get size using VFS if available, otherwise local fs
             let size = if let Some(vfs) = &source_vfs {
                 vfs.metadata(path).map(|m| m.size).unwrap_or(0)
             } else {
@@ -627,7 +668,7 @@ pub fn start_move_operation_with_rename(app: &mut AppState) -> Result<()> {
             total_bytes += size;
             if let Some(file_name) = path.file_name() {
                 let file_name = file_name.to_string_lossy().to_string();
-                let destination = dest_panel_path.join(&file_name);
+                let destination = join_path_for_vfs(&dest_panel_path, &file_name, dest_vfs.is_some());
                 
                 // Always generate collision-free name
                 let final_destination = crate::fs::operations::generate_collision_free_name(&destination);
@@ -648,7 +689,7 @@ pub fn start_move_operation_with_rename(app: &mut AppState) -> Result<()> {
         
         if let Some(entry) = source_panel.selected_entry() {
             let source = entry.path.clone();
-            let destination = dest_panel_path.join(&entry.name);
+            let destination = join_path_for_vfs(&dest_panel_path, &entry.name, dest_vfs.is_some());
             let entry_name = entry.name.clone();
             let total_bytes = entry.size;
             
@@ -851,6 +892,8 @@ pub fn handle_delete_request(app: &mut AppState) -> Result<()> {
 
 /// Handle create folder request - show input dialog
 pub fn handle_create_folder_request(app: &mut AppState) -> Result<()> {
+    // Clear any previous error/success messages to avoid confusion with bookmark context
+    app.error_message = None;
     app.show_input_dialog("Enter new folder name:".to_string());
     Ok(())
 }

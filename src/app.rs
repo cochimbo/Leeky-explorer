@@ -47,6 +47,17 @@ pub struct AppState {
     pub search_dialog: Option<crate::ui::search_dialog::SearchDialog>,
     // Auto-refresh: Last time we checked for directory changes
     pub last_refresh_check: Instant,
+    // Pending batch operation continuation (for collision handling)
+    pub pending_batch: Option<PendingBatch>,
+}
+
+#[derive(Clone)]
+pub struct PendingBatch {
+    pub remaining_files: Vec<PathBuf>,
+    pub dest_path: PathBuf,
+    pub source_vfs: Option<Arc<dyn crate::remote::vfs::VirtualFileSystem>>,
+    pub dest_vfs: Option<Arc<dyn crate::remote::vfs::VirtualFileSystem>>,
+    pub operation: CollisionOperation,
 }
 
 #[derive(Clone)]
@@ -81,7 +92,8 @@ pub enum DialogState {
         format: crate::archive::formats::ArchiveFormat,
     },
     CollisionPrompt {
-        file_path: String,
+        source_path: PathBuf, // Original source file path
+        file_path: String, // Destination path (for display)
         selected: usize, // 0=Overwrite, 1=Overwrite All, 2=Rename, 3=Skip, 4=Cancel
         operation: CollisionOperation,
         remaining_files: Vec<PathBuf>, // Files that still need to be processed after this one
@@ -236,6 +248,7 @@ impl AppState {
             editor_state: None, // TASK-028: No editor open initially
             search_dialog: None, // TASK-040: No search dialog initially
             last_refresh_check: Instant::now(), // Auto-refresh: Initialize timer
+            pending_batch: None, // No pending batch operations initially
         })
     }
 
@@ -893,6 +906,7 @@ impl Default for AppState {
                 editor_state: None, // TASK-028: No editor open initially
                 search_dialog: None, // TASK-040: No search dialog initially
                 last_refresh_check: Instant::now(), // Auto-refresh: Initialize timer
+                pending_batch: None, // No pending batch operations initially
             }
         })
     }

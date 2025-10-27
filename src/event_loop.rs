@@ -302,6 +302,24 @@ async fn check_operation_completion(
                         app.close_dialog();
                         app.current_operation = None;
                         refresh_panels(app);
+                        
+                        // Check if there are pending batch operations to continue
+                        if let Some(pending) = app.pending_batch.take() {
+                            log::info!("Found pending batch with {} remaining files, continuing...", pending.remaining_files.len());
+                            match crate::events::handlers::collision::continue_batch_operation(
+                                pending.remaining_files,
+                                pending.dest_path,
+                                pending.source_vfs,
+                                pending.dest_vfs,
+                                pending.operation,
+                                app,
+                            ) {
+                                Ok(_) => log::info!("Successfully started continuation of batch operation"),
+                                Err(e) => log::error!("Failed to continue batch operation: {}", e),
+                            }
+                        } else {
+                            log::info!("No pending batch operations to continue");
+                        }
                     }
                     Ok(Err(e)) => {
                         let error_msg = format!("{}", e);

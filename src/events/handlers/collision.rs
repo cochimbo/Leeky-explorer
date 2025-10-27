@@ -24,12 +24,51 @@ pub fn process_single_file_operation(
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_default();
     
-    let mut destination = dest_dir.join(&file_name);
+    let dest_is_remote = dest_vfs.is_some();
+    let mut destination = super::file_operations::join_path_for_vfs(dest_dir, &file_name, dest_is_remote);
+    
+    // If allowing overwrite and destination exists, delete it first (needed for remote move)
+    if allow_overwrite {
+        log::info!("[COLLISION] Checking if destination exists for overwrite: {:?}", destination);
+        let dest_exists = if let Some(vfs) = dest_vfs {
+            vfs.exists(&destination).unwrap_or(false)
+        } else {
+            destination.exists()
+        };
+        
+        if dest_exists {
+            log::info!("[COLLISION] Overwrite requested - deleting existing destination: {:?}", destination);
+            // Delete the destination file/directory before moving
+            if let Some(vfs) = dest_vfs {
+                // Remote destination - use VFS to delete
+                log::info!("[COLLISION] Getting metadata for remote destination");
+                let metadata = vfs.metadata(&destination)?;
+                let is_dir = metadata.entry_type == crate::remote::VfsEntryType::Directory;
+                log::info!("[COLLISION] Deleting remote destination (is_dir: {})", is_dir);
+                vfs.delete(&destination, is_dir)?;
+                log::info!("[COLLISION] Remote destination deleted successfully");
+            } else {
+                // Local destination - use std::fs
+                log::info!("[COLLISION] Deleting local destination");
+                if destination.is_dir() {
+                    std::fs::remove_dir_all(&destination)?;
+                } else {
+                    std::fs::remove_file(&destination)?;
+                }
+                log::info!("[COLLISION] Local destination deleted successfully");
+            }
+        } else {
+            log::info!("[COLLISION] Destination does not exist, no need to delete");
+        }
+    }
     
     // If not allowing overwrite, generate a new name
     if !allow_overwrite {
         destination = crate::fs::operations::generate_collision_free_name(&destination);
+        log::info!("[COLLISION] Generated new name to avoid collision: {:?}", destination);
     }
+    
+    log::info!("[COLLISION] Final destination path: {:?}", destination);
     
     // Get file size for progress
     let size = if let Some(vfs) = source_vfs {
@@ -98,6 +137,7 @@ pub fn continue_batch_operation(
             // Found another collision - show dialog again
             let next_remaining: Vec<PathBuf> = remaining_files.iter().skip(1).cloned().collect();
             app.dialog_state = Some(DialogState::CollisionPrompt {
+                source_path: source.clone(),
                 file_path: dest.to_string_lossy().to_string(),
                 selected: 0,
                 operation: operation.clone(),

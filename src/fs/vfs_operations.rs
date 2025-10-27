@@ -90,19 +90,47 @@ pub async fn get_metadata_vfs(
     path: &Path,
     vfs: Option<Arc<dyn VirtualFileSystem>>,
 ) -> Result<(u64, bool)> {
+    log::info!("[GET_METADATA_VFS] Getting metadata for: {}", path.display());
+    log::info!("[GET_METADATA_VFS] VFS present: {}", vfs.is_some());
+    
     if let Some(vfs) = vfs {
         // Remote filesystem
-        let entry = tokio::task::spawn_blocking({
+        log::info!("[GET_METADATA_VFS] Using VFS for remote metadata");
+        let result = tokio::task::spawn_blocking({
             let vfs = vfs.clone();
             let path = path.to_path_buf();
-            move || vfs.metadata(&path)
-        }).await??;
+            move || {
+                log::info!("[GET_METADATA_VFS] Inside spawn_blocking, calling vfs.metadata");
+                let result = vfs.metadata(&path);
+                log::info!("[GET_METADATA_VFS] vfs.metadata result: {:?}", result);
+                result
+            }
+        }).await?;
         
-        Ok((entry.size, entry.entry_type == crate::remote::VfsEntryType::Directory))
+        match result {
+            Ok(entry) => {
+                log::info!("[GET_METADATA_VFS] Got metadata: size={}, is_dir={}", entry.size, entry.entry_type == crate::remote::VfsEntryType::Directory);
+                Ok((entry.size, entry.entry_type == crate::remote::VfsEntryType::Directory))
+            }
+            Err(e) => {
+                log::error!("[GET_METADATA_VFS] ERROR getting metadata: {}", e);
+                Err(e)
+            }
+        }
     } else {
         // Local filesystem
-        let metadata = tokio::fs::metadata(path).await?;
-        Ok((metadata.len(), metadata.is_dir()))
+        log::info!("[GET_METADATA_VFS] Using tokio::fs for local metadata");
+        let result = tokio::fs::metadata(path).await;
+        match result {
+            Ok(metadata) => {
+                log::info!("[GET_METADATA_VFS] Got local metadata: size={}, is_dir={}", metadata.len(), metadata.is_dir());
+                Ok((metadata.len(), metadata.is_dir()))
+            }
+            Err(e) => {
+                log::error!("[GET_METADATA_VFS] ERROR getting local metadata: {}", e);
+                Err(e.into())
+            }
+        }
     }
 }
 
@@ -398,31 +426,53 @@ pub async fn move_item_vfs(
     tx: mpsc::Sender<Progress>,
     cancel_rx: Option<tokio::sync::watch::Receiver<bool>>,
 ) -> Result<()> {
+    log::info!("[VFS_MOVE] Starting move: {} -> {}", src.display(), dst.display());
+    log::info!("[VFS_MOVE] src_vfs: {}, dst_vfs: {}", src_vfs.is_some(), dst_vfs.is_some());
+    
     // Check if both source and dest are on same filesystem
     let same_fs = match (&src_vfs, &dst_vfs) {
-        (None, None) => true,  // Both local
+        (None, None) => {
+            log::info!("[VFS_MOVE] Both local filesystem");
+            true  // Both local
+        }
         (Some(s), Some(d)) => {
             // Both remote - check if same VFS instance
-            Arc::ptr_eq(s, d)
+            let is_same = Arc::ptr_eq(s, d);
+            log::info!("[VFS_MOVE] Both remote, same instance: {}", is_same);
+            is_same
         }
-        _ => false,  // One local, one remote - different filesystems
+        _ => {
+            log::info!("[VFS_MOVE] Different filesystems (local<->remote)");
+            false  // One local, one remote - different filesystems
+        }
     };
     
     if same_fs {
         // Same filesystem - use rename (fast)
+        log::info!("[VFS_MOVE] Using rename (same filesystem)");
         if let Some(vfs) = src_vfs {
             // Remote rename
+            log::info!("[VFS_MOVE] Calling remote rename");
             log::info!("Renaming remote file: {:?} -> {:?}", src, dst);
             tokio::task::spawn_blocking({
                 let vfs = vfs.clone();
                 let src = src.to_path_buf();
                 let dst = dst.to_path_buf();
-                move || vfs.rename(&src, &dst)
+                move || {
+                    log::info!("[VFS_MOVE] Inside spawn_blocking, calling vfs.rename");
+                    let result = vfs.rename(&src, &dst);
+                    log::info!("[VFS_MOVE] vfs.rename result: {:?}", result);
+                    result
+                }
             }).await??;
+            log::info!("[VFS_MOVE] Remote rename completed");
         } else {
             // Local rename
+            log::info!("[VFS_MOVE] Calling tokio::fs::rename");
             log::info!("Renaming local file: {:?} -> {:?}", src, dst);
-            tokio::fs::rename(src, dst).await?;
+            let result = tokio::fs::rename(src, dst).await;
+            log::info!("[VFS_MOVE] tokio::fs::rename result: {:?}", result);
+            result?;
         }
         
         // Send completion progress
@@ -432,21 +482,33 @@ pub async fn move_item_vfs(
             files_done: 1,
             files_total: 1,
         }).await;
+        log::info!("[VFS_MOVE] Progress sent");
     } else {
         // Different filesystems - copy then delete
+        log::info!("[VFS_MOVE] Using copy+delete (different filesystems)");
         log::info!("Moving across filesystems (copy+delete): {:?} -> {:?}", src, dst);
         
+        // Get metadata to check if it's a directory
+        let (size, is_dir) = get_metadata_vfs(src, src_vfs.clone()).await?;
+        
         // First copy
-        copy_file_vfs(src, dst, src_vfs.clone(), dst_vfs, tx.clone(), cancel_rx).await?;
+        log::info!("[VFS_MOVE] Starting copy phase (is_dir: {})", is_dir);
+        if is_dir {
+            copy_dir_recursive_vfs(src, dst, src_vfs.clone(), dst_vfs, tx.clone(), size, cancel_rx).await?;
+        } else {
+            copy_file_vfs(src, dst, src_vfs.clone(), dst_vfs, tx.clone(), cancel_rx).await?;
+        }
+        log::info!("[VFS_MOVE] Copy completed, starting delete phase");
         
         // Then delete source
-        let (_, is_dir) = get_metadata_vfs(src, src_vfs.clone()).await?;
         if is_dir {
             delete_dir_recursive_vfs(src, src_vfs, tx).await?;
         } else {
             delete_file_vfs(src, src_vfs, tx).await?;
         }
+        log::info!("[VFS_MOVE] Delete completed");
     }
     
+    log::info!("[VFS_MOVE] Move operation completed successfully");
     Ok(())
 }

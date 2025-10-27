@@ -46,7 +46,15 @@ ssh2 = "0.9"  # SFTP support via libssh2
 suppaftp = { version = "6.0", features = ["secure"] }  # FTP/FTPS support
 base64 = "0.22"  # For known_hosts file encoding
 keyring = { version = "3.6", features = ["windows-native", "sync-secret-service"] }  # Secure credential storage using OS keychain
-# SMB support will be added later (no stable Rust library available yet)
+uuid = { version = "1.0", features = ["v4"] }  # UUID generation for connection IDs
+
+# SMB/CIFS support (TASK-055)
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.58", features = ["Win32_NetworkManagement_WNet", "Win32_Foundation", "Win32_Security", "Win32_Storage_FileSystem"] }
+
+[target.'cfg(unix)'.dependencies]
+# For Linux/macOS: will use smbclient command-line tool as fallback for now
+# TODO: Consider libsmb2 bindings in the future for pure Rust implementation
 
 [dev-dependencies]
 tempfile = "3.8"

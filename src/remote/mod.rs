@@ -1,6 +1,7 @@
 // Remote file system support
 pub mod vfs;
 pub mod sftp;
+pub mod smb;
 pub mod connection_manager;
 pub mod migration;
 

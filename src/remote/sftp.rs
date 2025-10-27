@@ -107,17 +107,29 @@ impl SftpFileSystem {
     pub fn connect_with_verification(config: ConnectionConfig, trust_on_first_use: bool) -> Result<Self> {
         // Connect to the SSH server
         let tcp = TcpStream::connect(format!("{}:{}", config.host, config.port))
-            .context("Failed to connect to SSH server")?;
+            .with_context(|| {
+                format!(
+                    "Failed to connect to SSH server at {}:{}. \
+                    Please check the hostname, port, and your network connection.",
+                    config.host, config.port
+                )
+            })?;
         
         let mut session = Session::new()
             .context("Failed to create SSH session")?;
         session.set_tcp_stream(tcp);
         session.handshake()
-            .context("SSH handshake failed")?;
+            .with_context(|| {
+                format!(
+                    "SSH handshake failed with {}:{}. \
+                    Server may not be running SSH or connection was interrupted.",
+                    config.host, config.port
+                )
+            })?;
         
         // Get and verify host key
         let _host_key = session.host_key()
-            .context("Failed to get host key")?;
+            .context("Failed to get host key from server")?;
         let key_hash = session.host_key_hash(HashType::Sha256)
             .context("Failed to get host key hash")?;
         
@@ -131,7 +143,9 @@ impl SftpFileSystem {
             } else {
                 anyhow::bail!(
                     "Host key verification failed: {} is not in known_hosts. \
-                    Fingerprint: {:?}", 
+                    Fingerprint: {:?}\n\n\
+                    This could indicate a man-in-the-middle attack or that the server's host key has changed.\n\
+                    If you trust this server, connect again to accept the new key.", 
                     config.host, 
                     key_hash
                 );
@@ -142,10 +156,16 @@ impl SftpFileSystem {
         match &config.auth {
             AuthMethod::Password { password: Some(password), .. } => {
                 session.userauth_password(&config.username, password)
-                    .context("SSH password authentication failed")?;
+                    .with_context(|| {
+                        format!(
+                            "SSH password authentication failed for user '{}' on {}. \
+                            Please check your username and password.",
+                            config.username, config.host
+                        )
+                    })?;
             }
             AuthMethod::Password { password: None, .. } => {
-                anyhow::bail!("Password required for SFTP authentication");
+                anyhow::bail!("Password required for SFTP authentication but none provided");
             }
             AuthMethod::PublicKey { key_path, passphrase, .. } => {
                 session.userauth_pubkey_file(
@@ -153,20 +173,37 @@ impl SftpFileSystem {
                     None,  // No separate public key file
                     key_path,
                     passphrase.as_deref(),
-                ).context("SSH public key authentication failed")?;
+                ).with_context(|| {
+                    format!(
+                        "SSH public key authentication failed for user '{}' on {}. \
+                        Key file: {}. \
+                        Please check that the key file exists and is in the correct format.",
+                        config.username, config.host, key_path.display()
+                    )
+                })?;
             }
             AuthMethod::Anonymous => {
-                anyhow::bail!("Anonymous authentication not supported for SFTP");
+                anyhow::bail!("Anonymous authentication is not supported for SFTP");
             }
         }
         
         if !session.authenticated() {
-            anyhow::bail!("SSH authentication failed");
+            anyhow::bail!(
+                "SSH authentication failed for user '{}' on {}. \
+                All authentication methods exhausted.",
+                config.username, config.host
+            );
         }
         
         // Create SFTP channel
         let sftp = session.sftp()
-            .context("Failed to create SFTP channel")?;
+            .with_context(|| {
+                format!(
+                    "Failed to create SFTP channel on {}. \
+                    Server may not have SFTP enabled.",
+                    config.host
+                )
+            })?;
         
         Ok(Self {
             session: Arc::new(Mutex::new(session)),
@@ -239,12 +276,25 @@ impl VirtualFileSystem for SftpFileSystem {
     fn read_file(&self, path: &Path) -> Result<Vec<u8>> {
         let normalized_path = normalize_remote_path(path);
         let sftp = self.sftp.lock().unwrap();
+        
         let mut file = sftp.open(&normalized_path)
-            .context("Failed to open remote file")?;
+            .with_context(|| {
+                format!(
+                    "Failed to open remote file: {}. \
+                    File may not exist or you may lack read permissions.",
+                    normalized_path.display()
+                )
+            })?;
         
         let mut contents = Vec::new();
         file.read_to_end(&mut contents)
-            .context("Failed to read remote file")?;
+            .with_context(|| {
+                format!(
+                    "Failed to read remote file: {}. \
+                    Connection may have been interrupted.",
+                    normalized_path.display()
+                )
+            })?;
         
         Ok(contents)
     }
@@ -254,11 +304,19 @@ impl VirtualFileSystem for SftpFileSystem {
         
         let normalized_path = normalize_remote_path(path);
         let sftp = self.sftp.lock().unwrap();
+        
         let mut file = sftp.create(&normalized_path)
-            .context("Failed to create remote file")?;
+            .with_context(|| format!("Failed to create remote file: {}", normalized_path.display()))?;
         
         file.write_all(contents)
-            .context("Failed to write to remote file")?;
+            .with_context(|| {
+                format!(
+                    "Failed to write {} bytes to remote file: {}. \
+                    This could be due to insufficient disk space, permissions, or network issues.",
+                    contents.len(),
+                    normalized_path.display()
+                )
+            })?;
         
         Ok(())
     }
@@ -266,16 +324,30 @@ impl VirtualFileSystem for SftpFileSystem {
     fn create_dir(&self, path: &Path) -> Result<()> {
         let normalized_path = normalize_remote_path(path);
         let sftp = self.sftp.lock().unwrap();
+        
         sftp.mkdir(&normalized_path, 0o755)
-            .context("Failed to create remote directory")?;
+            .with_context(|| {
+                format!(
+                    "Failed to create remote directory: {}. \
+                    Check if parent directory exists and you have write permissions.",
+                    normalized_path.display()
+                )
+            })?;
         Ok(())
     }
     
     fn delete(&self, path: &Path, recursive: bool) -> Result<()> {
         let normalized_path = normalize_remote_path(path);
         let sftp = self.sftp.lock().unwrap();
+        
         let stat = sftp.stat(&normalized_path)
-            .context("Failed to stat remote path")?;
+            .with_context(|| {
+                format!(
+                    "Failed to access remote path for deletion: {}. \
+                    Path may not exist.",
+                    normalized_path.display()
+                )
+            })?;
         
         if stat.is_dir() {
             if recursive {
@@ -305,10 +377,22 @@ impl VirtualFileSystem for SftpFileSystem {
                 }
             }
             sftp.rmdir(&normalized_path)
-                .context("Failed to remove remote directory")?;
+                .with_context(|| {
+                    format!(
+                        "Failed to remove remote directory: {}. \
+                        Directory may not be empty or you may lack permissions.",
+                        normalized_path.display()
+                    )
+                })?;
         } else {
             sftp.unlink(&normalized_path)
-                .context("Failed to delete remote file")?;
+                .with_context(|| {
+                    format!(
+                        "Failed to delete remote file: {}. \
+                        File may be in use or you may lack permissions.",
+                        normalized_path.display()
+                    )
+                })?;
         }
         
         Ok(())
@@ -318,16 +402,31 @@ impl VirtualFileSystem for SftpFileSystem {
         let normalized_from = normalize_remote_path(from);
         let normalized_to = normalize_remote_path(to);
         let sftp = self.sftp.lock().unwrap();
+        
         sftp.rename(&normalized_from, &normalized_to, None)
-            .context("Failed to rename remote file")?;
+            .with_context(|| {
+                format!(
+                    "Failed to rename remote file from '{}' to '{}'. \
+                    Target may already exist or you may lack permissions.",
+                    normalized_from.display(),
+                    normalized_to.display()
+                )
+            })?;
         Ok(())
     }
     
     fn metadata(&self, path: &Path) -> Result<VfsEntry> {
         let normalized_path = normalize_remote_path(path);
         let sftp = self.sftp.lock().unwrap();
+        
         let stat = sftp.stat(&normalized_path)
-            .context("Failed to get remote file metadata")?;
+            .with_context(|| {
+                format!(
+                    "Failed to get metadata for remote path: {}. \
+                    Path may not exist or you may lack permissions.",
+                    normalized_path.display()
+                )
+            })?;
         
         self.filestat_to_entry(path, &stat)
     }
