@@ -282,19 +282,26 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
         }
         Action::AddBookmark => {
             // Quick add current directory to bookmarks (Ctrl+Shift+D)
-            let current_path = app.active_panel().current_path.clone();
-            let default_name = current_path
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("Bookmark")
-                .to_string();
-            
-            // Use error_message to pass the path as context (like existing bookmark code does)
-            app.error_message = Some(current_path.to_string_lossy().to_string());
-            app.dialog_state = Some(DialogState::Input {
-                prompt: "Bookmark name:".to_string(),
-                value: default_name,
-            });
+            // Check if we're in remote mode - bookmarks don't work with remote connections
+            if app.active_panel().is_remote() {
+                app.dialog_state = Some(DialogState::Error {
+                    message: "Bookmarks are not available for remote connections.\n\nUse saved connections instead (Ctrl+M to manage).".to_string()
+                });
+            } else {
+                let current_path = app.active_panel().current_path.clone();
+                let default_name = current_path
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("Bookmark")
+                    .to_string();
+                
+                // Use error_message to pass the path as context (like existing bookmark code does)
+                app.error_message = Some(current_path.to_string_lossy().to_string());
+                app.dialog_state = Some(DialogState::Input {
+                    prompt: "Bookmark name:".to_string(),
+                    value: default_name,
+                });
+            }
         }
         Action::ShowHelp => {
             // F1: Show help dialog with all keybindings
@@ -302,8 +309,15 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
         }
         Action::ToggleBookmarkManager => {
             // TASK-008: Open bookmark manager dialog
-            let state = crate::ui::bookmark_manager::BookmarkManagerState::new();
-            app.dialog_state = Some(DialogState::BookmarkManager { state });
+            // Check if we're in remote mode - bookmarks don't work with remote connections
+            if app.active_panel().is_remote() {
+                app.dialog_state = Some(DialogState::Error {
+                    message: "Bookmarks are not available for remote connections.\n\nUse saved connections instead (Ctrl+M to manage).".to_string()
+                });
+            } else {
+                let state = crate::ui::bookmark_manager::BookmarkManagerState::new();
+                app.dialog_state = Some(DialogState::BookmarkManager { state });
+            }
         }
         Action::ToggleHistoryViewer => {
             // TASK-018: Open navigation history dialog

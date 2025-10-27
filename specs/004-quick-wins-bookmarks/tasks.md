@@ -2107,10 +2107,10 @@ cargo build --release
 ## Task Summary
 
 **Total Tasks**: 68  
-**Completed**: 40 tasks ✅ (59%)  
+**Completed**: 41 tasks ✅ (60%)  
 **In Progress**: 0 tasks  
-**Remaining**: 28 tasks ⬜ (41%)  
-**Estimated Time**: 49.25 hours total (29h completed, 20.25h remaining)
+**Remaining**: 27 tasks ⬜ (40%)  
+**Estimated Time**: 49.25 hours total (29.5h completed, 19.75h remaining)
 
 ### By Phase:
 - **Phase 0** (Foundation): 1 task, 0.25h ✅
@@ -2120,7 +2120,7 @@ cargo build --release
 - **Phase 4** (Go To Path): 5 tasks, 2.5h ✅
 - **Phase 5** (Text Editor): 8 tasks, 3.5h ✅
 - **Phase 6** (Handler Refactor): 5 tasks, 4h ✅
-- **Phase 7** (SFTP Remote): 12 tasks, 21h - **9 complete ✅, 3 remaining ⬜** (75% done)
+- **Phase 7** (SFTP Remote): 12 tasks, 21h - **10 complete ✅, 2 remaining ⬜** (83% done)
 - **Phase 8** (SMB/Samba): 11 tasks, 16h ⬜ (Not started)
 - **Remote Integration**: 3 tasks, 3.5h ⬜ (Not started)
 
@@ -2131,18 +2131,19 @@ cargo build --release
 - ✅ **Go To Path**: Quick navigation with path completion (FR-021 to FR-025)
 - ✅ **Text Editor**: Integrated viewer/editor with syntax highlighting (FR-026 to FR-035)
 - ✅ **Code Quality**: Handler.rs refactored - 87% code reduction (3,476 → 441 lines)
-- ⏳ **SFTP Remote Access**: **75% complete** - Core functionality working:
+- ⏳ **SFTP Remote Access**: **83% complete** - Core functionality working:
   - ✅ Authentication (password/key/agent), VirtualFileSystem, Panel integration, UI dialog
-  - ⬜ Remaining: Bookmark integration (1.5h), Edge cases (2h), Tests (2.5h)
+  - ✅ Remote mode detection - bookmarks disabled with clear message
+  - ⬜ Remaining: Edge cases (2h), Tests (2.5h)
 - ⬜ **SMB/Samba Network Shares**: Not started - needs platform library research (FR-074 to FR-090)
 - ⬜ **Unified Remote Management**: Not started - requires SFTP + SMB completion
 
 ### By Priority:
 - **P1** (Critical): 29 tasks - 26 complete ✅, 3 remaining ⬜
-- **P2** (High): 26 tasks - 11 complete ✅, 15 remaining ⬜
+- **P2** (High): 26 tasks - 12 complete ✅, 14 remaining ⬜
 - **P3** (Medium): 13 tasks - 3 complete ✅, 10 remaining ⬜
 
-### Completed Work (40 tasks, 29h):
+### Completed Work (41 tasks, 29.5h):
 1. ✅ **Phase 0**: TASK-001 (Foundation - chrono dependency)
 2. ✅ **Phase 1**: TASK-002 through TASK-013 (Bookmarks system)
 3. ✅ **Phase 2**: TASK-014 through TASK-021 (Disk Usage analysis)
@@ -2150,12 +2151,11 @@ cargo build --release
 5. ✅ **Phase 4**: TASK-032 through TASK-036 (Go To Path)
 6. ✅ **Phase 5**: TASK-037 through TASK-042 (Text Editor)
 7. ✅ **Phase 6**: Handler.rs refactoring (5 phases, 87% reduction)
-8. ✅ **Phase 7 (Partial)**: TASK-043 through TASK-051 (SFTP core - 9 of 12 tasks)
+8. ✅ **Phase 7 (Partial)**: TASK-043 through TASK-052 (SFTP core - 10 of 12 tasks)
 
 ### Current Focus: SFTP Completion
 
-**Immediate Tasks (6h remaining for SFTP)**:
-- **TASK-052**: Integrate SFTP with bookmarks system - 1.5h
+**Immediate Tasks (4.5h remaining for SFTP)**:
 - **TASK-053**: Complete edge case handling (retry logic, disk full, etc.) - 2h
 - **TASK-054**: Write SFTP integration tests (auth, transfers, errors) - 2.5h
 
@@ -2200,7 +2200,7 @@ cargo build --release
 ---
 
 ## Phase 7: SFTP Remote Access (P2)
-**Phase Progress**: 9/12 tasks complete (75% done) | **Time**: 15h / 21h
+**Phase Progress**: 10/12 tasks complete (83% done) | **Time**: 15.5h / 21h
 
 ### TASK-043: Add SSH/SFTP dependencies ✅
 **Priority**: P2 | **Time**: 0.5h | **Dependencies**: None  
@@ -2433,46 +2433,33 @@ ssh2 = "0.9"  # SSH2 protocol implementation
 
 ---
 
-### TASK-052: Add SFTP to bookmarks ⬜
-**Priority**: P2 | **Time**: 1.5h | **Dependencies**: TASK-048  
-**Status**: ⬜ **NOT STARTED**
+### TASK-052: Prevent bookmarks in remote mode ✅
+**Priority**: P2 | **Time**: 0.5h | **Dependencies**: TASK-048  
+**Status**: ✅ **COMPLETED**
 
-**Description**: Allow saving SFTP connections as bookmarks
+**Decision**: Bookmarks will NOT work with remote connections to avoid duplication with ConnectionManager.
 
-**Files**:
-- `src/models/bookmark.rs` - Extend Bookmark
-- `src/config/bookmarks.rs` - Update serialization
+**Rationale**:
+- ConnectionManager already handles saving SFTP connections with credentials in `~/.config/leeky/connections.json`
+- Bookmarks are designed for local filesystem paths
+- Mixing local paths with remote connection params would complicate the Bookmark model unnecessarily
+- Users should use saved connections (Ctrl+M) for remote access, bookmarks (Ctrl+B) for local directories
 
-**Changes**:
-```rust
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Bookmark {
-    pub name: String,
-    pub path: PathBuf,
-    pub connection_type: ConnectionType,  // NEW
-    pub connection_params: Option<SftpConnectionParams>,  // NEW
-    pub created_at: DateTime<Utc>,
-    pub last_accessed: DateTime<Utc>,
-}
+**Implementation**:
+- Added check in `Action::AddBookmark` handler to detect remote mode
+- Shows error message: "Bookmarks are not available for remote connections. Use saved connections instead (Ctrl+M to manage)."
+- Prevents bookmark creation dialog from opening when in remote mode
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SftpConnectionParams {
-    pub hostname: String,
-    pub port: u16,
-    pub username: String,
-    pub save_password: bool,
-    pub password: Option<String>,  // Encrypted
-    pub key_path: Option<PathBuf>,
-}
-```
+**Files Modified**:
+- `src/events/handler.rs` - Added `is_remote()` check in `Action::AddBookmark`
 
 **Acceptance**:
-- [ ] SFTP bookmarks save connection params
-- [ ] Passwords optionally saved (encrypted)
-- [ ] Reconnect from bookmark works
-- [ ] Bookmarks show connection type
+- [x] Attempting to add bookmark in remote mode shows clear error message
+- [x] Error message directs users to ConnectionManager (Ctrl+M)
+- [x] Local bookmarks continue to work normally
+- [x] No changes needed to Bookmark model
 
-**Note**: ConnectionManager already has save/load functionality for connections in `~/.config/leeky/connections.json`
+**Time**: 0.5h (vs 1.5h originally estimated)
 
 ---
 
