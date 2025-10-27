@@ -4,8 +4,6 @@
 
 use anyhow::Result;
 
-use crate::app::AppState;
-
 // TODO: Move these functions from handler.rs:
 // - Navigation actions (Up, Down, PageUp, PageDown, Home, End)
 // - Enter directory

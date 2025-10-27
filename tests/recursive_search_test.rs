@@ -46,7 +46,7 @@ fn test_simple_recursive_search() {
     let root = temp_dir.path().to_path_buf();
     
     // Search for "file" (should find file1.txt, file3.txt, file4.txt)
-    let searcher = RecursiveSearcher::new("file".to_string(), root.clone());
+    let searcher = RecursiveSearcher::new("file".to_string(), root.clone(), None);
     let handle = searcher.start_search();
     
     // Wait for completion
@@ -76,7 +76,7 @@ fn test_search_in_subdirectories() {
     let root = temp_dir.path().to_path_buf();
     
     // Search for ".txt" files
-    let searcher = RecursiveSearcher::new("txt".to_string(), root.clone());
+    let searcher = RecursiveSearcher::new("txt".to_string(), root.clone(), None);
     let handle = searcher.start_search();
     handle.join().unwrap();
     
@@ -99,7 +99,7 @@ fn test_glob_pattern_matching() {
     let root = temp_dir.path().to_path_buf();
     
     // Search for "*.rs" files using glob pattern
-    let searcher = RecursiveSearcher::new("*.rs".to_string(), root.clone());
+    let searcher = RecursiveSearcher::new("*.rs".to_string(), root.clone(), None);
     let handle = searcher.start_search();
     handle.join().unwrap();
     
@@ -124,7 +124,7 @@ fn test_glob_pattern_question_mark() {
     fs::write(root.join("test10.txt"), "10").unwrap();
     
     // Search for "test?.txt" (should match test1.txt and test2.txt, not test10.txt)
-    let searcher = RecursiveSearcher::new("test?.txt".to_string(), root.to_path_buf());
+    let searcher = RecursiveSearcher::new("test?.txt".to_string(), root.to_path_buf(), None);
     let handle = searcher.start_search();
     handle.join().unwrap();
     
@@ -150,7 +150,7 @@ fn test_case_insensitive_search() {
     fs::write(root.join("config.toml"), "config").unwrap();
     
     // Search with uppercase (should find regardless of case)
-    let searcher = RecursiveSearcher::new("README".to_string(), root.to_path_buf());
+    let searcher = RecursiveSearcher::new("README".to_string(), root.to_path_buf(), None);
     let handle = searcher.start_search();
     handle.join().unwrap();
     
@@ -173,7 +173,7 @@ fn test_cancel_search() {
         }
     }
     
-    let searcher = RecursiveSearcher::new("file".to_string(), root.to_path_buf());
+    let searcher = RecursiveSearcher::new("file".to_string(), root.to_path_buf(), None);
     let handle = searcher.start_search();
     
     // Cancel after a short delay
@@ -211,7 +211,7 @@ fn test_max_depth_limit() {
     }
     
     // Search with default max_depth (20)
-    let searcher = RecursiveSearcher::new("file".to_string(), root.to_path_buf());
+    let searcher = RecursiveSearcher::new("file".to_string(), root.to_path_buf(), None);
     let handle = searcher.start_search();
     handle.join().unwrap();
     
@@ -228,7 +228,7 @@ fn test_empty_results() {
     let root = temp_dir.path().to_path_buf();
     
     // Search for pattern that doesn't exist
-    let searcher = RecursiveSearcher::new("nonexistent_pattern_xyz".to_string(), root);
+    let searcher = RecursiveSearcher::new("nonexistent_pattern_xyz".to_string(), root, None);
     let handle = searcher.start_search();
     handle.join().unwrap();
     
@@ -247,7 +247,7 @@ fn test_special_characters_in_query() {
     fs::write(root.join("file_name.txt"), "content").unwrap();
     
     // Search for "my file" with space
-    let searcher = RecursiveSearcher::new("my file".to_string(), root.to_path_buf());
+    let searcher = RecursiveSearcher::new("my file".to_string(), root.to_path_buf(), None);
     let handle = searcher.start_search();
     handle.join().unwrap();
     
@@ -256,7 +256,7 @@ fn test_special_characters_in_query() {
     assert_eq!(results[0].file_name, "my file.txt");
     
     // Search for "test-file" with hyphen
-    let searcher2 = RecursiveSearcher::new("test-file".to_string(), root.to_path_buf());
+    let searcher2 = RecursiveSearcher::new("test-file".to_string(), root.to_path_buf(), None);
     let handle2 = searcher2.start_search();
     handle2.join().unwrap();
     
@@ -281,7 +281,7 @@ fn test_skip_large_directories() {
     fs::write(src.join("main.txt"), "should be found").unwrap();
     
     // Search for .txt files
-    let searcher = RecursiveSearcher::new("txt".to_string(), root.to_path_buf());
+    let searcher = RecursiveSearcher::new("txt".to_string(), root.to_path_buf(), None);
     let handle = searcher.start_search();
     handle.join().unwrap();
     
@@ -297,7 +297,7 @@ fn test_search_result_metadata() {
     let temp_dir = create_test_directory();
     let root = temp_dir.path().to_path_buf();
     
-    let searcher = RecursiveSearcher::new("file1".to_string(), root.clone());
+    let searcher = RecursiveSearcher::new("file1".to_string(), root.clone(), None);
     let handle = searcher.start_search();
     handle.join().unwrap();
     
@@ -337,7 +337,7 @@ fn test_performance_1000_files() {
     }
     
     // Search for "test" pattern
-    let searcher = RecursiveSearcher::new("test".to_string(), root.to_path_buf());
+    let searcher = RecursiveSearcher::new("test".to_string(), root.to_path_buf(), None);
     
     let start = Instant::now();
     let handle = searcher.start_search();
@@ -366,7 +366,7 @@ fn test_result_limit_respected() {
         fs::write(root.join(format!("file{}.txt", i)), "content").unwrap();
     }
     
-    let searcher = RecursiveSearcher::new("file".to_string(), root.to_path_buf());
+    let searcher = RecursiveSearcher::new("file".to_string(), root.to_path_buf(), None);
     let handle = searcher.start_search();
     handle.join().unwrap();
     
@@ -381,7 +381,7 @@ fn test_files_scanned_counter() {
     let temp_dir = create_test_directory();
     let root = temp_dir.path().to_path_buf();
     
-    let searcher = RecursiveSearcher::new("file".to_string(), root);
+    let searcher = RecursiveSearcher::new("file".to_string(), root, None);
     let handle = searcher.start_search();
     handle.join().unwrap();
     
@@ -398,8 +398,8 @@ fn test_concurrent_searches() {
     let root = temp_dir.path().to_path_buf();
     
     // Start two searches concurrently
-    let searcher1 = RecursiveSearcher::new("txt".to_string(), root.clone());
-    let searcher2 = RecursiveSearcher::new("rs".to_string(), root.clone());
+    let searcher1 = RecursiveSearcher::new("txt".to_string(), root.clone(), None);
+    let searcher2 = RecursiveSearcher::new("rs".to_string(), root.clone(), None);
     
     let handle1 = searcher1.start_search();
     let handle2 = searcher2.start_search();

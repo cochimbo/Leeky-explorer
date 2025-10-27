@@ -4,7 +4,6 @@
 
 use anyhow::Result;
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
-use std::path::PathBuf;
 
 use crate::app::{AppState, DialogState};
 use crate::events::keybindings::{Action, map_key_to_input_action};
