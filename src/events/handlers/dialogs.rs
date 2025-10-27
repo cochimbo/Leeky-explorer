@@ -1481,6 +1481,147 @@ pub fn handle_connection_dialog(app: &mut AppState, key: KeyEvent) -> Result<Act
                             _ => {}
                         }
                     }
+                    ConnectionDialogState::SmbForm {
+                        selected_field,
+                        name,
+                        host,
+                        share,
+                        username,
+                        password,
+                        domain,
+                        guest_mode,
+                        save_credentials,
+                        error,
+                    } => {
+                        match key.code {
+                            KeyCode::Up => {
+                                if *selected_field > 0 {
+                                    *selected_field -= 1;
+                                }
+                            }
+                            KeyCode::Down => {
+                                let max_field = if *guest_mode { 6 } else { 7 };  // Less fields in guest mode
+                                if *selected_field < max_field {
+                                    *selected_field += 1;
+                                }
+                            }
+                            KeyCode::Char(' ') if *selected_field == 6 => {
+                                // Toggle guest_mode checkbox
+                                *guest_mode = !*guest_mode;
+                                // Clear username and password when entering guest mode
+                                if *guest_mode {
+                                    username.clear();
+                                    password.clear();
+                                }
+                            }
+                            KeyCode::Char(' ') if *selected_field == 7 && !*guest_mode => {
+                                // Toggle save_credentials checkbox (only when not in guest mode)
+                                *save_credentials = !*save_credentials;
+                            }
+                            KeyCode::Char(c) if !*guest_mode || *selected_field < 3 => {
+                                // Allow input for name, host, share always
+                                // Allow input for username, password, domain only when not in guest mode
+                                let field_value = match *selected_field {
+                                    0 => name,
+                                    1 => host,
+                                    2 => share,
+                                    3 if !*guest_mode => username,
+                                    4 if !*guest_mode => password,
+                                    5 => domain,  // Domain always editable
+                                    _ => return Ok(Action::None),
+                                };
+                                field_value.push(c);
+                            }
+                            KeyCode::Backspace if !*guest_mode || *selected_field < 3 => {
+                                let field_value = match *selected_field {
+                                    0 => name,
+                                    1 => host,
+                                    2 => share,
+                                    3 if !*guest_mode => username,
+                                    4 if !*guest_mode => password,
+                                    5 => domain,
+                                    _ => return Ok(Action::None),
+                                };
+                                field_value.pop();
+                            }
+                            KeyCode::Enter => {
+                                // Validate required fields
+                                let has_required_fields = !name.is_empty() && !host.is_empty() && !share.is_empty();
+                                let has_auth = *guest_mode || (!username.is_empty() && !password.is_empty());
+                                
+                                if has_required_fields && has_auth {
+                                    // TODO: Implement SMB connection (TASK-061)
+                                    // For now, just show a message that SMB is not yet fully implemented
+                                    *error = Some("SMB support is not yet implemented. Coming soon!".to_string());
+                                    
+                                    /* Future implementation:
+                                    let config = ConnectionConfig {
+                                        name: name.clone(),
+                                        connection_type: ConnectionType::Smb,
+                                        host: host.clone(),
+                                        port: 445,
+                                        username: if *guest_mode { "guest".to_string() } else { username.clone() },
+                                        auth: AuthMethod::Password {
+                                            password: if *guest_mode { None } else { Some(password.clone()) },
+                                            stored: *save_credentials,
+                                        },
+                                        initial_path: Some(PathBuf::from(format!("/{}", share))),
+                                    };
+                                    
+                                    // Save password to keychain if requested
+                                    if *save_credentials && !*guest_mode {
+                                        if let Err(e) = config.store_password(password) {
+                                            log::warn!("Failed to store password in keychain: {}", e);
+                                        }
+                                    }
+                                    
+                                    // Try to connect
+                                    match SmbFileSystem::connect(config.clone()) {
+                                        Ok(smb_fs) => {
+                                            // Save connection config
+                                            if *save_credentials && !*guest_mode {
+                                                if let Ok(mut manager) = ConnectionManager::load() {
+                                                    if let Err(e) = manager.add(config) {
+                                                        log::warn!("Failed to save connection: {}", e);
+                                                    }
+                                                }
+                                            }
+                                            
+                                            let vfs: Arc<dyn VirtualFileSystem> = Arc::new(smb_fs);
+                                            let conn_info = format!("\\\\{}\\{}", host, share);
+                                            let success_msg = format!("Connected to {}!", conn_info);
+                                            let initial_path = PathBuf::from("/");
+                                            
+                                            // Drop the borrow on state before modifying app
+                                            let _ = state;
+                                            
+                                            // Connect the active panel
+                                            app.active_panel_mut().connect_remote(vfs, conn_info, initial_path);
+                                            
+                                            // Refresh to load directory contents
+                                            if let Err(e) = app.active_panel_mut().refresh_entries() {
+                                                log::error!("Failed to refresh remote directory after connect: {}", e);
+                                                app.error_message = Some(format!("Connected but failed to list directory: {}", e));
+                                            } else {
+                                                app.error_message = Some(success_msg);
+                                            }
+                                            
+                                            app.close_dialog();
+                                            return Ok(Action::Refresh);
+                                        }
+                                        Err(e) => {
+                                            log::error!("SMB connection failed: {}", e);
+                                            *error = Some(format!("Connection failed: {}", e));
+                                        }
+                                    }
+                                    */
+                                } else {
+                                    *error = Some("Please fill all required fields".to_string());
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
                 }
             }
         }
