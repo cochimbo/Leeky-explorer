@@ -33,7 +33,7 @@ pub fn render_dialog(frame: &mut Frame, dialog: &DialogState, area: Rect, theme:
         DialogState::PasswordInput { prompt, value, show_password, .. } => {
             render_password_input_dialog(frame, prompt, value, *show_password, area, theme);
         }
-        DialogState::CollisionPrompt { file_path, selected, operation: _ } => {
+        DialogState::CollisionPrompt { file_path, selected, .. } => {
             render_collision_dialog(frame, file_path, *selected, area, theme);
         }
         // T930: Render compression options dialog
@@ -482,11 +482,11 @@ pub fn render_collision_dialog(frame: &mut Frame, file_path: &str, selected: usi
     
     // Options
     let options = [
-        ("S", "Sobreescribir este archivo"),
-        ("T", "Sobreescribir Todos"),
-        ("R", "Renombrar (agregar sufijo)"),
-        ("O", "Omitir este archivo"),
-        ("C", "Cancelar extracción"),
+        ("S", "Overwrite this file"),
+        ("T", "Overwrite All"),
+        ("R", "Rename (add suffix)"),
+        ("O", "Skip this file"),
+        ("C", "Cancel operation"),
     ];
     
     for (i, (key, text)) in options.iter().enumerate() {

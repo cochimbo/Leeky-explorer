@@ -2,6 +2,7 @@
 use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 use std::time::Instant;
+use std::sync::Arc;
 
 use crate::models::file_entry::{FileEntry, EntryType};
 use crate::models::operation::Operation;
@@ -48,7 +49,7 @@ pub struct AppState {
     pub last_refresh_check: Instant,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum DialogState {
     Confirm {
         message: String,
@@ -83,6 +84,10 @@ pub enum DialogState {
         file_path: String,
         selected: usize, // 0=Overwrite, 1=Overwrite All, 2=Rename, 3=Skip, 4=Cancel
         operation: CollisionOperation,
+        remaining_files: Vec<PathBuf>, // Files that still need to be processed after this one
+        dest_path: PathBuf, // Destination directory
+        source_vfs: Option<Arc<dyn crate::remote::vfs::VirtualFileSystem>>,
+        dest_vfs: Option<Arc<dyn crate::remote::vfs::VirtualFileSystem>>,
     },
     Rename {
         prompt: String,
@@ -697,6 +702,12 @@ impl AppState {
     pub fn start_extract_archive(&mut self) -> anyhow::Result<()> {
         let panel = self.active_panel();
         
+        // Check if we're on a remote filesystem
+        if panel.vfs.is_some() {
+            self.show_error("Archive extraction not available on remote filesystems. Please copy the file locally first.".to_string());
+            return Ok(());
+        }
+        
         // Get selected file
         if let Some(entry) = panel.entries.get(panel.cursor) {
             let path = entry.path.clone();
@@ -760,6 +771,12 @@ impl AppState {
     // T927-T929: Start compression with options dialog
     pub fn start_compress_archive(&mut self) -> anyhow::Result<()> {
         use chrono::Local;
+        
+        // Check if we're on a remote filesystem
+        if self.active_panel().vfs.is_some() {
+            self.show_error("Archive compression not available on remote filesystems. Please copy files locally first.".to_string());
+            return Ok(());
+        }
         
         // Get marked items or current item
         let sources = {
