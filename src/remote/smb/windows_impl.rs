@@ -12,6 +12,10 @@ use windows::Win32::NetworkManagement::WNet::{
 
 /// Connect to an SMB share using WNetAddConnection2W
 pub fn connect_share(unc_path: &str, credentials: &SmbCredentials) -> Result<()> {
+    log::info!("windows_impl::connect_share called with unc_path: {}", unc_path);
+    log::debug!("Credentials - username: {:?}, domain: {:?}, is_guest: {}", 
+               credentials.username, credentials.domain, credentials.is_guest);
+    
     // Convert strings to wide strings (UTF-16)
     let unc_path_wide: Vec<u16> = OsStr::new(unc_path)
         .encode_wide()
@@ -24,6 +28,7 @@ pub fn connect_share(unc_path: &str, credentials: &SmbCredentials) -> Result<()>
         } else {
             u.clone()
         };
+        log::debug!("Using username: {}", username_with_domain);
         OsStr::new(&username_with_domain)
             .encode_wide()
             .chain(std::iter::once(0))
@@ -31,6 +36,7 @@ pub fn connect_share(unc_path: &str, credentials: &SmbCredentials) -> Result<()>
     });
 
     let password_wide: Option<Vec<u16>> = credentials.password.as_ref().map(|p| {
+        log::debug!("Password provided: {}", if p.is_empty() { "empty" } else { "yes" });
         OsStr::new(p)
             .encode_wide()
             .chain(std::iter::once(0))
@@ -60,6 +66,7 @@ pub fn connect_share(unc_path: &str, credentials: &SmbCredentials) -> Result<()>
         .unwrap_or(PWSTR::null());
 
     // Call WNetAddConnection2W
+    log::info!("Calling WNetAddConnection2W...");
     let result = unsafe {
         WNetAddConnection2W(
             &net_resource as *const _,
@@ -68,16 +75,23 @@ pub fn connect_share(unc_path: &str, credentials: &SmbCredentials) -> Result<()>
             NET_CONNECT_FLAGS(0x00000001), // CONNECT_TEMPORARY
         )
     };
+    
+    log::debug!("WNetAddConnection2W returned: {}", result.0);
 
     if result != ERROR_SUCCESS {
+        let error_msg = get_error_message(result);
+        log::error!("WNet
+
+Connection failed. Error code: {}, Message: {}", result.0, error_msg);
         return Err(anyhow!(
             "Failed to connect to SMB share '{}'. Windows error code: {}. {}",
             unc_path,
             result.0,
-            get_error_message(result)
+            error_msg
         ));
     }
-
+    
+    log::info!("Successfully connected to SMB share: {}", unc_path);
     Ok(())
 }
 

@@ -24,6 +24,8 @@ impl SmbManager {
 
     /// Connect to an SMB share
     pub fn connect(&mut self, params: SmbConnectionParams, password: Option<String>) -> Result<String> {
+        log::info!("SmbManager::connect called with params: {:?}", params);
+        
         // Validate UNC path
         params.validate_unc_path()
             .map_err(|e| anyhow!("Invalid UNC path: {}", e))?;
@@ -31,11 +33,15 @@ impl SmbManager {
         // Parse server and share
         let (server, share) = params.parse_unc_path()
             .ok_or_else(|| anyhow!("Failed to parse UNC path"))?;
+        
+        log::debug!("Parsed server: {}, share: {}", server, share);
 
         // Create credentials
         let credentials = if params.use_guest {
+            log::info!("Using guest credentials");
             SmbCredentials::guest()
         } else {
+            log::info!("Using password credentials for user: {:?}", params.username);
             SmbCredentials::with_password(
                 params.username.clone().unwrap_or_default(),
                 password.unwrap_or_default(),
@@ -46,6 +52,8 @@ impl SmbManager {
         // Platform-specific connection
         let connection_id = Uuid::new_v4().to_string();
         
+        log::info!("Calling platform-specific connect_share for: {}", params.unc_path);
+        
         #[cfg(windows)]
         windows_impl::connect_share(&params.unc_path, &credentials)
             .with_context(|| format!("Failed to connect to SMB share: {}", params.unc_path))?;
@@ -53,6 +61,8 @@ impl SmbManager {
         #[cfg(unix)]
         unix_impl::connect_share(&params.unc_path, &credentials)
             .with_context(|| format!("Failed to connect to SMB share: {}", params.unc_path))?;
+        
+        log::info!("Platform-specific connection successful");
 
         // Create connection object
         let connection = SmbConnection::new(

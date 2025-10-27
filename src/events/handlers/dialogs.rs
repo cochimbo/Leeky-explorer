@@ -1251,7 +1251,7 @@ pub fn handle_connection_dialog(app: &mut AppState, key: KeyEvent) -> Result<Act
                                 }
                             }
                             KeyCode::Down => {
-                                if *selected < 2 {  // 0=SFTP, 1=FTP, 2=FTPS
+                                if *selected < 3 {  // 0=SFTP, 1=FTP, 2=FTPS, 3=SMB
                                     *selected += 1;
                                 }
                             }
