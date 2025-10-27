@@ -1,5 +1,7 @@
 // Operation models for file operations
 use std::path::PathBuf;
+use std::sync::Arc;
+use crate::remote::VirtualFileSystem;
 
 #[derive(Debug, Clone)]
 pub enum OperationType {
@@ -39,7 +41,7 @@ impl Progress {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Operation {
     pub operation_type: OperationType,
     pub source: PathBuf,
@@ -49,6 +51,27 @@ pub struct Operation {
     pub current_item_index: usize, // Track which item in batch we're processing
     pub archive_format: Option<crate::archive::formats::ArchiveFormat>, // For extract operations
     pub password: Option<String>, // For password-protected archives
+    // Remote filesystem support
+    pub source_vfs: Option<Arc<dyn VirtualFileSystem>>, // None = local, Some = remote
+    pub dest_vfs: Option<Arc<dyn VirtualFileSystem>>,   // None = local, Some = remote
+}
+
+// Manual Debug impl since VirtualFileSystem doesn't impl Debug
+impl std::fmt::Debug for Operation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Operation")
+            .field("operation_type", &self.operation_type)
+            .field("source", &self.source)
+            .field("destination", &self.destination)
+            .field("progress", &self.progress)
+            .field("batch_items", &self.batch_items)
+            .field("current_item_index", &self.current_item_index)
+            .field("archive_format", &self.archive_format)
+            .field("password", &"<redacted>")
+            .field("source_vfs", &self.source_vfs.as_ref().map(|_| "Some(VFS)"))
+            .field("dest_vfs", &self.dest_vfs.as_ref().map(|_| "Some(VFS)"))
+            .finish()
+    }
 }
 
 impl Operation {
@@ -62,6 +85,30 @@ impl Operation {
             current_item_index: 0,
             archive_format: None,
             password: None,
+            source_vfs: None,
+            dest_vfs: None,
+        }
+    }
+    
+    pub fn copy_vfs(
+        source: PathBuf,
+        destination: PathBuf,
+        total_bytes: u64,
+        total_files: usize,
+        source_vfs: Option<Arc<dyn VirtualFileSystem>>,
+        dest_vfs: Option<Arc<dyn VirtualFileSystem>>,
+    ) -> Self {
+        Self {
+            operation_type: OperationType::Copy,
+            source,
+            destination,
+            progress: Progress::new(total_bytes, total_files),
+            batch_items: None,
+            current_item_index: 0,
+            archive_format: None,
+            password: None,
+            source_vfs,
+            dest_vfs,
         }
     }
 
@@ -75,6 +122,30 @@ impl Operation {
             current_item_index: 0,
             archive_format: None,
             password: None,
+            source_vfs: None,
+            dest_vfs: None,
+        }
+    }
+    
+    pub fn move_vfs(
+        source: PathBuf,
+        destination: PathBuf,
+        total_bytes: u64,
+        total_files: usize,
+        source_vfs: Option<Arc<dyn VirtualFileSystem>>,
+        dest_vfs: Option<Arc<dyn VirtualFileSystem>>,
+    ) -> Self {
+        Self {
+            operation_type: OperationType::Move,
+            source,
+            destination,
+            progress: Progress::new(total_bytes, total_files),
+            batch_items: None,
+            current_item_index: 0,
+            archive_format: None,
+            password: None,
+            source_vfs,
+            dest_vfs,
         }
     }
 
@@ -88,6 +159,28 @@ impl Operation {
             current_item_index: 0,
             archive_format: None,
             password: None,
+            source_vfs: None,
+            dest_vfs: None,
+        }
+    }
+    
+    pub fn delete_vfs(
+        path: PathBuf,
+        total_bytes: u64,
+        total_files: usize,
+        vfs: Option<Arc<dyn VirtualFileSystem>>,
+    ) -> Self {
+        Self {
+            operation_type: OperationType::Delete,
+            source: path.clone(),
+            destination: path,
+            progress: Progress::new(total_bytes, total_files),
+            batch_items: None,
+            current_item_index: 0,
+            archive_format: None,
+            password: None,
+            source_vfs: vfs.clone(),
+            dest_vfs: vfs,  // For delete, both are the same
         }
     }
 
@@ -107,6 +200,8 @@ impl Operation {
             current_item_index: 0,
             archive_format: Some(format),
             password: None,
+            source_vfs: None,
+            dest_vfs: None,
         }
     }
     
@@ -127,6 +222,8 @@ impl Operation {
             current_item_index: 0,
             archive_format: Some(format),
             password: Some(password),
+            source_vfs: None,
+            dest_vfs: None,
         }
     }
 
@@ -144,6 +241,32 @@ impl Operation {
             current_item_index: 0,
             archive_format: None,
             password: None,
+            source_vfs: None,
+            dest_vfs: None,
+        }
+    }
+    
+    pub fn copy_batch_vfs(
+        items: Vec<(PathBuf, PathBuf, String)>,
+        total_bytes: u64,
+        total_files: usize,
+        source_vfs: Option<Arc<dyn VirtualFileSystem>>,
+        dest_vfs: Option<Arc<dyn VirtualFileSystem>>,
+    ) -> Self {
+        let (source, destination, _) = items.first()
+            .cloned()
+            .unwrap_or_else(|| (PathBuf::new(), PathBuf::new(), String::new()));
+        Self {
+            operation_type: OperationType::Copy,
+            source,
+            destination,
+            progress: Progress::new(total_bytes, total_files),
+            batch_items: Some(items),
+            current_item_index: 0,
+            archive_format: None,
+            password: None,
+            source_vfs,
+            dest_vfs,
         }
     }
 
@@ -160,6 +283,32 @@ impl Operation {
             current_item_index: 0,
             archive_format: None,
             password: None,
+            source_vfs: None,
+            dest_vfs: None,
+        }
+    }
+    
+    pub fn move_batch_vfs(
+        items: Vec<(PathBuf, PathBuf, String)>,
+        total_bytes: u64,
+        total_files: usize,
+        source_vfs: Option<Arc<dyn VirtualFileSystem>>,
+        dest_vfs: Option<Arc<dyn VirtualFileSystem>>,
+    ) -> Self {
+        let (source, destination, _) = items.first()
+            .cloned()
+            .unwrap_or_else(|| (PathBuf::new(), PathBuf::new(), String::new()));
+        Self {
+            operation_type: OperationType::Move,
+            source,
+            destination,
+            progress: Progress::new(total_bytes, total_files),
+            batch_items: Some(items),
+            current_item_index: 0,
+            archive_format: None,
+            password: None,
+            source_vfs,
+            dest_vfs,
         }
     }
 
@@ -176,6 +325,31 @@ impl Operation {
             current_item_index: 0,
             archive_format: None,
             password: None,
+            source_vfs: None,
+            dest_vfs: None,
+        }
+    }
+    
+    pub fn delete_batch_vfs(
+        items: Vec<(PathBuf, PathBuf, String)>,
+        total_bytes: u64,
+        total_files: usize,
+        vfs: Option<Arc<dyn VirtualFileSystem>>,
+    ) -> Self {
+        let (source, _, _) = items.first()
+            .cloned()
+            .unwrap_or_else(|| (PathBuf::new(), PathBuf::new(), String::new()));
+        Self {
+            operation_type: OperationType::Delete,
+            source: source.clone(),
+            destination: source,
+            progress: Progress::new(total_bytes, total_files),
+            batch_items: Some(items),
+            current_item_index: 0,
+            archive_format: None,
+            password: None,
+            source_vfs: vfs.clone(),
+            dest_vfs: vfs,  // For delete, both are the same
         }
     }
 

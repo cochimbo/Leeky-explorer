@@ -911,6 +911,8 @@ async fn execute_batch_operation(
     let mut files_done = 0;
     let mut bytes_done = 0;
     let bytes_total = operation.progress.bytes_total;
+    let source_vfs = operation.source_vfs.clone();
+    let dest_vfs = operation.dest_vfs.clone();
     
     // Create a dummy channel for individual operations
     let (dummy_tx, mut dummy_rx) = mpsc::channel::<Progress>(100);
@@ -933,6 +935,8 @@ async fn execute_batch_operation(
             destination,
             dummy_tx.clone(),
             cancel_rx.clone(),
+            source_vfs.clone(),
+            dest_vfs.clone(),
         ).await?;
         
         bytes_done += file_size;
@@ -961,24 +965,30 @@ async fn execute_single_batch_item(
     destination: &std::path::Path,
     progress_tx: mpsc::Sender<Progress>,
     cancel_rx: tokio::sync::watch::Receiver<bool>,
+    source_vfs: Option<std::sync::Arc<dyn crate::remote::VirtualFileSystem>>,
+    dest_vfs: Option<std::sync::Arc<dyn crate::remote::VirtualFileSystem>>,
 ) -> Result<u64> {
     match operation_type {
         OperationType::Copy => {
-            let metadata = tokio::fs::metadata(source).await?;
-            let size = metadata.len();
+            // Get metadata using VFS if available
+            let (size, is_dir) = crate::fs::vfs_operations::get_metadata_vfs(source, source_vfs.clone()).await?;
             
-            if metadata.is_dir() {
-                crate::fs::operations::copy_dir_recursive(
+            if is_dir {
+                crate::fs::vfs_operations::copy_dir_recursive_vfs(
                     source,
                     destination,
+                    source_vfs,
+                    dest_vfs,
                     progress_tx,
                     size,
                     Some(cancel_rx),
                 ).await?;
             } else {
-                crate::fs::operations::copy_file_with_progress(
+                crate::fs::vfs_operations::copy_file_vfs(
                     source,
                     destination,
+                    source_vfs,
+                    dest_vfs,
                     progress_tx,
                     Some(cancel_rx),
                 ).await?;
@@ -987,12 +997,17 @@ async fn execute_single_batch_item(
             Ok(size)
         }
         OperationType::Move => {
-            let metadata = tokio::fs::metadata(source).await?;
-            let size = metadata.len();
+            // Use VFS for metadata
+            let (size, _) = crate::fs::vfs_operations::get_metadata_vfs(
+                source,
+                source_vfs.clone()
+            ).await?;
             
-            crate::fs::operations::move_item(
+            crate::fs::vfs_operations::move_item_vfs(
                 source,
                 destination,
+                source_vfs,
+                dest_vfs,
                 progress_tx,
                 Some(cancel_rx),
             ).await?;
@@ -1000,16 +1015,34 @@ async fn execute_single_batch_item(
             Ok(size)
         }
         OperationType::Delete => {
-            let metadata = tokio::fs::metadata(source).await?;
-            let size = metadata.len();
+            // Use VFS for metadata check
+            let (_, is_dir) = crate::fs::vfs_operations::get_metadata_vfs(
+                source,
+                source_vfs.clone()
+            ).await?;
             
-            if metadata.is_dir() {
-                crate::fs::operations::delete_dir_recursive(
+            let size = if let Some(vfs) = &source_vfs {
+                // Remote file - get size from VFS
+                let metadata = vfs.metadata(source)?;
+                metadata.size
+            } else {
+                // Local file
+                let metadata = tokio::fs::metadata(source).await?;
+                metadata.len()
+            };
+            
+            if is_dir {
+                crate::fs::vfs_operations::delete_dir_recursive_vfs(
                     source,
+                    source_vfs.clone(),
                     progress_tx,
                 ).await?;
             } else {
-                crate::fs::operations::delete_file(source).await?;
+                crate::fs::vfs_operations::delete_file_vfs(
+                    source,
+                    source_vfs.clone(),
+                    progress_tx,
+                ).await?;
             }
             
             Ok(size)
@@ -1028,49 +1061,63 @@ async fn execute_single_operation(
 ) -> Result<()> {
     match operation.operation_type {
         OperationType::Copy => {
-            let metadata = tokio::fs::metadata(&operation.source).await?;
-            if metadata.is_dir() {
+            // Get metadata using VFS if available
+            let (_, is_dir) = crate::fs::vfs_operations::get_metadata_vfs(
+                &operation.source,
+                operation.source_vfs.clone()
+            ).await?;
+            
+            if is_dir {
                 let total_size = operation.progress.bytes_total;
-                crate::fs::operations::copy_dir_recursive(
+                crate::fs::vfs_operations::copy_dir_recursive_vfs(
                     &operation.source,
                     &operation.destination,
+                    operation.source_vfs,
+                    operation.dest_vfs,
                     progress_tx,
                     total_size,
                     Some(cancel_rx),
                 ).await?;
             } else {
-                crate::fs::operations::copy_file_with_progress(
+                crate::fs::vfs_operations::copy_file_vfs(
                     &operation.source,
                     &operation.destination,
+                    operation.source_vfs,
+                    operation.dest_vfs,
                     progress_tx,
                     Some(cancel_rx),
                 ).await?;
             }
         }
         OperationType::Move => {
-            crate::fs::operations::move_item(
+            crate::fs::vfs_operations::move_item_vfs(
                 &operation.source,
                 &operation.destination,
+                operation.source_vfs,
+                operation.dest_vfs,
                 progress_tx,
                 Some(cancel_rx),
             ).await?;
         }
         OperationType::Delete => {
-            let metadata = tokio::fs::metadata(&operation.source).await?;
-            if metadata.is_dir() {
-                crate::fs::operations::delete_dir_recursive(
+            // Use VFS for metadata check
+            let (_, is_dir) = crate::fs::vfs_operations::get_metadata_vfs(
+                &operation.source,
+                operation.source_vfs.clone()
+            ).await?;
+            
+            if is_dir {
+                crate::fs::vfs_operations::delete_dir_recursive_vfs(
                     &operation.source,
+                    operation.source_vfs,
                     progress_tx,
                 ).await?;
             } else {
-                crate::fs::operations::delete_file(&operation.source).await?;
-                // Send completion progress
-                let _ = progress_tx.send(Progress {
-                    bytes_done: 1,
-                    bytes_total: 1,
-                    files_done: 1,
-                    files_total: 1,
-                }).await;
+                crate::fs::vfs_operations::delete_file_vfs(
+                    &operation.source,
+                    operation.source_vfs,
+                    progress_tx,
+                ).await?;
             }
         }
         OperationType::Extract => {

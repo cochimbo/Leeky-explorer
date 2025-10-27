@@ -21,3 +21,8 @@ pub fn get_state_file_path() -> Result<PathBuf> {
 pub fn get_bookmarks_file_path() -> Result<PathBuf> {
     Ok(get_config_dir()?.join("bookmarks.json"))
 }
+
+/// Get the full path to the remote connections file
+pub fn get_connections_file_path() -> Result<PathBuf> {
+    Ok(get_config_dir()?.join("connections.json"))
+}

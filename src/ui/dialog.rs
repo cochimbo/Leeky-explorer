@@ -65,6 +65,10 @@ pub fn render_dialog(frame: &mut Frame, dialog: &DialogState, area: Rect, theme:
         DialogState::Help => {
             render_help_dialog(frame, area, theme);
         }
+        // Remote connection dialog
+        DialogState::RemoteConnection { state } => {
+            crate::ui::connection_dialog::render(frame, state, theme);
+        }
     }
 }
 
@@ -847,6 +851,10 @@ pub fn render_help_dialog(frame: &mut Frame, area: Rect, theme: &Theme) {
         Line::from(vec![
             Span::styled("  Ctrl+D", Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)),
             Span::raw("         Select drive (Windows)"),
+        ]),
+        Line::from(vec![
+            Span::styled("  Ctrl+M", Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)),
+            Span::raw("         Connect to remote server (SFTP/FTP)"),
         ]),
         Line::from(""),
         Line::from(vec![

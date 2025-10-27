@@ -128,6 +128,10 @@ pub enum DialogState {
     },
     // Help dialog (F1) - shows all keyboard shortcuts
     Help,
+    // Remote connection dialog
+    RemoteConnection {
+        state: crate::ui::connection_dialog::ConnectionDialogState,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -231,10 +235,26 @@ impl AppState {
     }
 
     /// Save current state to config file
+    /// Only saves local paths - remote paths are replaced with home directory
     pub fn save_state(&self) -> anyhow::Result<()> {
+        let home_dir = dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
+        
+        // Only persist local paths, not remote ones
+        let left_path = if self.left_panel.vfs.is_some() {
+            home_dir.clone()
+        } else {
+            self.left_panel.current_path.clone()
+        };
+        
+        let right_path = if self.right_panel.vfs.is_some() {
+            home_dir.clone()
+        } else {
+            self.right_panel.current_path.clone()
+        };
+        
         let state = crate::config::state::PersistedState {
-            left_panel_path: self.left_panel.current_path.clone(),
-            right_panel_path: self.right_panel.current_path.clone(),
+            left_panel_path: left_path,
+            right_panel_path: right_path,
             active_panel: self.active_panel.into(),
             theme_name: Some(self.theme.name.clone()), // US5: Save theme name
         };
@@ -566,7 +586,8 @@ impl AppState {
     // TASK-040: Recursive search dialog management
     pub fn open_search_dialog(&mut self) {
         let root = self.active_panel().current_path.clone();
-        self.search_dialog = Some(crate::ui::search_dialog::SearchDialog::new(root));
+        let vfs = self.active_panel().vfs.clone();
+        self.search_dialog = Some(crate::ui::search_dialog::SearchDialog::new(root, vfs));
     }
     
     pub fn close_search_dialog(&mut self) {

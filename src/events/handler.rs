@@ -55,6 +55,11 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
         return handle_compress_options_dialog(app, key);
     }
     
+    // Handle remote connection dialog
+    if let Some(DialogState::RemoteConnection { .. }) = &app.dialog_state {
+        return handle_connection_dialog(app, key);
+    }
+    
     // Handle Help dialog (F1) - close with ESC or any key
     if let Some(DialogState::Help) = &app.dialog_state {
         // Close help dialog with ESC or F1
@@ -323,6 +328,11 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
             // TASK-040: Open recursive search dialog
             app.open_search_dialog();
         }
+        Action::OpenRemoteConnection => {
+            // Open remote connection dialog
+            let state = crate::ui::connection_dialog::ConnectionDialogState::new();
+            app.dialog_state = Some(DialogState::RemoteConnection { state });
+        }
         Action::ExtractArchive => {
             // T838-T839: Extract archive
             // This needs to be async, so we'll handle it in main.rs
@@ -499,25 +509,33 @@ fn handle_dialog_action(app: &mut AppState, action: Action) -> Result<Action> {
 fn start_copy_operation(app: &mut AppState) -> Result<()> {
     let dest_panel_path = app.inactive_panel().current_path.clone();
     
+    // Get VFS references from both panels
+    let source_vfs = app.active_panel().vfs.clone();
+    let dest_vfs = app.inactive_panel().vfs.clone();
+    
     // T951: Validate source files exist before starting operation
-    if app.has_selection() {
-        let marked_paths = app.selection_state.get_marked(app.active_panel);
-        for path in &marked_paths {
-            if !path.exists() {
-                let file_name = path.file_name()
-                    .and_then(|n| n.to_str())
-                    .unwrap_or("unknown");
-                app.show_error(format!("Archivo no encontrado: {}", file_name));
-                return Ok(());
+    // Note: For remote files, we'll check during the actual operation
+    if source_vfs.is_none() {
+        // Only validate local files upfront
+        if app.has_selection() {
+            let marked_paths = app.selection_state.get_marked(app.active_panel);
+            for path in &marked_paths {
+                if !path.exists() {
+                    let file_name = path.file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("unknown");
+                    app.show_error(format!("Archivo no encontrado: {}", file_name));
+                    return Ok(());
+                }
             }
-        }
-    } else {
-        // Check single file exists
-        if let Some(entry) = app.active_panel().selected_entry() {
-            let source_path = app.active_panel().current_path.join(&entry.name);
-            if !source_path.exists() {
-                app.show_error(format!("Archivo no encontrado: {}", entry.name));
-                return Ok(());
+        } else {
+            // Check single file exists
+            if let Some(entry) = app.active_panel().selected_entry() {
+                let source_path = app.active_panel().current_path.join(&entry.name);
+                if !source_path.exists() {
+                    app.show_error(format!("Archivo no encontrado: {}", entry.name));
+                    return Ok(());
+                }
             }
         }
     }
@@ -609,17 +627,19 @@ fn start_copy_operation(app: &mut AppState) -> Result<()> {
             }
         }
         
-        // T953: Check available disk space before copying
-        if let Ok(available_space) = fs2::available_space(&dest_panel_path)
-            && available_space < total_bytes {
-                let size_mb = total_bytes / (1024 * 1024);
-                let avail_mb = available_space / (1024 * 1024);
-                app.show_error(format!(
-                    "Espacio insuficiente. Se necesitan {} MB, disponibles {} MB",
-                    size_mb, avail_mb
-                ));
-                return Ok(());
-            }
+        // T953: Check available disk space before copying (only for local destinations)
+        if dest_vfs.is_none() {
+            if let Ok(available_space) = fs2::available_space(&dest_panel_path)
+                && available_space < total_bytes {
+                    let size_mb = total_bytes / (1024 * 1024);
+                    let avail_mb = available_space / (1024 * 1024);
+                    app.show_error(format!(
+                        "Espacio insuficiente. Se necesitan {} MB, disponibles {} MB",
+                        size_mb, avail_mb
+                    ));
+                    return Ok(());
+                }
+        }
         
         // T956: Warn about large operations
         let size_gb = total_bytes as f64 / (1024.0 * 1024.0 * 1024.0);
@@ -637,7 +657,7 @@ fn start_copy_operation(app: &mut AppState) -> Result<()> {
             // Por ahora, mostramos advertencia pero continuamos
         }
         
-        let operation = Operation::copy_batch(operations, total_bytes, count);
+        let operation = Operation::copy_batch_vfs(operations, total_bytes, count, source_vfs.clone(), dest_vfs.clone());
         app.current_operation = Some(operation);
         
         app.dialog_state = Some(DialogState::Progress {
@@ -660,21 +680,23 @@ fn start_copy_operation(app: &mut AppState) -> Result<()> {
                     destination = crate::fs::operations::generate_collision_free_name(&destination);
                 }
             
-            // T953: Check available disk space before copying
-            if let Ok(available_space) = fs2::available_space(&dest_panel_path)
-                && available_space < total_bytes {
-                    let size_mb = total_bytes / (1024 * 1024);
-                    let avail_mb = available_space / (1024 * 1024);
-                    app.show_error(format!(
-                        "Espacio insuficiente. Se necesitan {} MB, disponibles {} MB",
-                        size_mb, avail_mb
-                    ));
-                    return Ok(());
-                }
+            // T953: Check available disk space before copying (only for local destinations)
+            if dest_vfs.is_none() {
+                if let Ok(available_space) = fs2::available_space(&dest_panel_path)
+                    && available_space < total_bytes {
+                        let size_mb = total_bytes / (1024 * 1024);
+                        let avail_mb = available_space / (1024 * 1024);
+                        app.show_error(format!(
+                            "Espacio insuficiente. Se necesitan {} MB, disponibles {} MB",
+                            size_mb, avail_mb
+                        ));
+                        return Ok(());
+                    }
+            }
             
             let total_files = 1; // Single file or directory
             
-            let operation = Operation::copy(source, destination, total_bytes, total_files);
+            let operation = Operation::copy_vfs(source, destination, total_bytes, total_files, source_vfs, dest_vfs);
             app.current_operation = Some(operation);
             
             app.dialog_state = Some(DialogState::Progress {
@@ -819,37 +841,52 @@ fn start_copy_operation_with_rename(app: &mut AppState) -> Result<()> {
 fn start_move_operation(app: &mut AppState) -> Result<()> {
     let dest_panel_path = app.inactive_panel().current_path.clone();
     
+    // Get VFS references from both panels
+    let source_vfs = app.active_panel().vfs.clone();
+    let dest_vfs = app.inactive_panel().vfs.clone();
+    
     // T951: Validate source files exist before starting operation
-    if app.has_selection() {
-        let marked_paths = app.selection_state.get_marked(app.active_panel);
-        for path in &marked_paths {
-            if !path.exists() {
-                let file_name = path.file_name()
-                    .and_then(|n| n.to_str())
-                    .unwrap_or("unknown");
-                app.show_error(format!("Archivo no encontrado: {}", file_name));
-                return Ok(());
+    // Only validate for local files (when source VFS is None)
+    if source_vfs.is_none() {
+        if app.has_selection() {
+            let marked_paths = app.selection_state.get_marked(app.active_panel);
+            for path in &marked_paths {
+                if !path.exists() {
+                    let file_name = path.file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("unknown");
+                    app.show_error(format!("Archivo no encontrado: {}", file_name));
+                    return Ok(());
+                }
             }
-        }
-    } else {
-        // Check single file exists
-        if let Some(entry) = app.active_panel().selected_entry() {
-            let source_path = app.active_panel().current_path.join(&entry.name);
-            if !source_path.exists() {
-                app.show_error(format!("Archivo no encontrado: {}", entry.name));
-                return Ok(());
+        } else {
+            // Check single file exists
+            if let Some(entry) = app.active_panel().selected_entry() {
+                let source_path = app.active_panel().current_path.join(&entry.name);
+                if !source_path.exists() {
+                    app.show_error(format!("Archivo no encontrado: {}", entry.name));
+                    return Ok(());
+                }
             }
         }
     }
     
     // T844: Check for collisions first
+    // For remote dest, use VFS exists check
     let collision_path = if app.has_selection() {
         // Check first marked item for collision
         let marked_paths = app.selection_state.get_marked(app.active_panel);
         marked_paths.iter().find_map(|path| {
             let file_name = path.file_name()?.to_string_lossy().to_string();
             let dest = dest_panel_path.join(&file_name);
-            if dest.exists() {
+            
+            let exists = if let Some(vfs) = &dest_vfs {
+                vfs.exists(&dest).unwrap_or(false)
+            } else {
+                dest.exists()
+            };
+            
+            if exists {
                 Some(dest.to_string_lossy().to_string())
             } else {
                 None
@@ -859,7 +896,14 @@ fn start_move_operation(app: &mut AppState) -> Result<()> {
         // Check single item
         app.active_panel().selected_entry().and_then(|entry| {
             let dest = dest_panel_path.join(&entry.name);
-            if dest.exists() {
+            
+            let exists = if let Some(vfs) = &dest_vfs {
+                vfs.exists(&dest).unwrap_or(false)
+            } else {
+                dest.exists()
+            };
+            
+            if exists {
                 Some(dest.to_string_lossy().to_string())
             } else {
                 None
@@ -887,17 +931,22 @@ fn start_move_operation(app: &mut AppState) -> Result<()> {
         let mut operations = Vec::new();
         
         for path in &marked_paths {
-            if let Ok(metadata) = std::fs::metadata(path) {
-                total_bytes += metadata.len();
-                if let Some(file_name) = path.file_name() {
-                    let file_name = file_name.to_string_lossy().to_string();
-                    let destination = dest_panel_path.join(&file_name);
-                    operations.push((path.clone(), destination, file_name));
-                }
+            // Get size using VFS if available
+            let size = if let Some(vfs) = &source_vfs {
+                vfs.metadata(path).map(|m| m.size).unwrap_or(0)
+            } else {
+                std::fs::metadata(path).map(|m| m.len()).unwrap_or(0)
+            };
+            
+            total_bytes += size;
+            if let Some(file_name) = path.file_name() {
+                let file_name = file_name.to_string_lossy().to_string();
+                let destination = dest_panel_path.join(&file_name);
+                operations.push((path.clone(), destination, file_name));
             }
         }
         
-        let operation = Operation::move_batch(operations, total_bytes, count);
+        let operation = Operation::move_batch_vfs(operations, total_bytes, count, source_vfs, dest_vfs);
         app.current_operation = Some(operation);
         
         app.dialog_state = Some(DialogState::Progress {
@@ -915,7 +964,7 @@ fn start_move_operation(app: &mut AppState) -> Result<()> {
             
             let total_files = 1; // Single file or directory
             
-            let operation = Operation::move_op(source, destination, total_bytes, total_files);
+            let operation = Operation::move_vfs(source, destination, total_bytes, total_files, source_vfs, dest_vfs);
             app.current_operation = Some(operation);
             
             app.dialog_state = Some(DialogState::Progress {
@@ -1490,26 +1539,34 @@ fn create_folder(app: &mut AppState, folder_name: &str) -> Result<()> {
 }
 
 fn start_delete_operation(app: &mut AppState) -> Result<()> {
+    // Get VFS reference if we're on a remote filesystem
+    let vfs = app.active_panel().vfs.clone();
+    
     // T951: Validate source files exist before starting operation
-    if app.has_selection() {
-        let marked_paths = app.selection_state.get_marked(app.active_panel);
-        for path in &marked_paths {
-            if !path.exists() {
-                let file_name = path.file_name()
-                    .and_then(|n| n.to_str())
-                    .unwrap_or("unknown");
-                app.show_error(format!("Archivo no encontrado: {}", file_name));
-                return Ok(());
+    // Only validate for local files (when VFS is None)
+    if vfs.is_none() {
+        if app.has_selection() {
+            let marked_paths = app.selection_state.get_marked(app.active_panel);
+            for path in &marked_paths {
+                if !path.exists() {
+                    let file_name = path.file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("unknown");
+                    app.show_error(format!("Archivo no encontrado: {}", file_name));
+                    return Ok(());
+                }
             }
+        } else {
+            // Check single file exists
+            if let Some(entry) = app.active_panel().selected_entry()
+                && !entry.path.exists() {
+                    app.show_error(format!("Archivo no encontrado: {}", entry.name));
+                    return Ok(());
+                }
         }
-    } else {
-        // Check single file exists
-        if let Some(entry) = app.active_panel().selected_entry()
-            && !entry.path.exists() {
-                app.show_error(format!("Archivo no encontrado: {}", entry.name));
-                return Ok(());
-            }
     }
+    // For remote files (vfs.is_some()), we skip the exists check
+    // The VFS delete operation will handle errors if files don't exist
     
     // T574: Check if we have marked items for batch delete
     if app.has_selection() {
@@ -1533,7 +1590,7 @@ fn start_delete_operation(app: &mut AppState) -> Result<()> {
             }
             
             let total_files = batch_items.len();
-            let operation = Operation::delete_batch(batch_items, total_bytes, total_files);
+            let operation = Operation::delete_batch_vfs(batch_items, total_bytes, total_files, vfs);
             app.current_operation = Some(operation);
             
             app.dialog_state = Some(DialogState::Progress {
@@ -1554,7 +1611,7 @@ fn start_delete_operation(app: &mut AppState) -> Result<()> {
         
         let total_files = 1; // Single file or directory (estimate)
         
-        let operation = Operation::delete(source, total_bytes, total_files);
+        let operation = Operation::delete_vfs(source, total_bytes, total_files, vfs);
         app.current_operation = Some(operation);
         
         // Show progress dialog
@@ -2421,6 +2478,367 @@ fn handle_goto_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
             }
             _ => {}
         }
+    }
+    
+    Ok(Action::None)
+}
+
+// Handle remote connection dialog
+fn handle_connection_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
+    use crate::ui::connection_dialog::ConnectionDialogState;
+    
+    let should_close = matches!(key.code, KeyCode::Esc);
+    
+    if let Some(DialogState::RemoteConnection { ref mut state }) = app.dialog_state {
+        match key.code {
+            KeyCode::Esc => {
+                // Will close below
+            }
+            _ => {
+                // Handle based on state type
+                match state {
+                    ConnectionDialogState::SavedConnections { selected, connections } => {
+                        match key.code {
+                            KeyCode::Up => {
+                                if *selected > 0 {
+                                    *selected -= 1;
+                                }
+                            }
+                            KeyCode::Down => {
+                                if *selected < connections.len().saturating_sub(1) {
+                                    *selected += 1;
+                                }
+                            }
+                            KeyCode::Char('n') | KeyCode::Char('N') => {
+                                // New connection
+                                *state = ConnectionDialogState::TypeSelection { selected: 0 };
+                            }
+                            KeyCode::Delete => {
+                                // Delete selected connection
+                                if let Ok(mut manager) = crate::remote::ConnectionManager::load() {
+                                    if let Err(e) = manager.remove(*selected) {
+                                        app.show_error(format!("Failed to delete connection: {}", e));
+                                    } else {
+                                        connections.remove(*selected);
+                                        if *selected >= connections.len() && *selected > 0 {
+                                            *selected -= 1;
+                                        }
+                                        if connections.is_empty() {
+                                            *state = ConnectionDialogState::TypeSelection { selected: 0 };
+                                        }
+                                    }
+                                }
+                            }
+                            KeyCode::Enter => {
+                                // Connect to selected
+                                if let Some(mut config) = connections.get(*selected).cloned() {
+                                    // Try to resolve password from keychain
+                                    let password_resolved = match config.resolve_password() {
+                                        Ok(Some(_pwd)) => {
+                                            log::info!("Successfully retrieved password from keychain");
+                                            true
+                                        }
+                                        Ok(None) => {
+                                            log::warn!("No password in keychain for this connection");
+                                            false
+                                        }
+                                        Err(e) => {
+                                            log::error!("Failed to resolve password: {}", e);
+                                            false
+                                        }
+                                    };
+                                    
+                                    if !password_resolved {
+                                        // Password not available, show error and ask user to enter it
+                                        app.show_error(format!(
+                                            "Contraseña no disponible para '{}'. Por favor, crea una nueva conexión con tus credenciales.",
+                                            config.name
+                                        ));
+                                        return Ok(Action::None);
+                                    }
+                                    
+                                    // Try to connect
+                                    use crate::remote::sftp::SftpFileSystem;
+                                    use std::sync::Arc;
+                                    
+                                    log::info!("Attempting to connect to saved connection: {}", config.name);
+                                    match SftpFileSystem::connect(config.clone()) {
+                                        Ok(sftp_fs) => {
+                                            log::info!("Connection successful!");
+                                            let vfs: Arc<dyn crate::remote::VirtualFileSystem> = Arc::new(sftp_fs);
+                                            let conn_info = format!("{}@{}", config.username, config.host);
+                                            let success_msg = format!("Connected to {}!", conn_info);
+                                            let initial_path = config.initial_path.clone().unwrap_or_else(|| std::path::PathBuf::from("/"));
+                                            
+                                            // Connect the active panel
+                                            app.active_panel_mut().connect_remote(vfs, conn_info, initial_path);
+                                            
+                                            // Refresh directory
+                                            if let Err(e) = app.active_panel_mut().refresh_entries() {
+                                                log::error!("Failed to refresh remote directory: {}", e);
+                                                app.error_message = Some(format!("Connected but failed to list directory: {}", e));
+                                            } else {
+                                                app.error_message = Some(success_msg);
+                                            }
+                                            
+                                            // Close dialog
+                                            app.dialog_state = None;
+                                        }
+                                        Err(e) => {
+                                            log::error!("Connection failed: {}", e);
+                                            app.show_error(format!("Connection failed: {}", e));
+                                        }
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                    ConnectionDialogState::TypeSelection { selected } => {
+                        match key.code {
+                            KeyCode::Up => {
+                                if *selected > 0 {
+                                    *selected -= 1;
+                                }
+                            }
+                            KeyCode::Down => {
+                                if *selected < 2 {  // 0=SFTP, 1=FTP, 2=FTPS
+                                    *selected += 1;
+                                }
+                            }
+                            KeyCode::Enter => {
+                                let conn_type = *selected;
+                                state.select_type(conn_type);
+                            }
+                            _ => {}
+                        }
+                    }
+                    ConnectionDialogState::SftpForm {
+                        selected_field,
+                        name,
+                        host,
+                        port,
+                        username,
+                        auth_type,
+                        password,
+                        key_path,
+                        save_credentials,
+                        error,
+                    } => {
+                        match key.code {
+                            KeyCode::Up => {
+                                if *selected_field > 0 {
+                                    *selected_field -= 1;
+                                }
+                            }
+                            KeyCode::Down => {
+                                if *selected_field < 6 {  // Updated max field
+                                    *selected_field += 1;
+                                }
+                            }
+                            KeyCode::Tab if *selected_field == 4 => {
+                                // Toggle auth type
+                                *auth_type = 1 - *auth_type;
+                            }
+                            KeyCode::Char(' ') if *selected_field == 6 => {
+                                // Toggle save_credentials checkbox
+                                *save_credentials = !*save_credentials;
+                            }
+                            KeyCode::Char(c) => {
+                                let field_value = match *selected_field {
+                                    0 => name,
+                                    1 => host,
+                                    2 => port,
+                                    3 => username,
+                                    5 if *auth_type == 0 => password,
+                                    5 => key_path,
+                                    _ => return Ok(Action::None),
+                                };
+                                field_value.push(c);
+                            }
+                            KeyCode::Backspace => {
+                                let field_value = match *selected_field {
+                                    0 => name,
+                                    1 => host,
+                                    2 => port,
+                                    3 => username,
+                                    5 if *auth_type == 0 => password,
+                                    5 => key_path,
+                                    _ => return Ok(Action::None),
+                                };
+                                field_value.pop();
+                            }
+                            KeyCode::Enter => {
+                                // Check if all required fields are filled
+                                let has_all_fields = !name.is_empty() && !host.is_empty() && !username.is_empty() &&
+                                    ((*auth_type == 0 && !password.is_empty()) || (*auth_type == 1 && !key_path.is_empty()));
+                                
+                                if has_all_fields {
+                                    // Try to connect to SFTP
+                                    use crate::remote::sftp::SftpFileSystem;
+                                    use crate::remote::{AuthMethod, ConnectionConfig, ConnectionType};
+                                    use std::sync::Arc;
+                                    use std::path::PathBuf;
+                                    
+                                    log::info!("Attempting SFTP connection to {}@{}:{}", username, host, port);
+                                    
+                                    let auth = if *auth_type == 0 {
+                                        AuthMethod::Password {
+                                            password: Some(password.clone()),
+                                            stored: *save_credentials,
+                                        }
+                                    } else {
+                                        AuthMethod::PublicKey {
+                                            key_path: PathBuf::from(key_path.clone()),
+                                            passphrase: if password.is_empty() { None } else { Some(password.clone()) },
+                                            stored: *save_credentials,
+                                        }
+                                    };
+                                    
+                                    let port_num: u16 = port.parse().unwrap_or(22);
+                                    
+                                    let config = ConnectionConfig {
+                                        name: name.clone(),
+                                        connection_type: ConnectionType::Sftp,
+                                        host: host.clone(),
+                                        port: port_num,
+                                        username: username.clone(),
+                                        auth,
+                                        initial_path: Some(PathBuf::from("/")),
+                                    };
+                                    
+                                    // Save password to keychain if requested
+                                    if *save_credentials {
+                                        if let Err(e) = config.store_password(password) {
+                                            log::warn!("Failed to store password in keychain: {}", e);
+                                        }
+                                    }
+                                    
+                                    // Try to connect (blocking operation - will freeze UI)
+                                    log::info!("Calling SftpFileSystem::connect...");
+                                    match SftpFileSystem::connect(config.clone()) {
+                                        Ok(sftp_fs) => {
+                                            log::info!("SFTP connection successful!");
+                                            
+                                            // Save connection config
+                                            if *save_credentials {
+                                                if let Ok(mut manager) = crate::remote::ConnectionManager::load() {
+                                                    if let Err(e) = manager.add(config) {
+                                                        log::warn!("Failed to save connection: {}", e);
+                                                    }
+                                                }
+                                            }
+                                            
+                                            let vfs: Arc<dyn crate::remote::VirtualFileSystem> = Arc::new(sftp_fs);
+                                            let conn_info = format!("{}@{}", username, host);
+                                            let success_msg = format!("Connected to {}!", conn_info);
+                                            let initial_path = PathBuf::from("/");
+                                            
+                                            // Drop the borrow on state before modifying app
+                                            let _ = state;
+                                            
+                                            // Connect the active panel
+                                            app.active_panel_mut().connect_remote(vfs, conn_info, initial_path);
+                                            
+                                            // Immediately refresh to load directory contents
+                                            if let Err(e) = app.active_panel_mut().refresh_entries() {
+                                                log::error!("Failed to refresh remote directory after connect: {}", e);
+                                                app.error_message = Some(format!("Connected but failed to list directory: {}", e));
+                                            } else {
+                                                app.error_message = Some(success_msg);
+                                            }
+                                            
+                                            app.close_dialog();
+                                            return Ok(Action::Refresh);
+                                        }
+                                        Err(e) => {
+                                            log::error!("SFTP connection failed: {}", e);
+                                            *error = Some(format!("Connection failed: {}", e));
+                                        }
+                                    }
+                                } else {
+                                    *error = Some("Please fill all required fields".to_string());
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                    ConnectionDialogState::FtpForm {
+                        selected_field,
+                        name,
+                        host,
+                        port,
+                        username,
+                        password,
+                        use_tls,
+                        save_credentials,
+                        error,
+                    } => {
+                        match key.code {
+                            KeyCode::Up => {
+                                if *selected_field > 0 {
+                                    *selected_field -= 1;
+                                }
+                            }
+                            KeyCode::Down => {
+                                if *selected_field < 6 {  // Updated max field
+                                    *selected_field += 1;
+                                }
+                            }
+                            KeyCode::Tab if *selected_field == 5 => {
+                                // Toggle TLS
+                                *use_tls = !*use_tls;
+                            }
+                            KeyCode::Char(' ') if *selected_field == 6 => {
+                                // Toggle save_credentials checkbox
+                                *save_credentials = !*save_credentials;
+                            }
+                            KeyCode::Char(c) => {
+                                let field_value = match *selected_field {
+                                    0 => name,
+                                    1 => host,
+                                    2 => port,
+                                    3 => username,
+                                    4 => password,
+                                    _ => return Ok(Action::None),
+                                };
+                                field_value.push(c);
+                            }
+                            KeyCode::Backspace => {
+                                let field_value = match *selected_field {
+                                    0 => name,
+                                    1 => host,
+                                    2 => port,
+                                    3 => username,
+                                    4 => password,
+                                    _ => return Ok(Action::None),
+                                };
+                                field_value.pop();
+                            }
+                            KeyCode::Enter => {
+                                // Check if all required fields are filled
+                                let has_all_fields = !name.is_empty() && !host.is_empty() && !username.is_empty() && !password.is_empty();
+                                
+                                if has_all_fields {
+                                    // Close dialog and show success
+                                    let msg = format!("FTP connection '{}' configured!", name);
+                                    app.error_message = Some(msg);
+                                    app.close_dialog();
+                                    return Ok(Action::None);
+                                } else {
+                                    *error = Some("Please fill all required fields".to_string());
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    if should_close {
+        app.close_dialog();
     }
     
     Ok(Action::None)

@@ -8,3 +8,4 @@ pub mod app;
 pub mod preview;
 pub mod archive;
 pub mod search;
+pub mod remote;

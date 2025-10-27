@@ -13,6 +13,7 @@ categories = ["command-line-utilities", "filesystem"]
 ratatui = "0.29.0"
 crossterm = "0.29.0"
 tokio = { version = "1.35", features = ["full"] }
+async-trait = "0.1"  # For async trait definitions
 walkdir = "2.5"
 humansize = "2.1"
 serde = { version = "1.0", features = ["derive"] }
@@ -40,6 +41,12 @@ sevenz-rust = "0.6.1"
 fs2 = "0.4"
 # US3: Unicode width calculation for proper emoji alignment
 unicode-width = "0.2.0"
+# Remote connections: SFTP, SMB, FTP
+ssh2 = "0.9"  # SFTP support via libssh2
+suppaftp = { version = "6.0", features = ["secure"] }  # FTP/FTPS support
+base64 = "0.22"  # For known_hosts file encoding
+keyring = { version = "3.6", features = ["windows-native", "sync-secret-service"] }  # Secure credential storage using OS keychain
+# SMB support will be added later (no stable Rust library available yet)
 
 [dev-dependencies]
 tempfile = "3.8"

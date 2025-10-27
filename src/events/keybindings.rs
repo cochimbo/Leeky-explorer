@@ -35,6 +35,7 @@ pub enum Action {
     ToggleHistoryViewer, // Ctrl+H to toggle navigation history
     ToggleGoToPath,   // Ctrl+G to toggle Go To Path dialog
     OpenRecursiveSearch, // Ctrl+Shift+F to open recursive search dialog
+    OpenRemoteConnection, // Ctrl+N to open remote connection dialog
     ScrollPreviewUp,
     ScrollPreviewDown,
     PagePreviewUp,
@@ -113,6 +114,10 @@ pub fn map_key_to_action(key: KeyEvent) -> Action {
         }
         (KeyCode::Char('g'), KeyModifiers::CONTROL) | (KeyCode::Char('G'), KeyModifiers::CONTROL) if !has_shift => {
             Action::ToggleGoToPath
+        }
+        // Remote connections - Ctrl+M
+        (KeyCode::Char('m'), KeyModifiers::CONTROL) | (KeyCode::Char('M'), KeyModifiers::CONTROL) if !has_shift => {
+            Action::OpenRemoteConnection
         }
         // Selection - Ctrl+A without Shift
         (KeyCode::Char('a'), _) | (KeyCode::Char('A'), _) if has_ctrl && !has_shift => Action::SelectAll,

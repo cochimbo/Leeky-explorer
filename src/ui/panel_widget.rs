@@ -31,19 +31,32 @@ pub fn render_panel(
     // TASK-013: Add disk free space info
     let selected_count = selection_state.count(panel_side);
     
-    // Get disk space info for current path
-    let disk_info_str = match get_disk_space(&panel.current_path) {
-        Ok(info) => format!(" | Free: {}", format_size(info.free_bytes)),
-        Err(_) => String::new(), // Don't show if error
+    // Get disk space info for current path (not shown for remote connections)
+    let disk_info_str = if panel.is_remote() {
+        String::new()
+    } else {
+        match get_disk_space(&panel.current_path) {
+            Ok(info) => format!(" | Free: {}", format_size(info.free_bytes)),
+            Err(_) => String::new(), // Don't show if error
+        }
+    };
+    
+    // Add remote connection indicator
+    let remote_indicator = if let Some(conn_info) = &panel.connection_info {
+        format!(" 📡 {} ", conn_info)
+    } else {
+        String::new()
     };
     
     let title = if selected_count > 0 {
-        format!(" {} ({} seleccionados){} ", 
+        format!("{}{} ({} seleccionados){} ", 
+            remote_indicator,
             panel.current_path.display(), 
             selected_count,
             disk_info_str)
     } else {
-        format!(" {}{} ", 
+        format!("{}{}{} ", 
+            remote_indicator,
             panel.current_path.display(),
             disk_info_str)
     };

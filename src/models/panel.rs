@@ -1,9 +1,14 @@
 // Panel data structure
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::{Instant, SystemTime};
 use super::file_entry::FileEntry;
 use anyhow::Result;
 use glob::Pattern;
+use crate::remote::VirtualFileSystem;
+
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
 
 /// Navigation history for a panel (last 20 visited directories)
 #[derive(Debug, Clone)]
@@ -59,7 +64,7 @@ impl NavigationHistory {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Panel {
     pub current_path: PathBuf,
     pub entries: Vec<FileEntry>,
@@ -79,6 +84,9 @@ pub struct Panel {
     pub scroll_pause_until: Option<Instant>, // Pause scrolling until this time (for loop restart delay)
     pub history: NavigationHistory,          // Navigation history (last 20 dirs)
     pub last_modified: Option<SystemTime>,   // Auto-refresh: Last modified time of current directory
+    // Remote filesystem support
+    pub vfs: Option<Arc<dyn VirtualFileSystem>>, // Virtual filesystem (None = local, Some = remote)
+    pub connection_info: Option<String>,     // Display string for remote connection (e.g., "user@host")
 }
 
 impl Panel {
@@ -104,6 +112,8 @@ impl Panel {
             scroll_pause_until: None,
             history,
             last_modified: None,
+            vfs: None,              // Start with local filesystem
+            connection_info: None,  // No remote connection initially
         }
     }
 
@@ -214,14 +224,116 @@ impl Panel {
     }
 
     pub fn refresh_entries(&mut self) -> Result<()> {
-        let entries = crate::fs::navigator::read_dir(&self.current_path)?;
-        self.entries = entries;
-        
-        // Update last_modified timestamp
-        if let Ok(metadata) = std::fs::metadata(&self.current_path)
-            && let Ok(modified) = metadata.modified() {
-                self.last_modified = Some(modified);
-            }
+        // Use VFS if connected to remote, otherwise use local filesystem
+        if let Some(vfs) = &self.vfs {
+            // Remote filesystem - use VFS (sync operations)
+            log::info!("Refreshing remote directory: {:?}", self.current_path);
+            
+            use crate::remote::VfsEntryType;
+            use crate::models::file_entry::{FileEntry, EntryType};
+            
+            let vfs_entries = match vfs.list_dir(&self.current_path) {
+                Ok(entries) => {
+                    log::info!("Successfully got {} entries from VFS", entries.len());
+                    entries
+                }
+                Err(e) => {
+                    log::error!("Failed to list remote directory: {}", e);
+                    return Err(e);
+                }
+            };
+            
+            // Convert VfsEntry to FileEntry
+            self.entries = vfs_entries.into_iter().map(|ve| {
+                let entry_type = match ve.entry_type {
+                    VfsEntryType::Directory => EntryType::Dir,
+                    VfsEntryType::File => EntryType::File,
+                    VfsEntryType::Symlink => EntryType::Symlink,
+                };
+                
+                let extension = if entry_type == EntryType::File {
+                    ve.name.rfind('.').map(|i| ve.name[i+1..].to_string())
+                } else {
+                    None
+                };
+                
+                // Convert Unix permissions to std::fs::Permissions
+                let perms = {
+                    #[cfg(unix)]
+                    {
+                        std::fs::Permissions::from_mode(ve.permissions)
+                    }
+                    #[cfg(windows)]
+                    {
+                        // On Windows, approximate: if writable bit set, not readonly
+                        let temp_path = std::env::temp_dir();
+                        let mut p = std::fs::metadata(&temp_path)
+                            .map(|m| m.permissions())
+                            .unwrap_or_else(|_| {
+                                // Create a default writable permission
+                                let mut perm = std::fs::OpenOptions::new()
+                                    .write(true)
+                                    .create(true)
+                                    .open(temp_path.join("_temp_perm_check"))
+                                    .and_then(|f| f.metadata())
+                                    .map(|m| m.permissions())
+                                    .unwrap_or_else(|_| {
+                                        // Ultimate fallback: use current dir
+                                        std::fs::metadata(".")
+                                            .map(|m| m.permissions())
+                                            .unwrap()
+                                    });
+                                perm.set_readonly(false);
+                                perm
+                            });
+                        p.set_readonly((ve.permissions & 0o200) == 0); // Check owner write bit
+                        p
+                    }
+                };
+                
+                #[cfg(windows)]
+                {
+                    FileEntry::new(
+                        ve.name,
+                        entry_type,
+                        ve.size,
+                        ve.modified,
+                        Some(ve.modified),
+                        extension,
+                        perms,
+                        ve.path,
+                        None, // No Windows attributes for remote files
+                    )
+                }
+                
+                #[cfg(not(windows))]
+                {
+                    FileEntry::new(
+                        ve.name,
+                        entry_type,
+                        ve.size,
+                        ve.modified,
+                        Some(ve.modified),
+                        extension,
+                        perms,
+                        ve.path,
+                    )
+                }
+            }).collect();
+            
+            // For remote, we can't track directory changes
+            self.last_modified = None;
+        } else {
+            // Local filesystem
+            let entries = crate::fs::navigator::read_dir(&self.current_path)?;
+            self.entries = entries;
+            
+            // Update last_modified timestamp
+            if let Ok(metadata) = std::fs::metadata(&self.current_path)
+                && let Ok(modified) = metadata.modified() {
+                    self.last_modified = Some(modified);
+                }
+        }
         
         // Ensure cursor is within bounds after refresh
         if self.cursor >= self.entries.len() && !self.entries.is_empty() {
@@ -277,23 +389,41 @@ impl Panel {
 
     // T112b: Navigate up and position cursor on previous directory
     pub fn go_up(&mut self) -> Result<()> {
-        if let Some(parent) = self.current_path.parent() {
-            // Remember the current directory name before going up
-            let previous_dir_name = self.current_path
-                .file_name()
-                .and_then(|name| name.to_str())
-                .map(|s| s.to_string());
+        // For remote filesystems, handle path navigation carefully
+        // to preserve Unix-style paths (forward slashes)
+        if self.vfs.is_some() {
+            // Remote filesystem: manually handle path navigation with forward slashes
+            let current_str = self.current_path.to_string_lossy().to_string();
             
-            let parent_path = parent.to_path_buf();
+            // Split by forward slash and remove last component
+            let mut parts: Vec<&str> = current_str.split('/').filter(|s| !s.is_empty()).collect();
+            
+            if parts.is_empty() {
+                // Already at root
+                return Ok(());
+            }
+            
+            // Remember current directory name
+            let previous_dir_name = parts.last().map(|s| s.to_string());
+            
+            // Remove last component to go up
+            parts.pop();
+            
+            // Rebuild path with forward slashes
+            let parent_path = if parts.is_empty() {
+                PathBuf::from("/")
+            } else {
+                PathBuf::from(format!("/{}", parts.join("/")))
+            };
+            
             self.current_path = parent_path.clone();
-            self.history.push(parent_path); // Add to history
+            self.history.push(parent_path);
             
             // Clear any active filter when going up to parent directory
             self.filter = None;
             
-            // Refresh entries to load parent directory contents
-            let entries = crate::fs::navigator::read_dir(&self.current_path)?;
-            self.entries = entries;
+            // Refresh entries to load parent directory contents (uses VFS)
+            self.refresh_entries()?;
             
             // Reset cursor and scroll initially
             self.cursor = 0;
@@ -306,6 +436,38 @@ impl Panel {
                     // Adjust scroll if needed to ensure the cursor is visible
                     self.adjust_scroll_for_cursor();
                 }
+        } else {
+            // Local filesystem: use standard PathBuf navigation
+            if let Some(parent) = self.current_path.parent() {
+                // Remember the current directory name before going up
+                let previous_dir_name = self.current_path
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .map(|s| s.to_string());
+                
+                let parent_path = parent.to_path_buf();
+                self.current_path = parent_path.clone();
+                self.history.push(parent_path); // Add to history
+                
+                // Clear any active filter when going up to parent directory
+                self.filter = None;
+                
+                // Refresh entries to load parent directory contents
+                let entries = crate::fs::navigator::read_dir(&self.current_path)?;
+                self.entries = entries;
+                
+                // Reset cursor and scroll initially
+                self.cursor = 0;
+                self.scroll_offset = 0;
+                
+                // T112b: Position cursor on the directory we came from
+                if let Some(dir_name) = previous_dir_name
+                    && let Some(index) = self.entries.iter().position(|entry| entry.name == dir_name) {
+                        self.cursor = index;
+                        // Adjust scroll if needed to ensure the cursor is visible
+                        self.adjust_scroll_for_cursor();
+                    }
+            }
         }
         Ok(())
     }
@@ -517,5 +679,34 @@ impl Panel {
         }
 
         true // Need refresh
+    }
+    
+    /// Check if this panel is connected to a remote filesystem
+    pub fn is_remote(&self) -> bool {
+        self.vfs.is_some()
+    }
+    
+    /// Connect this panel to a remote filesystem
+    pub fn connect_remote(&mut self, vfs: Arc<dyn VirtualFileSystem>, info: String, initial_path: PathBuf) {
+        self.vfs = Some(vfs);
+        self.connection_info = Some(info);
+        self.current_path = initial_path;
+        self.entries.clear();
+        self.cursor = 0;
+        self.scroll_offset = 0;
+        self.history.clear();
+        self.history.push(self.current_path.clone());
+    }
+    
+    /// Disconnect from remote filesystem and return to local
+    pub fn disconnect_remote(&mut self, fallback_path: PathBuf) {
+        self.vfs = None;
+        self.connection_info = None;
+        self.current_path = fallback_path;
+        self.entries.clear();
+        self.cursor = 0;
+        self.scroll_offset = 0;
+        self.history.clear();
+        self.history.push(self.current_path.clone());
     }
 }

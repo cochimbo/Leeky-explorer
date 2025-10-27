@@ -1,5 +1,7 @@
 use crate::search::{RecursiveSearcher, SearchResult};
+use crate::remote::VirtualFileSystem;
 use crate::ui::theme::Theme;
+use std::sync::Arc;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -29,13 +31,14 @@ pub struct SearchDialog {
     files_scanned: usize,
     searcher: Option<RecursiveSearcher>,
     root_path: PathBuf,
+    vfs: Option<Arc<dyn VirtualFileSystem>>,
     // TASK-041: Debouncing
     last_input_time: Option<Instant>,
     pending_search: bool,
 }
 
 impl SearchDialog {
-    pub fn new(root_path: PathBuf) -> Self {
+    pub fn new(root_path: PathBuf, vfs: Option<Arc<dyn VirtualFileSystem>>) -> Self {
         Self {
             input: String::new(),
             results: Vec::new(),
@@ -45,6 +48,7 @@ impl SearchDialog {
             files_scanned: 0,
             searcher: None,
             root_path,
+            vfs,
             last_input_time: None,
             pending_search: false,
         }
@@ -297,7 +301,7 @@ impl SearchDialog {
         }
         
         // Start new search
-        let searcher = RecursiveSearcher::new(self.input.clone(), self.root_path.clone());
+        let searcher = RecursiveSearcher::new(self.input.clone(), self.root_path.clone(), self.vfs.clone());
         searcher.start_search();
         
         self.searcher = Some(searcher);
@@ -350,7 +354,7 @@ mod tests {
     
     #[test]
     fn test_dialog_creation() {
-        let dialog = SearchDialog::new(PathBuf::from("/test"));
+        let dialog = SearchDialog::new(PathBuf::from("/test"), None);
         assert_eq!(dialog.input, "");
         assert_eq!(dialog.results.len(), 0);
         assert!(!dialog.is_searching);

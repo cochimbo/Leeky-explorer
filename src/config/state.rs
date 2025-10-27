@@ -54,6 +54,7 @@ impl Default for PersistedState {
 impl PersistedState {
     /// Load state from JSON file
     /// Returns default state if file doesn't exist or can't be read
+    /// Validates that paths exist before using them
     pub fn load() -> Result<Self> {
         let state_path = get_state_file_path()?;
         
@@ -66,8 +67,19 @@ impl PersistedState {
         let contents = fs::read_to_string(&state_path)
             .context("Failed to read state file")?;
         
-        let state: PersistedState = serde_json::from_str(&contents)
+        let mut state: PersistedState = serde_json::from_str(&contents)
             .context("Failed to parse state file")?;
+        
+        // Validate paths exist - if not, use home directory
+        let home_dir = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
+        
+        if !state.left_panel_path.exists() {
+            state.left_panel_path = home_dir.clone();
+        }
+        
+        if !state.right_panel_path.exists() {
+            state.right_panel_path = home_dir.clone();
+        }
         
         Ok(state)
     }

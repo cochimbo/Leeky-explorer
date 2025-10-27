@@ -1,6 +1,8 @@
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::SystemTime;
 use anyhow::Result;
+use crate::remote::VirtualFileSystem;
 
 // TASK-041: Performance optimizations
 const MAX_RESULTS: usize = 500; // Stop search after finding this many results
@@ -81,11 +83,12 @@ pub struct SearchState {
     pub files_scanned: usize,
     pub use_glob: bool,
     pub max_depth: usize,
+    pub vfs: Option<Arc<dyn VirtualFileSystem>>,
 }
 
 impl SearchState {
     /// Create a new search state
-    pub fn new(query: String, root_path: PathBuf) -> Self {
+    pub fn new(query: String, root_path: PathBuf, vfs: Option<Arc<dyn VirtualFileSystem>>) -> Self {
         let use_glob = Self::is_glob_pattern(&query);
         
         Self {
@@ -96,6 +99,7 @@ impl SearchState {
             files_scanned: 0,
             use_glob,
             max_depth: 20, // Default max depth
+            vfs,
         }
     }
     
@@ -113,8 +117,8 @@ pub struct RecursiveSearcher {
 
 impl RecursiveSearcher {
     /// Create a new recursive searcher
-    pub fn new(query: String, root_path: PathBuf) -> Self {
-        let state = SearchState::new(query, root_path);
+    pub fn new(query: String, root_path: PathBuf, vfs: Option<Arc<dyn VirtualFileSystem>>) -> Self {
+        let state = SearchState::new(query, root_path, vfs);
         
         Self {
             state: std::sync::Arc::new(std::sync::Mutex::new(state)),
@@ -368,7 +372,7 @@ mod tests {
     
     #[test]
     fn test_search_state_initialization() {
-        let state = SearchState::new("*.rs".to_string(), PathBuf::from("/test"));
+        let state = SearchState::new("*.rs".to_string(), PathBuf::from("/test"), None);
         
         assert_eq!(state.query, "*.rs");
         assert_eq!(state.root_path, PathBuf::from("/test"));
@@ -381,7 +385,7 @@ mod tests {
     
     #[test]
     fn test_search_state_simple_query() {
-        let state = SearchState::new("simple".to_string(), PathBuf::from("/test"));
+        let state = SearchState::new("simple".to_string(), PathBuf::from("/test"), None);
         
         assert!(!state.use_glob);
     }
@@ -395,7 +399,7 @@ mod tests {
         fs::write(temp.path().join("test2.txt"), "content").unwrap();
         fs::write(temp.path().join("other.rs"), "content").unwrap();
         
-        let searcher = RecursiveSearcher::new("test".to_string(), temp.path().to_path_buf());
+        let searcher = RecursiveSearcher::new("test".to_string(), temp.path().to_path_buf(), None);
         searcher.start_search().join().unwrap();
         
         let results = searcher.get_results();
@@ -418,7 +422,7 @@ mod tests {
         fs::write(subdir.join("file2.txt"), "content").unwrap();
         fs::write(nested.join("file3.txt"), "content").unwrap();
         
-        let searcher = RecursiveSearcher::new("file".to_string(), temp.path().to_path_buf());
+        let searcher = RecursiveSearcher::new("file".to_string(), temp.path().to_path_buf(), None);
         searcher.start_search().join().unwrap();
         
         let results = searcher.get_results();
@@ -434,7 +438,7 @@ mod tests {
         fs::write(temp.path().join("test.txt"), "content").unwrap();
         fs::write(temp.path().join("another.rs"), "content").unwrap();
         
-        let searcher = RecursiveSearcher::new("*.rs".to_string(), temp.path().to_path_buf());
+        let searcher = RecursiveSearcher::new("*.rs".to_string(), temp.path().to_path_buf(), None);
         searcher.start_search().join().unwrap();
         
         let results = searcher.get_results();
@@ -451,7 +455,7 @@ mod tests {
             fs::write(temp.path().join(format!("file{}.txt", i)), "content").unwrap();
         }
         
-        let searcher = RecursiveSearcher::new("file".to_string(), temp.path().to_path_buf());
+        let searcher = RecursiveSearcher::new("file".to_string(), temp.path().to_path_buf(), None);
         let handle = searcher.start_search();
         
         // Cancel immediately
@@ -476,7 +480,7 @@ mod tests {
             fs::write(current.join("file.txt"), "content").unwrap();
         }
         
-        let searcher = RecursiveSearcher::new("file".to_string(), temp.path().to_path_buf());
+        let searcher = RecursiveSearcher::new("file".to_string(), temp.path().to_path_buf(), None);
         searcher.start_search().join().unwrap();
         
         let results = searcher.get_results();
@@ -501,7 +505,7 @@ mod tests {
         // Create file in main directory
         fs::write(temp.path().join("found.txt"), "content").unwrap();
         
-        let searcher = RecursiveSearcher::new("txt".to_string(), temp.path().to_path_buf());
+        let searcher = RecursiveSearcher::new("txt".to_string(), temp.path().to_path_buf(), None);
         searcher.start_search().join().unwrap();
         
         let results = searcher.get_results();
