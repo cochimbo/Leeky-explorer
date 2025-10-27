@@ -3,6 +3,7 @@
 pub mod collision;
 pub mod dialogs;
 pub mod file_operations;
+pub mod modes;
 pub mod navigation;
 
 // Re-export commonly used functions
@@ -20,4 +21,10 @@ pub use file_operations::{
     start_move_operation_skip_check,
     start_move_operation_with_rename,
     start_delete_operation,
+};
+
+pub use modes::{
+    handle_search_mode,
+    handle_preview_mode,
+    handle_editor_mode,
 };
