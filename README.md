@@ -13,6 +13,12 @@ A fast, dual-pane terminal file manager built with Rust and Ratatui.
 - **Dual-Pane Navigation**: Classic two-panel interface for efficient file management
 - **Fast & Responsive**: Built with Rust for maximum performance
 - **🎨 Theme System**: Choose from 8 beautiful built-in themes with live preview (F12)
+- **📚 Bookmarks**: Save and quickly access frequently used directories (Ctrl+D to add, Ctrl+B to manage)
+- **🔍 Text Editor**: Built-in text editor with syntax highlighting and undo/redo (F4 on text files)
+- **🔎 Recursive Search**: Search files across entire directory trees with glob pattern support (Ctrl+F)
+- **⏱️ Navigation History**: Go back/forward through visited directories (Alt+Left/Right)
+- **↗️ Go To Path**: Jump directly to any directory path (Ctrl+G)
+- **🔄 Auto-Refresh**: Automatically detects external directory changes every 5 seconds
 - **Archive Support**: Extract and create ZIP, TAR.GZ, TAR.BZ2, TAR.XZ, and 7Z archives
 - **Password Protection**: Encrypt/decrypt ZIP archives with passwords
 - **File Preview**: View text files and images directly in the terminal (ASCII art)
@@ -202,20 +208,35 @@ make package
 | `F3` (again) | Clear filter and exit search |
 | `Shift+F3` | Clear search pattern and filter |
 | `Esc` | Clear filter (in search mode) |
+| `Ctrl+F` | Recursive search in current directory |
 | Any character | Filter files by pattern (while in search mode) |
 
-**Search supports**:
+**Local Search (F3)** supports:
 - Glob patterns: `*.rs`, `test*`, `file?.txt`
 - Case-insensitive matching
-- Real-time filtering
+- Real-time filtering of current directory
+
+**Recursive Search (Ctrl+F)** features:
+- Search through entire directory trees
+- Glob pattern support (`*.txt`, `test*`, `**/*.rs`)
+- Real-time results as search progresses
+- Shows file size, location, and match count
+- Press Enter to navigate to found file
+- Press Esc to cancel search
 
 ### System & Customization
 
 | Key | Action |
 |-----|--------|
-| `F4` | Preview file (text/image) |
+| `F4` | Preview file (text/image) or Edit text file |
 | `F10` | Drive selector (Windows) |
 | `F12` | Theme selector with live preview |
+| `Ctrl+B` | Bookmark manager |
+| `Ctrl+D` | Add current directory to bookmarks |
+| `Ctrl+G` | Go to path dialog |
+| `Alt+Left` | Navigate backward in history |
+| `Alt+Right` | Navigate forward in history |
+| `Ctrl+H` | Show navigation history |
 
 **Built-in Themes**:
 - 🌟 Classic (default)
@@ -227,11 +248,17 @@ make package
 - 🌅 Solarized Dark
 - 🌄 Solarized Light
 
+**Bookmarks**:
+- Save up to 50 favorite directories
+- Quick access with custom names
+- Sorted by most recently accessed
+- Persistent across sessions
+
 ### Preview Mode
 
 | Key | Action |
 |-----|--------|
-| `F4` | Open file preview (on file) |
+| `F4` | Open file preview/editor (on file) |
 | `Esc` / `q` | Close preview |
 | `↑` / `k` | Scroll up |
 | `↓` / `j` | Scroll down |
@@ -239,6 +266,14 @@ make package
 | `Page Down` | Scroll down one page |
 | `Home` | Jump to start |
 | `End` | Jump to end |
+
+**Text Editor Mode (F4 on text files)**:
+- Full-featured text editing with line numbers
+- Ctrl+S to save changes
+- Unsaved changes warning on exit
+- Undo/Redo support
+- Read-only mode for protected files
+- External modification detection
 
 **Supported Formats**:
 - **Text**: .txt, .md, .rs, .json, .toml, .yml, README, LICENSE, etc.
@@ -294,10 +329,55 @@ make package
 
 ### Search/Filter
 
-1. Press `/` to start search
+**Local Search (F3)**:
+1. Press `F3` to start search mode
 2. Type pattern (e.g., `*.rs` for Rust files)
 3. Results update in real-time
 4. Press `Esc` to clear filter
+
+**Recursive Search (Ctrl+F)**:
+1. Press `Ctrl+F` to start recursive search
+2. Type search pattern (e.g., `*.txt` or `test*`)
+3. Results appear in real-time with location and size
+4. Press Enter on result to navigate to file
+5. Press Esc to close search dialog
+
+### Bookmarks
+
+**Add Bookmark**:
+1. Navigate to directory you want to bookmark
+2. Press `Ctrl+D`
+3. Enter a memorable name
+4. Bookmark saved!
+
+**Use Bookmarks**:
+1. Press `Ctrl+B` to open bookmark manager
+2. Use arrow keys to select bookmark
+3. Press Enter to navigate
+4. Press `d` to delete, `r` to rename
+
+### Navigation History
+
+1. Navigate through directories normally
+2. Press `Alt+Left` to go back
+3. Press `Alt+Right` to go forward
+4. Press `Ctrl+H` to see full history list
+
+### Go To Path
+
+1. Press `Ctrl+G`
+2. Type absolute or relative path
+3. Supports `~` for home directory
+4. Supports environment variables (`%USERPROFILE%` on Windows, `$HOME` on Unix)
+5. Press Enter to navigate
+
+### Edit Text Files
+
+1. Navigate to text file (`.txt`, `.md`, `.rs`, etc.)
+2. Press `F4`
+3. Edit using arrow keys and typing
+4. Press `Ctrl+S` to save
+5. Press `Esc` to exit (warns if unsaved changes)
 
 ### Create Archive
 
