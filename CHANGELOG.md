@@ -5,6 +5,99 @@ All notable changes to Leeky Explorer will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2025-10-27
+
+### Added
+- **Bookmark System (TASK-001 to TASK-011)**:
+  - Save up to 50 favorite directories with custom names
+  - Ctrl+D to quickly bookmark current directory
+  - Ctrl+B to open bookmark manager dialog
+  - Navigate, rename, and delete bookmarks
+  - Sorted by most recently accessed
+  - Persistent storage in config file
+  - Visual indicators (⭐) for bookmarked directories
+
+- **Text Editor (TASK-026 to TASK-028, TASK-032)**:
+  - Built-in text editor with line numbers
+  - Ctrl+S to save changes
+  - Full cursor navigation and editing support
+  - Undo/Redo functionality
+  - Unsaved changes warning on exit
+  - Read-only mode for protected files
+  - External modification detection
+  - Binary file rejection with warnings
+  - Large file (>1MB) warning
+  - UTF-8 support with emoji and unicode
+  - 17 comprehensive integration tests
+
+- **Recursive Search (TASK-029 to TASK-031, TASK-042)**:
+  - Ctrl+F to search files across entire directory trees
+  - Glob pattern support (`*.txt`, `test*`, `**/*.rs`)
+  - Real-time results as search progresses
+  - Shows file size, location, and files scanned count
+  - Press Enter on result to navigate to file
+  - Press Esc to cancel ongoing search
+  - Background thread execution for non-blocking UI
+  - Respects max depth (10 levels) and result limits (1000 files)
+  - Auto-scroll in search results list
+  - 15 integration tests for search functionality
+
+- **Navigation History (TASK-014 to TASK-019)**:
+  - Alt+Left to go back through visited directories
+  - Alt+Right to go forward in history
+  - Ctrl+H to view full navigation history dialog
+  - Independent history per panel (up to 50 entries each)
+  - Avoids consecutive duplicates
+  - Cleans up invalid/deleted paths automatically
+  - 14 integration tests for history tracking
+
+- **Go To Path Dialog (TASK-020 to TASK-025)**:
+  - Ctrl+G to quickly jump to any directory
+  - Supports absolute and relative paths
+  - Tilde (`~`) expansion for home directory
+  - Environment variable expansion (`%USERPROFILE%`, `$HOME`)
+  - Path validation and error messages
+  - Adds visited paths to navigation history
+  - Cross-platform path handling
+  - 14 integration tests for path navigation
+
+- **Disk Usage Indicator (TASK-012 to TASK-013)**:
+  - Shows available/total disk space in footer
+  - Visual progress bar with color coding
+  - Warning colors for low disk space (<10% = red, <20% = yellow)
+  - Per-panel disk info display
+  - Drive label on Windows (C:, D:, etc.)
+
+- **Auto-Refresh**:
+  - Automatically detects external directory changes every 5 seconds
+  - Polling-based implementation with minimal performance impact
+  - Preserves cursor position when file still exists after refresh
+  - Clears selection state when active panel refreshes
+  - Directory timestamp tracking for change detection
+
+### Changed
+- **Search Dialog (TASK-040)**: Fixed auto-scroll when navigating beyond visible items
+- **Footer Layout**: Updated to show Ctrl+B (Bookmarks) and Ctrl+F (Search) keybindings
+- **Config File**: Extended to store bookmarks, history, and editor state
+
+### Technical
+- Added `SelectionState` model for independent panel selection tracking
+- Added `BookmarkManager` with LRU-style access tracking
+- Added `NavigationHistory` with bidirectional navigation
+- Added `TextEditor` widget with tui-textarea integration
+- Added `RecursiveSearch` with background thread execution
+- Added `GotoPathDialog` with path validation and expansion
+- Refactored `Panel` to track directory modification timestamps
+- Total test count increased to **199 tests** (95 unit + 104 integration)
+- Comprehensive integration tests for all Phase 6 features
+- All tests passing with zero failures
+
+### Performance
+- Recursive search uses background threads to avoid blocking UI
+- Auto-refresh checks only every 5 seconds for minimal overhead
+- Bookmark access tracking uses efficient timestamp comparison
+- Navigation history limited to 50 entries per panel
+
 ## [0.3.0] - 2025-10-26
 
 ### Added
