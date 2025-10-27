@@ -1,5 +1,6 @@
 // SMB/CIFS connection management
 mod manager;
+mod filesystem;
 
 #[cfg(windows)]
 mod windows_impl;
@@ -8,3 +9,4 @@ mod windows_impl;
 mod unix_impl;
 
 pub use manager::SmbManager;
+pub use filesystem::SmbFileSystem;

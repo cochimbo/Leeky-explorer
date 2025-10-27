@@ -1550,12 +1550,11 @@ pub fn handle_connection_dialog(app: &mut AppState, key: KeyEvent) -> Result<Act
                                 let has_auth = *guest_mode || (!username.is_empty() && !password.is_empty());
                                 
                                 if has_required_fields && has_auth {
-                                    // TODO: Implement SMB connection (TASK-061)
-                                    // For now, just show a message that SMB is not yet fully implemented
-                                    *error = Some("SMB support is not yet implemented. Coming soon!".to_string());
+                                    use crate::remote::ConnectionType;
+                                    use crate::remote::AuthMethod;
+                                    use std::path::PathBuf;
                                     
-                                    /* Future implementation:
-                                    let config = ConnectionConfig {
+                                    let config = crate::remote::ConnectionConfig {
                                         name: name.clone(),
                                         connection_type: ConnectionType::Smb,
                                         host: host.clone(),
@@ -1576,18 +1575,21 @@ pub fn handle_connection_dialog(app: &mut AppState, key: KeyEvent) -> Result<Act
                                     }
                                     
                                     // Try to connect
-                                    match SmbFileSystem::connect(config.clone()) {
+                                    log::info!("Calling SmbFileSystem::connect...");
+                                    match crate::remote::smb::SmbFileSystem::connect(config.clone()) {
                                         Ok(smb_fs) => {
+                                            log::info!("SMB connection successful!");
+                                            
                                             // Save connection config
                                             if *save_credentials && !*guest_mode {
-                                                if let Ok(mut manager) = ConnectionManager::load() {
+                                                if let Ok(mut manager) = crate::remote::ConnectionManager::load() {
                                                     if let Err(e) = manager.add(config) {
                                                         log::warn!("Failed to save connection: {}", e);
                                                     }
                                                 }
                                             }
                                             
-                                            let vfs: Arc<dyn VirtualFileSystem> = Arc::new(smb_fs);
+                                            let vfs: std::sync::Arc<dyn crate::remote::VirtualFileSystem> = std::sync::Arc::new(smb_fs);
                                             let conn_info = format!("\\\\{}\\{}", host, share);
                                             let success_msg = format!("Connected to {}!", conn_info);
                                             let initial_path = PathBuf::from("/");
@@ -1614,7 +1616,6 @@ pub fn handle_connection_dialog(app: &mut AppState, key: KeyEvent) -> Result<Act
                                             *error = Some(format!("Connection failed: {}", e));
                                         }
                                     }
-                                    */
                                 } else {
                                     *error = Some("Please fill all required fields".to_string());
                                 }
