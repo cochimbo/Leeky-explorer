@@ -263,13 +263,11 @@ impl<'a> TextEditor<'a> {
     
     /// Check if file has been modified externally since it was loaded
     pub fn check_external_modifications(&self) -> bool {
-        if let Some(original_mtime) = self.file_mtime {
-            if let Ok(metadata) = fs::metadata(&self.file_path) {
-                if let Ok(current_mtime) = metadata.modified() {
-                    return current_mtime > original_mtime;
-                }
+        if let Some(original_mtime) = self.file_mtime
+            && let Ok(metadata) = fs::metadata(&self.file_path)
+            && let Ok(current_mtime) = metadata.modified() {
+                return current_mtime > original_mtime;
             }
-        }
         false
     }
     

@@ -273,15 +273,14 @@ impl SearchDialog {
     /// TASK-041: Update method to handle debouncing and result polling
     pub fn update(&mut self) {
         // Check if we should start a pending search
-        if self.pending_search {
-            if let Some(last_time) = self.last_input_time {
+        if self.pending_search
+            && let Some(last_time) = self.last_input_time {
                 let elapsed = last_time.elapsed();
                 if elapsed >= Duration::from_millis(DEBOUNCE_DURATION_MS) {
                     self.start_search();
                     self.pending_search = false;
                 }
             }
-        }
         
         // Update results from ongoing search
         self.update_results();

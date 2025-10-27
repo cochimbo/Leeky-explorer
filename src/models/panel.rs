@@ -217,12 +217,11 @@ impl Panel {
         let entries = crate::fs::navigator::read_dir(&self.current_path)?;
         self.entries = entries;
         
-        // Update last_modified timestamp for auto-refresh
-        if let Ok(metadata) = std::fs::metadata(&self.current_path) {
-            if let Ok(modified) = metadata.modified() {
+        // Update last_modified timestamp
+        if let Ok(metadata) = std::fs::metadata(&self.current_path)
+            && let Ok(modified) = metadata.modified() {
                 self.last_modified = Some(modified);
             }
-        }
         
         // Ensure cursor is within bounds after refresh
         if self.cursor >= self.entries.len() && !self.entries.is_empty() {
@@ -234,8 +233,8 @@ impl Panel {
 
     /// Auto-refresh: Check if directory has been modified externally
     pub fn has_directory_changed(&self) -> bool {
-        if let Ok(metadata) = std::fs::metadata(&self.current_path) {
-            if let Ok(modified) = metadata.modified() {
+        if let Ok(metadata) = std::fs::metadata(&self.current_path)
+            && let Ok(modified) = metadata.modified() {
                 // Compare with stored timestamp
                 if let Some(last_mod) = self.last_modified {
                     return modified > last_mod;
@@ -243,7 +242,6 @@ impl Panel {
                 // No timestamp stored yet, consider it changed
                 return true;
             }
-        }
         false
     }
     

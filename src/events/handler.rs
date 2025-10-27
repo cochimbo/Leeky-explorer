@@ -217,8 +217,8 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
             // TASK-028: Open text editor for current file
             let panel = app.active_panel();
             
-            if let Some(selected_entry) = panel.selected_entry() {
-                if selected_entry.is_file() {
+            if let Some(selected_entry) = panel.selected_entry()
+                && selected_entry.is_file() {
                     match app.open_editor(selected_entry.path.clone()) {
                         Ok(_) => {
                             // Editor opened successfully
@@ -228,7 +228,6 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
                         }
                     }
                 }
-            }
         }
         Action::OpenDriveSelector => {
             // US4: Open drive selector dialog
@@ -2390,9 +2389,8 @@ fn expand_and_validate_path(input: &str, current_dir: &std::path::Path) -> Resul
     let input = input.trim();
     
     // Expand ~ to home directory
-    let expanded = if input.starts_with('~') {
+    let expanded = if let Some(rest) = input.strip_prefix('~') {
         if let Some(home) = dirs::home_dir() {
-            let rest = &input[1..];
             if rest.is_empty() {
                 home.to_string_lossy().to_string()
             } else {
@@ -2451,9 +2449,9 @@ fn clean_windows_path(path: std::path::PathBuf) -> std::path::PathBuf {
     use std::path::PathBuf;
     
     let path_str = path.to_string_lossy();
-    if path_str.starts_with(r"\\?\") {
+    if let Some(stripped) = path_str.strip_prefix(r"\\?\") {
         // Remove the \\?\ prefix
-        PathBuf::from(&path_str[4..])
+        PathBuf::from(stripped)
     } else {
         path
     }
@@ -2531,11 +2529,10 @@ fn get_directory_children(path: &std::path::Path) -> Vec<std::path::PathBuf> {
     
     if let Ok(entries) = std::fs::read_dir(path) {
         for entry in entries.flatten() {
-            if let Ok(metadata) = entry.metadata() {
-                if metadata.is_dir() {
+            if let Ok(metadata) = entry.metadata()
+                && metadata.is_dir() {
                     children.push(entry.path());
                 }
-            }
         }
     }
     
@@ -2549,9 +2546,8 @@ fn expand_path_variables_only(input: &str) -> String {
     let input = input.trim();
     
     // Expand ~ to home directory
-    let expanded = if input.starts_with('~') {
+    let expanded = if let Some(rest) = input.strip_prefix('~') {
         if let Some(home) = dirs::home_dir() {
-            let rest = &input[1..];
             if rest.is_empty() {
                 home.to_string_lossy().to_string()
             } else {

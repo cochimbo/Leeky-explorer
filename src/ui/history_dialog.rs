@@ -16,6 +16,12 @@ pub struct HistoryDialogState {
     pub selected: usize,
 }
 
+impl Default for HistoryDialogState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl HistoryDialogState {
     pub fn new() -> Self {
         Self { selected: 0 }
