@@ -1,10 +1,15 @@
 // Event handler
 use anyhow::Result;
 use crossterm::event::{KeyEvent, KeyCode, KeyEventKind, KeyEventState};
+use std::path::PathBuf;
+use std::sync::Arc;
 
 use crate::app::{AppState, ConfirmAction, DialogState};
 use crate::events::keybindings::{map_key_to_action, map_key_to_input_action, Action};
 use crate::models::operation::Operation;
+
+// Import modular handlers
+use crate::events::handlers;
 
 pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
     // Filter out non-Press events early (ignore Release and Repeat for most actions)
@@ -113,7 +118,7 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
     
     // T844: Special handling for collision prompts
     if let Some(DialogState::CollisionPrompt { .. }) = &app.dialog_state {
-        return handle_collision_dialog(app, key);
+        return handlers::dialogs::handle_collision(app, key);
     }
     
     let action = map_key_to_action(key);
@@ -563,24 +568,50 @@ fn start_copy_operation(app: &mut AppState) -> Result<()> {
     
     // T844: Check for collisions first (but skip if copying to same directory)
     if !copying_to_same_dir {
-        let collision_path = if app.has_selection() {
-            // Check first marked item for collision
+        // Get VFS references
+        let source_vfs = app.active_panel().vfs.clone();
+        let dest_vfs = app.inactive_panel().vfs.clone();
+        
+        let collision_result: Option<(String, Vec<PathBuf>)> = if app.has_selection() {
+            // Check marked items for collisions
             let marked_paths = app.selection_state.get_marked(app.active_panel);
-            marked_paths.iter().find_map(|path| {
-                let file_name = path.file_name()?.to_string_lossy().to_string();
+            let mut collision_info = None;
+            
+            for (i, path) in marked_paths.iter().enumerate() {
+                let file_name = path.file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_default();
                 let dest = dest_panel_path.join(&file_name);
-                if dest.exists() {
-                    Some(dest.to_string_lossy().to_string())
+                
+                // Check if destination exists using VFS if available
+                let exists = if let Some(vfs) = &dest_vfs {
+                    vfs.exists(&dest).unwrap_or(false)
                 } else {
-                    None
+                    dest.exists()
+                };
+                
+                if exists {
+                    // Found collision - collect remaining files
+                    let remaining: Vec<PathBuf> = marked_paths.iter().skip(i + 1).cloned().collect();
+                    collision_info = Some((dest.to_string_lossy().to_string(), remaining));
+                    break;
                 }
-            })
+            }
+            collision_info
         } else {
             // Check single item
             app.active_panel().selected_entry().and_then(|entry| {
                 let dest = dest_panel_path.join(&entry.name);
-                if dest.exists() {
-                    Some(dest.to_string_lossy().to_string())
+                
+                // Check if destination exists using VFS if available
+                let exists = if let Some(vfs) = &dest_vfs {
+                    vfs.exists(&dest).unwrap_or(false)
+                } else {
+                    dest.exists()
+                };
+                
+                if exists {
+                    Some((dest.to_string_lossy().to_string(), Vec::new()))
                 } else {
                     None
                 }
@@ -588,11 +619,15 @@ fn start_copy_operation(app: &mut AppState) -> Result<()> {
         };
         
         // If collision detected, show collision dialog
-        if let Some(collision_path) = collision_path {
+        if let Some((collision_path, remaining_files)) = collision_result {
             app.dialog_state = Some(DialogState::CollisionPrompt {
                 file_path: collision_path,
                 selected: 0,
                 operation: crate::app::CollisionOperation::Copy,
+                remaining_files,
+                dest_path: dest_panel_path.clone(),
+                source_vfs: source_vfs.clone(),
+                dest_vfs: dest_vfs.clone(),
             });
             return Ok(());
         }
@@ -891,11 +926,15 @@ fn start_move_operation(app: &mut AppState) -> Result<()> {
     
     // T844: Check for collisions first
     // For remote dest, use VFS exists check
-    let collision_path = if app.has_selection() {
-        // Check first marked item for collision
+    let collision_result: Option<(String, Vec<PathBuf>)> = if app.has_selection() {
+        // Check marked items for collisions
         let marked_paths = app.selection_state.get_marked(app.active_panel);
-        marked_paths.iter().find_map(|path| {
-            let file_name = path.file_name()?.to_string_lossy().to_string();
+        let mut collision_info = None;
+        
+        for (i, path) in marked_paths.iter().enumerate() {
+            let file_name = path.file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_default();
             let dest = dest_panel_path.join(&file_name);
             
             let exists = if let Some(vfs) = &dest_vfs {
@@ -905,11 +944,13 @@ fn start_move_operation(app: &mut AppState) -> Result<()> {
             };
             
             if exists {
-                Some(dest.to_string_lossy().to_string())
-            } else {
-                None
+                // Found collision - collect remaining files
+                let remaining: Vec<PathBuf> = marked_paths.iter().skip(i + 1).cloned().collect();
+                collision_info = Some((dest.to_string_lossy().to_string(), remaining));
+                break;
             }
-        })
+        }
+        collision_info
     } else {
         // Check single item
         app.active_panel().selected_entry().and_then(|entry| {
@@ -922,7 +963,7 @@ fn start_move_operation(app: &mut AppState) -> Result<()> {
             };
             
             if exists {
-                Some(dest.to_string_lossy().to_string())
+                Some((dest.to_string_lossy().to_string(), Vec::new()))
             } else {
                 None
             }
@@ -930,11 +971,15 @@ fn start_move_operation(app: &mut AppState) -> Result<()> {
     };
     
     // If collision detected, show collision dialog
-    if let Some(collision_path) = collision_path {
+    if let Some((collision_path, remaining_files)) = collision_result {
         app.dialog_state = Some(DialogState::CollisionPrompt {
             file_path: collision_path,
             selected: 0,
             operation: crate::app::CollisionOperation::Move,
+            remaining_files,
+            dest_path: dest_panel_path.clone(),
+            source_vfs: source_vfs.clone(),
+            dest_vfs: dest_vfs.clone(),
         });
         return Ok(());
     }
@@ -1333,14 +1378,30 @@ fn handle_rename_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
                     return Ok(Action::None);
                 }
                 
-                // Check if target already exists
-                if new_path.exists() {
+                // Get VFS if we're on a remote filesystem
+                let vfs = app.active_panel().vfs.clone();
+                
+                // Check if target already exists (use VFS if available)
+                let exists = if let Some(vfs) = &vfs {
+                    vfs.exists(&new_path).unwrap_or(false)
+                } else {
+                    new_path.exists()
+                };
+                
+                if exists {
                     app.show_error(format!("Ya existe un archivo o directorio con el nombre '{}'", final_name));
                     return Ok(Action::None);
                 }
                 
-                // Perform rename
-                match std::fs::rename(old_path, &new_path) {
+                // Perform rename (use VFS if available)
+                let result = if let Some(vfs) = vfs {
+                    vfs.rename(old_path, &new_path)
+                } else {
+                    std::fs::rename(old_path, &new_path)
+                        .map_err(|e| anyhow::anyhow!("Failed to rename: {}", e))
+                };
+                
+                match result {
                     Ok(()) => {
                         log::info!("Renamed successfully: {:?} -> {:?}", old_path, new_path);
                         app.close_dialog();
@@ -1424,127 +1485,29 @@ fn handle_password_input_dialog(app: &mut AppState, key: KeyEvent) -> Result<Act
     Ok(Action::None)
 }
 
-// T844: Handle collision dialog
-fn handle_collision_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action> {
-    use crossterm::event::{KeyCode, KeyModifiers, KeyEventKind};
-    
-    // BUG-002 FIX: Filter out key release events to prevent double processing
-    if key.kind != KeyEventKind::Press {
-        return Ok(Action::None);
-    }
-    
-    match (key.code, key.modifiers) {
-        // Enter: confirm selected option
-        (KeyCode::Enter, _) => {
-            if let Some(DialogState::CollisionPrompt { selected, operation, .. }) = &app.dialog_state {
-                let selected_option = *selected;
-                let operation_type = operation.clone();
-                
-                match selected_option {
-                    0 => {
-                        // Overwrite this file
-                        app.close_dialog();
-                        // Resume the operation (the actual operation was saved in app state)
-                        match operation_type {
-                            crate::app::CollisionOperation::Copy => start_copy_operation_skip_check(app)?,
-                            crate::app::CollisionOperation::Move => start_move_operation_skip_check(app)?,
-                            crate::app::CollisionOperation::Extract => {}, // TODO: implement
-                        }
-                        return Ok(Action::None);
-                    }
-                    1 => {
-                        // Overwrite All (TODO: set global flag)
-                        app.close_dialog();
-                        match operation_type {
-                            crate::app::CollisionOperation::Copy => start_copy_operation_skip_check(app)?,
-                            crate::app::CollisionOperation::Move => start_move_operation_skip_check(app)?,
-                            crate::app::CollisionOperation::Extract => {},
-                        }
-                        return Ok(Action::None);
-                    }
-                    2 => {
-                        // Rename - BUG-003/BUG-005 FIX: Generate name with suffix
-                        app.close_dialog();
-                        match operation_type {
-                            crate::app::CollisionOperation::Copy => start_copy_operation_with_rename(app)?,
-                            crate::app::CollisionOperation::Move => start_move_operation_with_rename(app)?,
-                            crate::app::CollisionOperation::Extract => {},
-                        }
-                        return Ok(Action::None);
-                    }
-                    3 => {
-                        // Skip
-                        app.close_dialog();
-                        return Ok(Action::None);
-                    }
-                    4 => {
-                        // Cancel
-                        app.close_dialog();
-                        return Ok(Action::None);
-                    }
-                    _ => {}
-                }
-            }
-        }
-        // Up arrow: move selection up
-        (KeyCode::Up, _) => {
-            if let Some(DialogState::CollisionPrompt { selected, .. }) = &mut app.dialog_state
-                && *selected > 0 {
-                    *selected -= 1;
-                }
-        }
-        // Down arrow: move selection down
-        (KeyCode::Down, _) => {
-            if let Some(DialogState::CollisionPrompt { selected, .. }) = &mut app.dialog_state
-                && *selected < 4 {
-                    *selected += 1;
-                }
-        }
-        // Letter shortcuts
-        (KeyCode::Char('s'), KeyModifiers::NONE) | (KeyCode::Char('S'), _) => {
-            if let Some(DialogState::CollisionPrompt { selected, .. }) = &mut app.dialog_state {
-                *selected = 0;
-            }
-            return Ok(Action::ConfirmYes);
-        }
-        (KeyCode::Char('t'), KeyModifiers::NONE) | (KeyCode::Char('T'), _) => {
-            if let Some(DialogState::CollisionPrompt { selected, .. }) = &mut app.dialog_state {
-                *selected = 1;
-            }
-            return Ok(Action::ConfirmYes);
-        }
-        (KeyCode::Char('r'), KeyModifiers::NONE) | (KeyCode::Char('R'), _) => {
-            if let Some(DialogState::CollisionPrompt { selected, .. }) = &mut app.dialog_state {
-                *selected = 2;
-            }
-            return Ok(Action::ConfirmYes);
-        }
-        (KeyCode::Char('o'), KeyModifiers::NONE) | (KeyCode::Char('O'), _) => {
-            if let Some(DialogState::CollisionPrompt { selected, .. }) = &mut app.dialog_state {
-                *selected = 3;
-            }
-            return Ok(Action::ConfirmNo);
-        }
-        (KeyCode::Char('c'), KeyModifiers::NONE) | (KeyCode::Char('C'), _) => {
-            app.close_dialog();
-        }
-        // Escape: cancel (same as 'C')
-        (KeyCode::Esc, _) => {
-            app.close_dialog();
-        }
-        _ => {}
-    }
-    
-    Ok(Action::None)
-}
-
 fn create_folder(app: &mut AppState, folder_name: &str) -> Result<()> {
     let panel = app.active_panel();
     let new_path = panel.current_path.join(folder_name);
+    let vfs = panel.vfs.clone();
     
-    // BUG-001 FIX: Check if directory already exists
-    if new_path.exists() {
-        if new_path.is_dir() {
+    // BUG-001 FIX: Check if directory already exists (use VFS if available)
+    let exists = if let Some(vfs) = &vfs {
+        vfs.exists(&new_path).unwrap_or(false)
+    } else {
+        new_path.exists()
+    };
+    
+    if exists {
+        // Check if it's a directory using VFS
+        let is_dir = if let Some(vfs) = &vfs {
+            vfs.metadata(&new_path)
+                .map(|m| m.entry_type == crate::remote::VfsEntryType::Directory)
+                .unwrap_or(false)
+        } else {
+            new_path.is_dir()
+        };
+        
+        if is_dir {
             log::warn!("Folder already exists: {:?}", new_path);
             app.error_message = Some(format!("El directorio '{}' ya existe", folder_name));
             return Ok(()); // Don't crash, just show error
@@ -1558,8 +1521,15 @@ fn create_folder(app: &mut AppState, folder_name: &str) -> Result<()> {
     // T851d: Log folder creation
     log::info!("Creating folder: {:?}", new_path);
     
-    // Use blocking task for simplicity (create_dir is fast)
-    match std::fs::create_dir(&new_path) {
+    // Create directory (use VFS if available)
+    let result = if let Some(vfs) = vfs {
+        vfs.create_dir(&new_path)
+    } else {
+        std::fs::create_dir(&new_path)
+            .map_err(|e| anyhow::anyhow!("Failed to create directory: {}", e))
+    };
+    
+    match result {
         Ok(_) => {
             log::info!("Folder created successfully: {:?}", new_path);
             // Refresh panel and store entries
@@ -3209,4 +3179,3 @@ fn autocomplete_path(input: &str, suggestions: &[std::path::PathBuf]) -> String 
     // If no common prefix, return input unchanged
     input.to_string()
 }
-
