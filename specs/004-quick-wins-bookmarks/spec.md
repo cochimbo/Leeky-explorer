@@ -2,8 +2,21 @@
 
 **Feature Branch**: `004-quick-wins-bookmarks`  
 **Created**: 2025-10-26  
+**Updated**: 2025-10-27  
 **Status**: Draft  
-**Input**: User description: "Quick Wins - Bookmarks, Disk Usage, History Navigation and Text Editor"
+**Input**: User description: "Quick Wins - Bookmarks, Disk Usage, History Navigation, Text Editor, SFTP and SMB/Samba support"
+
+## Overview
+
+This feature specification covers 8 user stories focused on productivity improvements and remote file access:
+1. **Bookmarks** (P1) - Quick access to favorite directories
+2. **Disk Usage** (P2) - Visual disk space indicators
+3. **Navigation History** (P3) - Back/forward navigation
+4. **Go To Path** (P3) - Direct path navigation with Ctrl+G
+5. **Text Editor** (P4) - Simple in-app text file editing
+6. **Recursive Search** (P2) - Deep search across directory trees
+7. **SFTP Remote Access** (P2) - Browse and manage files over SSH
+8. **SMB/Samba Network Shares** (P2) - Access Windows/Samba file shares
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -138,6 +151,85 @@ Users need to find files across entire directory trees, not just in the current 
 
 ---
 
+### User Story 7 - Remote File Access via SFTP (Priority: P2)
+
+Users working with remote servers need to browse and manage files over SSH/SFTP connections without leaving the file explorer or using separate FTP clients.
+
+**Why this priority**: Essential for DevOps, sysadmins, and developers managing remote servers. Enables seamless workflow between local and remote files. Medium-high complexity but high value for target users.
+
+**Independent Test**: Can be tested by connecting to a remote SFTP server, browsing directories, and performing basic file operations (copy, move, delete).
+
+**Acceptance Scenarios**:
+
+1. **Given** I press Ctrl+Shift+S, **When** the SFTP connection dialog opens, **Then** I can enter hostname, port, username, and authentication method
+2. **Given** the SFTP connection dialog is open, **When** I enter valid credentials and press Connect, **Then** the active panel navigates to the remote server's home directory
+3. **Given** I'm connected to an SFTP server, **When** I browse directories, **Then** remote files and folders display with appropriate icons and metadata
+4. **Given** I'm viewing remote files, **When** I select a file and press F3, **Then** the preview works for text files
+5. **Given** I have a remote file selected, **When** I press F5 (Copy), **Then** I can copy it to the local panel (download)
+6. **Given** I have a local file selected, **When** the other panel shows remote directory and I press F5, **Then** the file uploads to remote server
+7. **Given** I'm connected to SFTP, **When** I press F6 (Move), **Then** files can be moved/renamed on remote server
+8. **Given** I'm connected to SFTP, **When** I press F8 (Delete), **Then** remote files can be deleted with confirmation
+9. **Given** I'm connected to SFTP, **When** I create a folder (F7), **Then** the folder is created on remote server
+10. **Given** I'm connected to SFTP, **When** connection is lost, **Then** an error message displays and I can reconnect
+11. **Given** I have multiple SFTP connections, **When** I save them, **Then** they appear in bookmarks for quick reconnection
+12. **Given** I'm connected to SFTP, **When** I press Ctrl+D, **Then** the connection is closed and panel returns to local filesystem
+
+**Authentication Methods**:
+- Password authentication
+- SSH key authentication (RSA, Ed25519)
+- SSH agent support (pageant on Windows, ssh-agent on Linux)
+- Option to save credentials securely (OS keyring)
+
+**Performance Considerations**:
+- Directory listings should cache for performance
+- Large file transfers should show progress
+- Support for connection pooling/keep-alive
+- Timeout handling for slow connections
+
+---
+
+### User Story 8 - Network Share Access via SMB/CIFS (Priority: P2)
+
+Users working in Windows/mixed environments need to access network shares (Samba/SMB) for file sharing and collaboration without leaving the file explorer.
+
+**Why this priority**: Critical for enterprise/corporate environments where file shares are standard. Complements SFTP for different network protocols. Essential for Windows network integration.
+
+**Independent Test**: Can be tested by connecting to a Windows network share or Samba server, browsing shared folders, and performing file operations.
+
+**Acceptance Scenarios**:
+
+1. **Given** I press Ctrl+Shift+N, **When** the network share dialog opens, **Then** I can enter UNC path (\\server\share) or smb://server/share
+2. **Given** the share connection dialog is open, **When** I enter valid credentials (if required) and press Connect, **Then** the active panel shows the network share contents
+3. **Given** I'm viewing network share, **When** authentication is required, **Then** a credential dialog prompts for domain/username/password
+4. **Given** I'm connected to a network share, **When** I browse directories, **Then** files display with correct permissions indicators (read-only, etc.)
+5. **Given** I have a file on network share selected, **When** I press F3, **Then** preview works for supported file types
+6. **Given** I'm viewing a network share, **When** I press F5/F6/F8, **Then** file operations (copy/move/delete) work correctly
+7. **Given** I'm connected to a share, **When** I create a folder (F7), **Then** the folder is created on the network share
+8. **Given** I have a network share open, **When** connection is lost, **Then** an error message displays and I can reconnect
+9. **Given** I have multiple network shares, **When** I save them, **Then** they appear in bookmarks for quick access
+10. **Given** I'm connected to a share, **When** I press Ctrl+D, **Then** the connection is closed and panel returns to local filesystem
+11. **Given** I'm on Windows, **When** I browse "Network" location, **Then** I can discover available shares on the network
+12. **Given** a file is locked by another user, **When** I try to delete/move it, **Then** a clear error message indicates the file is in use
+
+**Platform Considerations**:
+- Windows: Native SMB support via UNC paths (\\server\share)
+- Linux: Mount via smbclient or FUSE (requires samba-client package)
+- Cross-platform: Consider using libsmb or similar library
+
+**Authentication**:
+- Windows domain authentication
+- Guest access (if allowed)
+- Option to save credentials per share
+- Kerberos support for domain environments
+
+**Performance Considerations**:
+- Network share browsing may be slower than local
+- Cache directory listings where appropriate
+- Show progress for operations on slow networks
+- Handle network timeouts gracefully
+
+---
+
 ### Edge Cases
 
 - **Bookmarks**: What happens when a bookmarked directory is deleted or moved?
@@ -160,6 +252,26 @@ Users need to find files across entire directory trees, not just in the current 
 - **Recursive Search**: How to handle symbolic links that create circular references?
 - **Recursive Search**: What's the maximum search depth to prevent infinite loops?
 - **Recursive Search**: How to differentiate from F3 filter in the UI?
+- **SFTP**: What happens when SSH host key changes (MITM warning)?
+- **SFTP**: How to handle SSH key passphrases?
+- **SFTP**: What happens when network connection drops mid-transfer?
+- **SFTP**: Should SFTP connections timeout after inactivity?
+- **SFTP**: How to handle different SSH server implementations (OpenSSH, Dropbear, etc.)?
+- **SFTP**: What happens when remote server runs out of disk space during upload?
+- **SFTP**: How to handle symbolic links on remote server?
+- **SFTP**: Should we support SFTP protocol v3, v4, v5, or v6?
+- **SMB/Samba**: What happens when domain authentication fails?
+- **SMB/Samba**: How to handle guest access (anonymous login)?
+- **SMB/Samba**: What happens when share is suddenly disconnected?
+- **SMB/Samba**: How to handle different SMB protocol versions (SMB1, SMB2, SMB3)?
+- **SMB/Samba**: What happens when credentials expire (in domain environments)?
+- **SMB/Samba**: Should we show available shares when browsing network?
+- **SMB/Samba**: How to handle locked files (opened by other users)?
+- **SMB/Samba**: What happens when copying large files over slow network?
+- **Remote (Both)**: How to distinguish remote vs local files in UI?
+- **Remote (Both)**: Should bookmarks save connection credentials?
+- **Remote (Both)**: How to handle timezone differences for file timestamps?
+- **Remote (Both)**: What's the behavior when copying between two remote connections?
 
 ## Requirements *(mandatory)*
 
@@ -232,6 +344,45 @@ Users need to find files across entire directory trees, not just in the current 
 - **FR-054**: System MUST support up/down navigation through results list
 - **FR-055**: System MUST exclude hidden files/folders by default [CONFIGURABLE]
 
+**SFTP Remote Access (P2):**
+- **FR-056**: System MUST open SFTP connection dialog via Ctrl+Shift+S keybinding
+- **FR-057**: System MUST support password authentication for SFTP
+- **FR-058**: System MUST support SSH key authentication (RSA, Ed25519)
+- **FR-059**: System MUST support SSH agent (pageant/ssh-agent) integration
+- **FR-060**: System MUST verify SSH host keys and warn on changes
+- **FR-061**: System MUST allow saving SFTP connections as bookmarks
+- **FR-062**: System MUST display remote files with appropriate indicators in UI
+- **FR-063**: System MUST support all file operations on remote files (copy/move/delete/rename)
+- **FR-064**: System MUST support downloading files from remote to local (F5 from SFTP to local panel)
+- **FR-065**: System MUST support uploading files from local to remote (F5 from local to SFTP panel)
+- **FR-066**: System MUST show progress indicator for remote file transfers
+- **FR-067**: System MUST handle connection timeouts gracefully (show error, allow reconnect)
+- **FR-068**: System MUST close SFTP connection via Ctrl+D keybinding
+- **FR-069**: System MUST cache remote directory listings for performance (configurable TTL)
+- **FR-070**: System MUST support creating folders on remote server (F7)
+- **FR-071**: System MUST handle connection drops mid-transfer (show error, allow retry)
+- **FR-072**: System MUST support standard SFTP ports (22) and custom ports
+- **FR-073**: System MUST store credentials securely using OS keyring [NICE TO HAVE]
+
+**SMB/Samba Network Shares (P2):**
+- **FR-074**: System MUST open network share dialog via Ctrl+Shift+N keybinding
+- **FR-075**: System MUST support UNC paths on Windows (\\server\share)
+- **FR-076**: System MUST support SMB URLs (smb://server/share)
+- **FR-077**: System MUST support domain authentication (DOMAIN\username)
+- **FR-078**: System MUST support guest access (anonymous login)
+- **FR-079**: System MUST allow saving SMB connections as bookmarks
+- **FR-080**: System MUST display share files with appropriate permission indicators
+- **FR-081**: System MUST support all file operations on network shares
+- **FR-082**: System MUST handle connection drops gracefully (show error, allow reconnect)
+- **FR-083**: System MUST show progress for operations on slow networks
+- **FR-084**: System MUST handle locked files with clear error messages
+- **FR-085**: System MUST support SMB2/SMB3 protocols (avoid SMB1 security issues)
+- **FR-086**: System MUST close share connection via Ctrl+D keybinding
+- **FR-087**: System MUST discover available network shares [WINDOWS ONLY - NICE TO HAVE]
+- **FR-088**: System MUST cache share listings for performance
+- **FR-089**: System MUST handle credential expiry in domain environments
+- **FR-090**: System MUST support Kerberos authentication [NICE TO HAVE]
+
 ### Key Entities
 
 - **Bookmark**: Represents a saved directory location
@@ -270,6 +421,55 @@ Users need to find files across entire directory trees, not just in the current 
 - **SearchState**: Represents ongoing search operation
   - `query`: String - Search term or pattern
   - `root_path`: PathBuf - Starting directory for search
+  - `results`: Vec<SearchResult> - Found files
+  - `is_running`: bool - Whether search is in progress
+  - `files_scanned`: usize - Progress counter
+  - `use_glob`: bool - Whether query is a glob pattern
+
+- **SftpConnection**: Represents an active SFTP connection
+  - `connection_id`: String - Unique identifier for connection
+  - `hostname`: String - Remote server hostname/IP
+  - `port`: u16 - SSH port (default 22)
+  - `username`: String - SSH username
+  - `auth_method`: AuthMethod - Password, Key, or Agent
+  - `current_path`: PathBuf - Current remote directory
+  - `session`: SshSession - Underlying SSH session handle
+  - `connected_at`: SystemTime - Connection timestamp
+  - `last_activity`: SystemTime - For timeout management
+
+- **AuthMethod**: Represents SSH authentication method
+  - `Password(String)` - Password authentication
+  - `Key(PathBuf)` - SSH key file path
+  - `Agent` - Use SSH agent (pageant/ssh-agent)
+
+- **SmbConnection**: Represents an active SMB/CIFS connection
+  - `connection_id`: String - Unique identifier for connection
+  - `server`: String - Server hostname/IP
+  - `share_name`: String - Share name
+  - `unc_path`: String - Full UNC path (\\server\share)
+  - `username`: Option<String> - Username (None for guest)
+  - `domain`: Option<String> - Domain name (for domain auth)
+  - `current_path`: PathBuf - Current path within share
+  - `session`: SmbSession - Underlying SMB session handle
+  - `connected_at`: SystemTime - Connection timestamp
+  - `protocol_version`: String - SMB protocol version (SMB2/SMB3)
+
+- **RemoteFileEntry**: Represents a file/folder on remote connection
+  - `name`: String - File/folder name
+  - `path`: PathBuf - Full remote path
+  - `size`: u64 - File size in bytes
+  - `modified_time`: SystemTime - Last modification time
+  - `is_directory`: bool - Whether it's a directory
+  - `permissions`: String - Unix-style permissions (rwxr-xr-x) or Windows ACL indicator
+  - `is_readonly`: bool - Whether file is read-only
+  - `connection_type`: ConnectionType - SFTP or SMB
+
+- **ConnectionType**: Enum for remote connection types
+  - `Local` - Local filesystem
+  - `Sftp(SftpConnection)` - SFTP connection
+  - `Smb(SmbConnection)` - SMB/CIFS connection
+
+
   - `results`: Vec<SearchResult> - Found files
   - `is_running`: bool - Whether search is in progress
   - `files_scanned`: usize - Progress counter
@@ -323,7 +523,205 @@ Users need to find files across entire directory trees, not just in the current 
 - **SC-031**: Search scales to directories with 10,000+ files without freezing UI
 - **SC-032**: 90% of users discover and use recursive search within first 3 sessions
 
+**SFTP Remote Access:**
+- **SC-033**: SFTP connection establishes within 3 seconds on average network
+- **SC-034**: Remote directory listings appear within 500ms after connection
+- **SC-035**: File transfers show progress updates at least every 100ms
+- **SC-036**: Users can seamlessly copy files between local and remote with F5
+- **SC-037**: Connection drops are handled gracefully with clear error message
+- **SC-038**: SSH key authentication works with all common key types (RSA, Ed25519)
+- **SC-039**: SFTP bookmarks reconnect successfully 95% of the time
+- **SC-040**: Zero crashes due to network errors or protocol issues
+- **SC-041**: Remote operations feel responsive (<100ms lag for UI updates)
+- **SC-042**: Users report 70% time savings vs using separate SFTP clients
+
+**SMB/Samba Network Shares:**
+- **SC-043**: SMB connection establishes within 2 seconds on local network
+- **SC-044**: Share listings appear within 500ms after connection
+- **SC-045**: File operations on network shares complete within 2x local time
+- **SC-046**: Locked files show clear error message indicating file is in use
+- **SC-047**: Domain authentication works correctly with all common AD setups
+- **SC-048**: Share bookmarks reconnect successfully 95% of the time
+- **SC-049**: Zero crashes due to network errors or protocol issues
+- **SC-050**: Users report seamless experience compared to native file explorers
+- **SC-051**: Guest access works correctly when allowed by server
+- **SC-052**: UNC path parsing works for 100% of valid Windows paths
+
 **Overall:**
-- **SC-033**: All quick wins features combined add <500KB to binary size
-- **SC-034**: No measurable performance degradation in existing features
-- **SC-035**: Feature discoverability: 70% of users find at least 4 of 6 features in first 10 minutes
+- **SC-053**: All quick wins features combined add <500KB to binary size
+- **SC-054**: No measurable performance degradation in existing features
+- **SC-055**: Feature discoverability: 70% of users find at least 4 of 8 features in first 10 minutes
+- **SC-056**: Remote features (SFTP/SMB) add <1MB to binary size
+- **SC-057**: Memory usage stays under 100MB even with multiple remote connections
+
+---
+
+## Technical Stories - Refactoring *(completed)*
+
+### Tech Story 1 - Extract Collision Handlers (Priority: P0 - Technical Debt)
+
+**Completed**: 2025-10-27  
+**Commit**: bce0791  
+**Impact**: Foundation for modular handler architecture
+
+The collision handler logic (230+ lines) was embedded in the monolithic `handler.rs` file, making the codebase difficult to navigate and maintain. This story extracts collision-specific handling into its own module.
+
+**Acceptance Criteria**:
+1. ✅ Create `src/events/handlers/collision.rs` module
+2. ✅ Move `handle_collision_dialog` function to collision.rs (~180 lines)
+3. ✅ Update `handler.rs` to call through `handlers::collision::` namespace
+4. ✅ Remove old function definition from handler.rs
+5. ✅ Verify compilation with `cargo check`
+6. ✅ Create `handlers/mod.rs` for module exports
+
+**Results**:
+- handler.rs reduced from 3,476 → 3,181 lines (295 lines moved)
+- Created handlers module structure foundation
+- Zero functionality changes, pure refactor
+
+---
+
+### Tech Story 2 - Extract Dialog Handlers (Priority: P0 - Technical Debt)
+
+**Completed**: 2025-10-27  
+**Commit**: 7cbd761  
+**Impact**: Major reduction in handler.rs complexity
+
+The `handler.rs` file contained 12 different dialog handler functions plus 9 helper functions (~1,579 lines total), making it extremely difficult to locate and modify specific dialog logic. This story extracts all dialog-related handling into a dedicated module.
+
+**Acceptance Criteria**:
+1. ✅ Create `src/events/handlers/dialogs.rs` module
+2. ✅ Move 12 dialog handler functions:
+   - handle_input_dialog (create folder, rename, add bookmark, goto path)
+   - handle_drive_selector_action
+   - handle_theme_selector_action
+   - handle_bookmark_dialog_action
+   - handle_help_viewer_action
+   - handle_history_viewer_action
+   - handle_archive_extract_options
+   - And other dialog-specific handlers
+3. ✅ Move 9 dialog helper functions:
+   - create_folder, apply_rename, apply_bookmark_add
+   - handle_goto_path, navigate_to_path
+   - validate_path, expand_path, is_directory
+   - calculate_relative_path
+4. ✅ Update handler.rs to call through `handlers::dialogs::` namespace
+5. ✅ Remove old function definitions from handler.rs
+6. ✅ Verify compilation and all dialog types work correctly
+
+**Results**:
+- handler.rs reduced from 3,181 → 1,501 lines (1,579 lines moved, 50% reduction)
+- Created comprehensive dialogs.rs module (1,579 lines)
+- All dialog types now in single, focused module
+- Easier to add new dialog types
+
+---
+
+### Tech Story 3 - Extract File Operations (Priority: P0 - Technical Debt)
+
+**Completed**: 2025-10-27  
+**Commit**: 3af2f11  
+**Impact**: Logical grouping of file operation workflows
+
+The file operation functions (copy, move, delete with variants) were scattered in handler.rs, mixing concerns with event handling. This story extracts all file operation logic into a dedicated module.
+
+**Acceptance Criteria**:
+1. ✅ Create `src/events/handlers/file_operations.rs` module
+2. ✅ Move 7 file operation functions (~812 lines):
+   - start_copy_operation
+   - start_copy_operation_skip_check
+   - start_copy_operation_with_rename
+   - start_move_operation
+   - start_move_operation_skip_check
+   - start_move_operation_with_rename
+   - start_delete_operation
+3. ✅ Update handler.rs to call through `handlers::file_operations::` namespace
+4. ✅ Remove old function definitions from handler.rs
+5. ✅ Verify compilation and file operations work correctly
+
+**Results**:
+- handler.rs reduced from 1,501 → 764 lines (812 lines moved, 49% reduction from Phase 2)
+- Created file_operations.rs module (812 lines)
+- All copy/move/delete logic now in dedicated module
+- Clearer separation between event handling and operation execution
+
+---
+
+### Tech Story 4 - Extract Special Mode Handlers (Priority: P0 - Technical Debt)
+
+**Completed**: 2025-10-27  
+**Commit**: 59bc259  
+**Impact**: Separation of special interaction modes
+
+The search, preview, and editor mode handlers were still in handler.rs, adding complexity to the main event dispatcher. This story extracts special interaction modes into their own module.
+
+**Acceptance Criteria**:
+1. ✅ Create `src/events/handlers/modes.rs` module
+2. ✅ Move 3 mode handler functions (~199 lines):
+   - handle_search_mode (T411-T415 - search filtering)
+   - handle_preview_mode (T627-T630 - preview navigation)
+   - handle_editor_mode (TASK-030 - text editor)
+3. ✅ Update handler.rs to call through `handlers::modes::` namespace
+4. ✅ Remove old function definitions from handler.rs
+5. ✅ Fix import: `crate::events::Action` → `crate::events::keybindings::Action`
+6. ✅ Verify compilation and all modes work correctly
+
+**Results**:
+- handler.rs reduced from 764 → 565 lines (199 lines moved, 26% reduction from Phase 3)
+- Created modes.rs module (213 lines)
+- Search, preview, and editor modes now logically grouped
+- Easier to add new interaction modes
+
+---
+
+### Tech Story 5 - Extract Request Handlers (Priority: P0 - Technical Debt)
+
+**Completed**: 2025-10-27  
+**Commit**: 329fb24  
+**Impact**: Final cleanup of helper functions
+
+The remaining helper functions in handler.rs were request handlers that show confirmation dialogs before initiating file operations. This story moves them to the file_operations module where they logically belong.
+
+**Acceptance Criteria**:
+1. ✅ Add 5 request handler functions to file_operations.rs (~140 lines):
+   - handle_copy_request (T570 - marked items support)
+   - handle_move_request (T571)
+   - handle_delete_request (T572)
+   - handle_create_folder_request
+   - handle_rename_request (F2 vs Shift+F2 handling)
+2. ✅ Update handlers/mod.rs to export new functions
+3. ✅ Update handler.rs to call through `handlers::file_operations::` namespace
+4. ✅ Remove old function definitions from handler.rs (~127 lines)
+5. ✅ Clean up unused imports in handler.rs
+6. ✅ Verify compilation
+
+**Results**:
+- handler.rs reduced from 565 → 441 lines (124 lines moved, 87% total reduction from original)
+- file_operations.rs expanded to 897 lines (complete file operations module)
+- handler.rs now focused on main event dispatch logic
+- Clean separation between request handling and operation execution
+
+---
+
+### Refactoring Summary - Overall Impact
+
+**Original State**: `handler.rs` = 3,476 lines (monolithic, difficult to maintain)
+
+**Final State**: Modular handler architecture
+- `handler.rs` = 441 lines (main event dispatcher only) - **87% reduction**
+- `handlers/collision.rs` = 295 lines (collision dialog handling)
+- `handlers/dialogs.rs` = 1,579 lines (all dialog types)
+- `handlers/file_operations.rs` = 897 lines (file operations + requests)
+- `handlers/modes.rs` = 213 lines (search/preview/editor modes)
+- `handlers/navigation.rs` = stub (future navigation logic)
+
+**Benefits**:
+- ✅ Dramatically improved code navigation and maintainability
+- ✅ Clear separation of concerns by functionality
+- ✅ Easier to locate and modify specific features
+- ✅ Reduced cognitive load when working on any single feature
+- ✅ Better foundation for adding new features
+- ✅ Easier code review process
+- ✅ Zero functionality changes - pure refactoring
+- ✅ All phases compiled and tested successfully
+
