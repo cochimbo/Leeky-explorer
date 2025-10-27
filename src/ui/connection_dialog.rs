@@ -16,7 +16,7 @@ pub enum ConnectionDialogState {
         connections: Vec<ConnectionConfig>,
     },
     TypeSelection {
-        selected: usize,  // 0=SFTP, 1=FTP, 2=FTPS, 3=SMB
+        selected: usize,  // 0=SFTP, 1=SMB
     },
     SftpForm {
         selected_field: usize,  // 0=name, 1=host, 2=port, 3=username, 4=auth_type, 5=password/key_path, 6=save_credentials
@@ -27,17 +27,6 @@ pub enum ConnectionDialogState {
         auth_type: usize,  // 0=password, 1=key
         password: String,
         key_path: String,
-        save_credentials: bool,
-        error: Option<String>,
-    },
-    FtpForm {
-        selected_field: usize,  // 0=name, 1=host, 2=port, 3=username, 4=password, 5=use_tls, 6=save_credentials
-        name: String,
-        host: String,
-        port: String,
-        username: String,
-        password: String,
-        use_tls: bool,
         save_credentials: bool,
         error: Option<String>,
     },
@@ -86,21 +75,7 @@ impl ConnectionDialogState {
                     error: None,
                 };
             }
-            1 | 2 => {
-                // FTP or FTPS
-                *self = Self::FtpForm {
-                    selected_field: 0,
-                    name: String::new(),
-                    host: String::new(),
-                    port: "21".to_string(),
-                    username: String::new(),
-                    password: String::new(),
-                    use_tls: conn_type == 2,
-                    save_credentials: true,  // Default to saving
-                    error: None,
-                };
-            }
-            3 => {
+            1 => {
                 // SMB
                 *self = Self::SmbForm {
                     selected_field: 0,
@@ -163,40 +138,6 @@ impl ConnectionDialogState {
                     port,
                     username: username.clone(),
                     auth,
-                    initial_path: Some(std::path::PathBuf::from("/")),
-                })
-            }
-            Self::FtpForm {
-                name,
-                host,
-                port,
-                username,
-                password,
-                use_tls,
-                save_credentials,
-                ..
-            } => {
-                if name.is_empty() || host.is_empty() || username.is_empty() {
-                    return None;
-                }
-                
-                let port = port.parse().unwrap_or(21);
-                let conn_type = if *use_tls {
-                    ConnectionType::Ftps
-                } else {
-                    ConnectionType::Ftp
-                };
-                
-                Some(ConnectionConfig {
-                    name: name.clone(),
-                    connection_type: conn_type,
-                    host: host.clone(),
-                    port,
-                    username: username.clone(),
-                    auth: AuthMethod::Password {
-                        password: Some(password.clone()),
-                        stored: *save_credentials,
-                    },
                     initial_path: Some(std::path::PathBuf::from("/")),
                 })
             }
@@ -265,9 +206,6 @@ pub fn render(frame: &mut Frame, state: &ConnectionDialogState, theme: &Theme) {
         }
         ConnectionDialogState::SftpForm { .. } => {
             render_sftp_form(frame, state, area, theme);
-        }
-        ConnectionDialogState::FtpForm { .. } => {
-            render_ftp_form(frame, state, area, theme);
         }
         ConnectionDialogState::SmbForm { .. } => {
             render_smb_form(frame, state, area, theme);
@@ -374,8 +312,6 @@ fn render_type_selection(frame: &mut Frame, selected: usize, area: Rect, theme: 
     // Connection types
     let types = vec![
         ("SFTP", "Secure File Transfer Protocol (SSH)"),
-        ("FTP", "File Transfer Protocol"),
-        ("FTPS", "FTP over SSL/TLS"),
         ("SMB", "Server Message Block (Windows shares)"),
     ];
     
@@ -484,93 +420,6 @@ fn render_sftp_form(frame: &mut Frame, state: &ConnectionDialogState, area: Rect
     } else {
         render_field(frame, chunks[5], "Key Path", key_path, selected_field == 5, theme);
     }
-    
-    // Save credentials checkbox
-    let checkbox_icon = if save_credentials { "☑" } else { "☐" };
-    let checkbox_style = if selected_field == 6 {
-        Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
-    } else {
-        Style::default().fg(theme.dialog_fg)
-    };
-    let checkbox_line = Paragraph::new(format!("{} Guardar credenciales [Space to toggle]", checkbox_icon))
-        .style(checkbox_style);
-    frame.render_widget(checkbox_line, chunks[6]);
-    
-    // Error message
-    if let Some(err) = error {
-        let error_msg = Paragraph::new(err.as_str())
-            .style(Style::default().fg(Color::Red));
-        frame.render_widget(error_msg, chunks[7]);
-    }
-    
-    // Help
-    let help = Paragraph::new(Line::from(vec![
-        Span::styled("↑↓", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-        Span::raw(": Navigate | "),
-        Span::styled("Enter", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
-        Span::raw(": Connect | "),
-        Span::styled("Esc", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
-        Span::raw(": Cancel"),
-    ]))
-    .alignment(Alignment::Center);
-    frame.render_widget(help, chunks[8]);
-}
-
-fn render_ftp_form(frame: &mut Frame, state: &ConnectionDialogState, area: Rect, theme: &Theme) {
-    let (selected_field, name, host, port, username, password, use_tls, save_credentials, error) = match state {
-        ConnectionDialogState::FtpForm {
-            selected_field,
-            name,
-            host,
-            port,
-            username,
-            password,
-            use_tls,
-            save_credentials,
-            error,
-        } => (*selected_field, name, host, port, username, password, *use_tls, *save_credentials, error),
-        _ => return,
-    };
-    
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title(if use_tls { " 🔒 FTPS Connection " } else { " 📁 FTP Connection " })
-        .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
-    
-    let inner = block.inner(area);
-    frame.render_widget(block, area);
-    
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(2),  // Name
-            Constraint::Length(2),  // Host
-            Constraint::Length(2),  // Port
-            Constraint::Length(2),  // Username
-            Constraint::Length(2),  // Password
-            Constraint::Length(2),  // Use TLS
-            Constraint::Length(2),  // Save credentials checkbox
-            Constraint::Length(2),  // Error
-            Constraint::Length(2),  // Help
-        ])
-        .split(inner);
-    
-    render_field(frame, chunks[0], "Connection Name", name, selected_field == 0, theme);
-    render_field(frame, chunks[1], "Host", host, selected_field == 1, theme);
-    render_field(frame, chunks[2], "Port", port, selected_field == 2, theme);
-    render_field(frame, chunks[3], "Username", username, selected_field == 3, theme);
-    render_password_field(frame, chunks[4], "Password", password, selected_field == 4, theme);
-    
-    // TLS toggle
-    let tls_text = if use_tls { "Yes (FTPS)" } else { "No (FTP)" };
-    let tls_style = if selected_field == 5 {
-        Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
-    } else {
-        Style::default().fg(theme.dialog_fg)
-    };
-    let tls_line = Paragraph::new(format!("Use TLS: {} [Tab to change]", tls_text))
-        .style(tls_style);
-    frame.render_widget(tls_line, chunks[5]);
     
     // Save credentials checkbox
     let checkbox_icon = if save_credentials { "☑" } else { "☐" };

@@ -1251,7 +1251,7 @@ pub fn handle_connection_dialog(app: &mut AppState, key: KeyEvent) -> Result<Act
                                 }
                             }
                             KeyCode::Down => {
-                                if *selected < 3 {  // 0=SFTP, 1=FTP, 2=FTPS, 3=SMB
+                                if *selected < 1 {  // 0=SFTP, 1=SMB
                                     *selected += 1;
                                 }
                             }
@@ -1405,75 +1405,6 @@ pub fn handle_connection_dialog(app: &mut AppState, key: KeyEvent) -> Result<Act
                                             *error = Some(format!("Connection failed: {}", e));
                                         }
                                     }
-                                } else {
-                                    *error = Some("Please fill all required fields".to_string());
-                                }
-                            }
-                            _ => {}
-                        }
-                    }
-                    ConnectionDialogState::FtpForm {
-                        selected_field,
-                        name,
-                        host,
-                        port,
-                        username,
-                        password,
-                        use_tls,
-                        save_credentials,
-                        error,
-                    } => {
-                        match key.code {
-                            KeyCode::Up => {
-                                if *selected_field > 0 {
-                                    *selected_field -= 1;
-                                }
-                            }
-                            KeyCode::Down => {
-                                if *selected_field < 6 {  // Updated max field
-                                    *selected_field += 1;
-                                }
-                            }
-                            KeyCode::Tab if *selected_field == 5 => {
-                                // Toggle TLS
-                                *use_tls = !*use_tls;
-                            }
-                            KeyCode::Char(' ') if *selected_field == 6 => {
-                                // Toggle save_credentials checkbox
-                                *save_credentials = !*save_credentials;
-                            }
-                            KeyCode::Char(c) => {
-                                let field_value = match *selected_field {
-                                    0 => name,
-                                    1 => host,
-                                    2 => port,
-                                    3 => username,
-                                    4 => password,
-                                    _ => return Ok(Action::None),
-                                };
-                                field_value.push(c);
-                            }
-                            KeyCode::Backspace => {
-                                let field_value = match *selected_field {
-                                    0 => name,
-                                    1 => host,
-                                    2 => port,
-                                    3 => username,
-                                    4 => password,
-                                    _ => return Ok(Action::None),
-                                };
-                                field_value.pop();
-                            }
-                            KeyCode::Enter => {
-                                // Check if all required fields are filled
-                                let has_all_fields = !name.is_empty() && !host.is_empty() && !username.is_empty() && !password.is_empty();
-                                
-                                if has_all_fields {
-                                    // Close dialog and show success
-                                    let msg = format!("FTP connection '{}' configured!", name);
-                                    app.error_message = Some(msg);
-                                    app.close_dialog();
-                                    return Ok(Action::None);
                                 } else {
                                     *error = Some("Please fill all required fields".to_string());
                                 }

@@ -854,7 +854,7 @@ pub fn render_help_dialog(frame: &mut Frame, area: Rect, theme: &Theme) {
         ]),
         Line::from(vec![
             Span::styled("  Ctrl+M", Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)),
-            Span::raw("         Connect to remote server (SFTP/FTP)"),
+            Span::raw("         Connect to remote server (SFTP/SMB)"),
         ]),
         Line::from(""),
         Line::from(vec![
