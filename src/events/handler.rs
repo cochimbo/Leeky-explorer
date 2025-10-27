@@ -55,6 +55,16 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
         return handle_compress_options_dialog(app, key);
     }
     
+    // Handle Help dialog (F1) - close with ESC or any key
+    if let Some(DialogState::Help) = &app.dialog_state {
+        // Close help dialog with ESC or F1
+        let action = map_key_to_action(key);
+        if matches!(action, Action::Cancel | Action::ShowHelp) {
+            app.close_dialog();
+        }
+        return Ok(Action::None);
+    }
+    
     // Handle Confirm, Progress, Error dialogs before checking editor/preview
     if let Some(DialogState::Confirm { .. }) = &app.dialog_state {
         let action = map_key_to_action(key);
@@ -136,14 +146,25 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
             app.switch_panel();
         }
         Action::EnterDirectory => {
-            app.active_panel_mut().enter_dir()?;
-            refresh_and_store(app)?;
-            // T578: Clear marks when navigating to different directory
-            app.selection_state.clear(app.active_panel);
-            // Exit search mode when entering a directory (panel clears its own filter)
-            if app.search_mode {
-                app.search_mode = false;
-                app.search_pattern.clear();
+            // Smart Enter: directory = enter, file = preview
+            if let Some(entry) = app.active_panel().selected_entry() {
+                use crate::models::file_entry::EntryType;
+                
+                if entry.entry_type == EntryType::Dir {
+                    // Directory: enter it (original behavior)
+                    app.active_panel_mut().enter_dir()?;
+                    refresh_and_store(app)?;
+                    // T578: Clear marks when navigating to different directory
+                    app.selection_state.clear(app.active_panel);
+                    // Exit search mode when entering a directory
+                    if app.search_mode {
+                        app.search_mode = false;
+                        app.search_pattern.clear();
+                    }
+                } else {
+                    // File: show preview (return action for async handling in main.rs)
+                    return Ok(Action::OpenPreview);
+                }
             }
         }
         Action::GoUp => {
@@ -187,10 +208,7 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
             handle_create_folder_request(app)?;
         }
         Action::Rename => {
-            handle_rename_request(app, false)?; // false = name only
-        }
-        Action::RenameWithExtension => {
-            handle_rename_request(app, true)?; // true = name with extension
+            handle_rename_request(app, true)?; // true = allow extension change with Ctrl+R
         }
         Action::Search => {
             // T411: Activate search mode or clear if already active
@@ -254,6 +272,26 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
                 themes,
                 selected,
             });
+        }
+        Action::AddBookmark => {
+            // Quick add current directory to bookmarks (Ctrl+Shift+D)
+            let current_path = app.active_panel().current_path.clone();
+            let default_name = current_path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("Bookmark")
+                .to_string();
+            
+            // Use error_message to pass the path as context (like existing bookmark code does)
+            app.error_message = Some(current_path.to_string_lossy().to_string());
+            app.dialog_state = Some(DialogState::Input {
+                prompt: "Bookmark name:".to_string(),
+                value: default_name,
+            });
+        }
+        Action::ShowHelp => {
+            // F1: Show help dialog with all keybindings
+            app.dialog_state = Some(DialogState::Help);
         }
         Action::ToggleBookmarkManager => {
             // TASK-008: Open bookmark manager dialog
@@ -432,6 +470,12 @@ fn handle_dialog_action(app: &mut AppState, action: Action) -> Result<Action> {
                     ConfirmAction::ExtractArchive { .. } => {
                         // Return action to main.rs for async extraction
                         return Ok(Action::ConfirmYes);
+                    }
+                    ConfirmAction::AddBookmark(_path) => {
+                        // This shouldn't happen as AddBookmark uses Input dialog, not Confirm
+                        // But we need to handle it for exhaustive match
+                        app.close_dialog();
+                        return Ok(Action::None);
                     }
                 }
             }

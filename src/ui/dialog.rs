@@ -61,6 +61,10 @@ pub fn render_dialog(frame: &mut Frame, dialog: &DialogState, area: Rect, theme:
         DialogState::GoToPath { input, error_message, suggestions, selected_suggestion } => {
             crate::ui::goto_dialog::render(frame, input, error_message, suggestions, *selected_suggestion, theme);
         }
+        // Help dialog (F1) - shows all keyboard shortcuts
+        DialogState::Help => {
+            render_help_dialog(frame, area, theme);
+        }
     }
 }
 
@@ -740,6 +744,165 @@ fn render_compress_options_dialog(
     ]))
     .alignment(Alignment::Center);
     frame.render_widget(instructions, chunks[10]);
+}
+
+pub fn render_help_dialog(frame: &mut Frame, area: Rect, theme: &Theme) {
+    let dialog_area = centered_rect(80, 85, area);
+    
+    frame.render_widget(Clear, dialog_area);
+    
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(" ⌨️  Keyboard Shortcuts (ESC to close) ")
+        .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
+    
+    let inner = block.inner(dialog_area);
+    frame.render_widget(block, dialog_area);
+    
+    // Keybindings organized by category
+    let help_text = vec![
+        Line::from(vec![
+            Span::styled("Navigation", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD | Modifier::UNDERLINED)),
+        ]),
+        Line::from(vec![
+            Span::styled("  ↑/↓", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            Span::raw("          Move cursor up/down"),
+        ]),
+        Line::from(vec![
+            Span::styled("  PgUp/PgDn", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            Span::raw("    Scroll page"),
+        ]),
+        Line::from(vec![
+            Span::styled("  Home/End", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            Span::raw("     Jump to first/last"),
+        ]),
+        Line::from(vec![
+            Span::styled("  Enter", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            Span::raw("         Enter directory / Preview file"),
+        ]),
+        Line::from(vec![
+            Span::styled("  Backspace", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            Span::raw("     Go to parent directory"),
+        ]),
+        Line::from(vec![
+            Span::styled("  Tab", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            Span::raw("           Switch between panels"),
+        ]),
+        Line::from(vec![
+            Span::styled("  Alt+Left/Right", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            Span::raw(" Navigate history back/forward"),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("File Operations", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD | Modifier::UNDERLINED)),
+        ]),
+        Line::from(vec![
+            Span::styled("  Ctrl+C", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+            Span::raw("         Copy selected files"),
+        ]),
+        Line::from(vec![
+            Span::styled("  Ctrl+X", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+            Span::raw("         Cut/Move selected files"),
+        ]),
+        Line::from(vec![
+            Span::styled("  Ctrl+R", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+            Span::raw("         Rename file/folder"),
+        ]),
+        Line::from(vec![
+            Span::styled("  Ctrl+Shift+N", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+            Span::raw("   Create new folder"),
+        ]),
+        Line::from(vec![
+            Span::styled("  Delete", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+            Span::raw("         Delete selected files"),
+        ]),
+        Line::from(vec![
+            Span::styled("  Space", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+            Span::raw("          Select/deselect file"),
+        ]),
+        Line::from(vec![
+            Span::styled("  Ctrl+A", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+            Span::raw("         Select all files"),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Search & Navigation", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD | Modifier::UNDERLINED)),
+        ]),
+        Line::from(vec![
+            Span::styled("  Ctrl+F", Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)),
+            Span::raw("         Search in current directory"),
+        ]),
+        Line::from(vec![
+            Span::styled("  Ctrl+Shift+F", Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)),
+            Span::raw("   Recursive search in subdirectories"),
+        ]),
+        Line::from(vec![
+            Span::styled("  Ctrl+G", Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)),
+            Span::raw("         Go to path"),
+        ]),
+        Line::from(vec![
+            Span::styled("  Ctrl+H", Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)),
+            Span::raw("         View navigation history"),
+        ]),
+        Line::from(vec![
+            Span::styled("  Ctrl+D", Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)),
+            Span::raw("         Select drive (Windows)"),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Bookmarks", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD | Modifier::UNDERLINED)),
+        ]),
+        Line::from(vec![
+            Span::styled("  Ctrl+Shift+D", Style::default().fg(Color::Blue).add_modifier(Modifier::BOLD)),
+            Span::raw("   Add current directory to bookmarks"),
+        ]),
+        Line::from(vec![
+            Span::styled("  Ctrl+B", Style::default().fg(Color::Blue).add_modifier(Modifier::BOLD)),
+            Span::raw("         Open bookmark manager"),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Editor & Preview", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD | Modifier::UNDERLINED)),
+        ]),
+        Line::from(vec![
+            Span::styled("  Ctrl+E", Style::default().fg(Color::LightCyan).add_modifier(Modifier::BOLD)),
+            Span::raw("         Open file in text editor"),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Archives", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD | Modifier::UNDERLINED)),
+        ]),
+        Line::from(vec![
+            Span::styled("  Ctrl+Shift+E", Style::default().fg(Color::LightGreen).add_modifier(Modifier::BOLD)),
+            Span::raw("   Extract archive"),
+        ]),
+        Line::from(vec![
+            Span::styled("  Ctrl+Shift+A", Style::default().fg(Color::LightGreen).add_modifier(Modifier::BOLD)),
+            Span::raw("   Create archive/compress"),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("System", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD | Modifier::UNDERLINED)),
+        ]),
+        Line::from(vec![
+            Span::styled("  Ctrl+W", Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD)),
+            Span::raw("         Change theme"),
+        ]),
+        Line::from(vec![
+            Span::styled("  Ctrl+Q", Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD)),
+            Span::raw("         Quit application"),
+        ]),
+        Line::from(vec![
+            Span::styled("  F1", Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD)),
+            Span::raw("             Show this help"),
+        ]),
+    ];
+    
+    let paragraph = Paragraph::new(help_text)
+        .style(Style::default().fg(theme.dialog_fg))
+        .wrap(Wrap { trim: false });
+    
+    frame.render_widget(paragraph, inner);
 }
 
 fn centered_rect(percent_x: u16, percent_y: u16, area: Rect) -> Rect {

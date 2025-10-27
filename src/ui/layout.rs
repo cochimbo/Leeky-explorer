@@ -15,7 +15,7 @@ pub fn create_layout(area: Rect) -> AppLayout {
         .constraints([
             Constraint::Length(3),  // Headers
             Constraint::Min(10),    // Panels
-            Constraint::Length(3),  // Footer (2 lines now)
+            Constraint::Length(1),  // Footer (single line with F1 Help)
         ])
         .split(area);
 

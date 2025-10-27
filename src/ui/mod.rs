@@ -196,71 +196,41 @@ pub fn render_header(frame: &mut Frame, app: &mut AppState, left_area: Rect, rig
 }
 
 pub fn render_footer(frame: &mut Frame, area: Rect, theme: &Theme) {
-    // T561: Group keybindings in 2 lines for better space management
-    let line1_bindings = vec![
+    // Simplified footer: F1 for help + basic navigation hints
+    let bindings = vec![
+        ("F1", "Help", Color::Yellow),
         ("↑↓", "Nav", Color::Blue),
-        ("PgUp/Dn", "5×", Color::Blue),      // T128j: Page navigation
-        ("Home/End", "Start/End", Color::Blue), // T128j: Jump to edges
         ("Tab", "Switch", Color::Blue),
-        ("Enter", "Open", Color::Green),
-        ("Bksp", "Up", Color::Yellow),
+        ("Enter", "Open/Preview", Color::Green),
         ("Space", "Select", Color::Magenta),
-        ("a-z", "Jump", Color::Blue),        // T128e: Alphanumeric navigation
-    ];
-    
-    let line2_bindings = vec![
-        ("F2", "Rename", Color::Yellow),
-        ("⇧F2", "Full", Color::Yellow),      // Shift+F2 for rename with extension
-        ("F3", "Search", Color::Cyan),
-        ("⇧F3", "Clear", Color::Cyan),       // Shift+F3 to clear search
-        ("F4", "Preview", Color::Cyan),
-        ("F5", "Copy", Color::Green),
-        ("F6", "Move", Color::Green),
-        ("F7", "NewDir", Color::Yellow),
-        ("F8", "Delete", Color::Red),
-        ("F9", "Extract", Color::Cyan),
-        ("⇧F9", "Compress", Color::Cyan),    // Shift+F9 for compression
-        ("F10", "Drive", Color::Blue),        // US4: Drive selector
-        ("F12", "Theme", Color::Magenta),     // US5: Theme selector
-        ("Ctrl+B", "Bookmarks", Color::Yellow), // Bookmark manager
-        ("Ctrl+G", "Go To", Color::Yellow),     // Go To Path
-        ("Ctrl+H", "History", Color::Yellow),   // Navigation history
-        ("Ctrl+Q", "Quit", Color::Gray),     // T128b: Changed from Q to Ctrl+Q
-        ("Ctrl+A", "All", Color::Magenta),
+        ("Ctrl+Q", "Quit", Color::Gray),
     ];
 
-    let create_line = |bindings: &[(&str, &str, Color)]| {
-        Line::from(
-            bindings
-                .iter()
-                .flat_map(|&(key, action, color)| {
-                    let bg = theme.footer_bg;
-                    vec![
-                        Span::styled(
-                            format!(" {} ", key),
-                            Style::default()
-                                .fg(color)
-                                .bg(bg)
-                                .add_modifier(Modifier::BOLD),
-                        ),
-                        Span::styled(
-                            format!(":{} ", action),
-                            Style::default()
-                                .fg(theme.footer_fg)
-                                .bg(bg),
-                        ),
-                    ]
-                })
-                .collect::<Vec<_>>(),
-        )
-    };
+    let line = Line::from(
+        bindings
+            .iter()
+            .flat_map(|&(key, action, color)| {
+                let bg = theme.footer_bg;
+                vec![
+                    Span::styled(
+                        format!(" {} ", key),
+                        Style::default()
+                            .fg(color)
+                            .bg(bg)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Span::styled(
+                        format!(":{} ", action),
+                        Style::default()
+                            .fg(theme.footer_fg)
+                            .bg(bg),
+                    ),
+                ]
+            })
+            .collect::<Vec<_>>(),
+    );
 
-    let content = vec![
-        create_line(&line1_bindings),
-        create_line(&line2_bindings),
-    ];
-
-    let paragraph = Paragraph::new(content)
+    let paragraph = Paragraph::new(line)
         .style(Style::default().bg(theme.footer_bg));
 
     frame.render_widget(paragraph, area);

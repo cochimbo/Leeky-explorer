@@ -126,6 +126,8 @@ pub enum DialogState {
         suggestions: Vec<std::path::PathBuf>,
         selected_suggestion: usize,
     },
+    // Help dialog (F1) - shows all keyboard shortcuts
+    Help,
 }
 
 #[derive(Debug, Clone)]
@@ -180,6 +182,7 @@ pub enum ConfirmAction {
         format: crate::archive::formats::ArchiveFormat,
     },
     CloseEditor, // TASK-030: Confirm closing editor with unsaved changes
+    AddBookmark(PathBuf), // Quick add bookmark with Ctrl+Shift+D
 }
 
 impl AppState {

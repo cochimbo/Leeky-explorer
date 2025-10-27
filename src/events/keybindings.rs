@@ -4,36 +4,37 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, KeyEventKind};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Action {
     Quit,
+    ShowHelp,         // F1 to show help dialog with all keybindings
     MoveUp,
     MoveDown,
     SwitchPanel,
-    EnterDirectory,
+    EnterDirectory,   // Enter: if directory -> enter, if file -> preview
     GoUp,
     Refresh,
-    Copy,
-    Move,
-    Delete,
-    CreateFolder,
-    Rename,           // F2 to rename file/directory (name only, no extension)
-    RenameWithExtension, // Shift+F2 to rename with extension
-    Search,
-    ClearSearch,      // Shift+F3 to clear search pattern and filter
-    ToggleSelection,  // T562: Space to mark/unmark
-    SelectAll,        // T563: Ctrl+A to select all
-    ClearSelection,   // T564: Esc to clear selection (when marks exist)
-    OpenPreview,      // T625: F4 to open preview
-    ClosePreview,     // T628: Esc/Q to close preview
-    OpenEditor,       // TASK-028: F3 to open text editor
-    CloseEditor,      // TASK-030: Esc to close editor
-    SaveEditor,       // TASK-030: Ctrl+S to save editor
-    ExtractArchive,   // T838: F9 to extract archive
-    CompressArchive,  // T937: Shift+F9 to compress archive
-    OpenDriveSelector, // US4: F10 to open drive selector (Windows)
-    OpenThemeSelector, // US5: F11 to open theme selector
-    ToggleBookmarkManager, // TASK-005: Ctrl+B to toggle bookmark manager
-    ToggleHistoryViewer, // TASK-018: Ctrl+H to toggle navigation history
-    ToggleGoToPath, // TASK-021: Ctrl+G to toggle Go To Path dialog
-    OpenRecursiveSearch, // TASK-040: Ctrl+F to open recursive search dialog
+    Copy,             // Ctrl+C to copy files
+    Move,             // Ctrl+X to move files
+    Delete,           // Delete key
+    CreateFolder,     // Ctrl+Shift+N to create new folder
+    Rename,           // Ctrl+R to rename file/directory
+    Search,           // Ctrl+F for local search
+    ClearSearch,      // Clear search pattern and filter
+    ToggleSelection,  // Space to mark/unmark
+    SelectAll,        // Ctrl+A to select all
+    ClearSelection,   // Esc to clear selection (when marks exist)
+    OpenPreview,      // Enter on file to preview (or explicit action)
+    ClosePreview,     // Esc/Q to close preview
+    OpenEditor,       // Ctrl+E to open text editor
+    CloseEditor,      // Esc to close editor
+    SaveEditor,       // Ctrl+S to save editor
+    ExtractArchive,   // Ctrl+Shift+E to extract archive
+    CompressArchive,  // Ctrl+Shift+A to compress archive
+    OpenDriveSelector, // Ctrl+D to open drive selector (Windows)
+    OpenThemeSelector, // Ctrl+, to open theme selector
+    AddBookmark,      // Ctrl+Shift+D to add current directory to bookmarks
+    ToggleBookmarkManager, // Ctrl+B to toggle bookmark manager
+    ToggleHistoryViewer, // Ctrl+H to toggle navigation history
+    ToggleGoToPath,   // Ctrl+G to toggle Go To Path dialog
+    OpenRecursiveSearch, // Ctrl+Shift+F to open recursive search dialog
     ScrollPreviewUp,
     ScrollPreviewDown,
     PagePreviewUp,
@@ -47,10 +48,10 @@ pub enum Action {
     InputChar(char),
     InputBackspace,
     QuickJump(char),  // T128c: Jump to file starting with character
-    PageDown,         // T128f: Page Down - move 5 positions down
-    PageUp,           // T128g: Page Up - move 5 positions up
-    JumpToStart,      // T128h: Home key - jump to first entry
-    JumpToEnd,        // T128i: End key - jump to last entry
+    PageDown,         // Page Down - move 5 positions down
+    PageUp,           // Page Up - move 5 positions up
+    JumpToStart,      // Home key - jump to first entry
+    JumpToEnd,        // End key - jump to last entry
     None,
 }
 
@@ -60,57 +61,63 @@ pub fn map_key_to_action(key: KeyEvent) -> Action {
         return Action::None;
     }
 
+    // Helper to check modifier combinations
+    let has_ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
+    let has_shift = key.modifiers.contains(KeyModifiers::SHIFT);
+    let has_ctrl_shift = has_ctrl && has_shift;
+
     match (key.code, key.modifiers) {
-        // T128b: Changed from 'q'/'Q' to Ctrl+Q to free up alphanumeric keys for navigation
+        // Quit: Only Ctrl+Q now (Ctrl+C is for Copy)
         (KeyCode::Char('q'), KeyModifiers::CONTROL) | (KeyCode::Char('Q'), KeyModifiers::CONTROL) => {
             Action::Quit
         }
-        (KeyCode::Char('c'), KeyModifiers::CONTROL) => Action::Quit,
-        (KeyCode::Up, _) | (KeyCode::Char('k'), KeyModifiers::NONE) => Action::MoveUp,
-        (KeyCode::Down, _) | (KeyCode::Char('j'), KeyModifiers::NONE) => Action::MoveDown,
+        // F1: Help dialog
+        (KeyCode::F(1), _) => Action::ShowHelp,
+        // Navigation (removed j/k to avoid collision with quick jump)
+        (KeyCode::Up, _) => Action::MoveUp,
+        (KeyCode::Down, _) => Action::MoveDown,
         (KeyCode::Tab, _) => Action::SwitchPanel,
-        (KeyCode::Enter, _) => Action::EnterDirectory,
+        (KeyCode::Enter, _) => Action::EnterDirectory, // Will be smart: dir=enter, file=preview
         (KeyCode::Backspace, _) => Action::GoUp,
         (KeyCode::Char('r'), KeyModifiers::NONE) => Action::Refresh,
-        // T128f-i: Page navigation keys
+        // Page navigation keys
         (KeyCode::PageDown, _) => Action::PageDown,
         (KeyCode::PageUp, _) => Action::PageUp,
         (KeyCode::Home, _) => Action::JumpToStart,
         (KeyCode::End, _) => Action::JumpToEnd,
-        (KeyCode::F(2), KeyModifiers::NONE) => Action::Rename,
-        (KeyCode::F(2), KeyModifiers::SHIFT) => Action::RenameWithExtension,
-        (KeyCode::F(5), _) => Action::Copy,
-        (KeyCode::F(6), _) => Action::Move,
-        (KeyCode::F(7), _) => Action::CreateFolder,
-        (KeyCode::F(8), _) => Action::Delete,
-        // F3 for search, Shift+F3 to clear search, F4 for preview (T626), Shift+F4 for editor (TASK-028), F9 for extract (T839), Shift+F9 for compress (T938), F10 for drive selector (US4), F12 for theme selector (US5)
-        (KeyCode::F(3), KeyModifiers::NONE) => Action::Search,
-        (KeyCode::F(3), KeyModifiers::SHIFT) => Action::ClearSearch,
-        (KeyCode::F(4), KeyModifiers::NONE) => Action::OpenPreview,
-        (KeyCode::F(4), KeyModifiers::SHIFT) => Action::OpenEditor,
-        (KeyCode::F(9), KeyModifiers::NONE) => Action::ExtractArchive,
-        (KeyCode::F(9), KeyModifiers::SHIFT) => Action::CompressArchive,
-        (KeyCode::F(10), _) => Action::OpenDriveSelector,
-        (KeyCode::F(12), _) => Action::OpenThemeSelector,
-        // TASK-005: Ctrl+B for bookmarks
-        (KeyCode::Char('b'), KeyModifiers::CONTROL) | (KeyCode::Char('B'), KeyModifiers::CONTROL) => {
+        // File operations - NEW BINDINGS
+        (KeyCode::Char('r'), KeyModifiers::CONTROL) | (KeyCode::Char('R'), KeyModifiers::CONTROL) => Action::Rename,
+        (KeyCode::Char('c'), KeyModifiers::CONTROL) | (KeyCode::Char('C'), KeyModifiers::CONTROL) if !has_shift => Action::Copy,
+        (KeyCode::Char('x'), KeyModifiers::CONTROL) | (KeyCode::Char('X'), KeyModifiers::CONTROL) if !has_shift => Action::Move,
+        (KeyCode::Char('n'), KeyModifiers::CONTROL | KeyModifiers::SHIFT) | 
+        (KeyCode::Char('N'), KeyModifiers::CONTROL | KeyModifiers::SHIFT) => Action::CreateFolder,
+        (KeyCode::Delete, _) => Action::Delete,
+        // Search - use guards to distinguish Ctrl vs Ctrl+Shift
+        (KeyCode::Char('f'), _) | (KeyCode::Char('F'), _) if has_ctrl_shift => Action::OpenRecursiveSearch,
+        (KeyCode::Char('f'), _) | (KeyCode::Char('F'), _) if has_ctrl && !has_shift => Action::Search,
+        // Archives - Ctrl+Shift+E/A
+        (KeyCode::Char('e'), _) | (KeyCode::Char('E'), _) if has_ctrl_shift => Action::ExtractArchive,
+        (KeyCode::Char('a'), _) | (KeyCode::Char('A'), _) if has_ctrl_shift => Action::CompressArchive,
+        // Editor - Ctrl+E (without shift)
+        (KeyCode::Char('e'), _) | (KeyCode::Char('E'), _) if has_ctrl && !has_shift => Action::OpenEditor,
+        // Bookmarks - Ctrl+Shift+D vs Ctrl+D
+        (KeyCode::Char('d'), _) | (KeyCode::Char('D'), _) if has_ctrl_shift => Action::AddBookmark,
+        (KeyCode::Char('d'), _) | (KeyCode::Char('D'), _) if has_ctrl && !has_shift => Action::OpenDriveSelector,
+        (KeyCode::Char('w'), KeyModifiers::CONTROL) | (KeyCode::Char('W'), KeyModifiers::CONTROL) if !has_shift => Action::OpenThemeSelector,
+        (KeyCode::Char('b'), KeyModifiers::CONTROL) | (KeyCode::Char('B'), KeyModifiers::CONTROL) if !has_shift => {
             Action::ToggleBookmarkManager
         }
-        // TASK-018: Ctrl+H for navigation history
-        (KeyCode::Char('h'), KeyModifiers::CONTROL) | (KeyCode::Char('H'), KeyModifiers::CONTROL) => {
+        // Navigation history and Go To
+        (KeyCode::Char('h'), KeyModifiers::CONTROL) | (KeyCode::Char('H'), KeyModifiers::CONTROL) if !has_shift => {
             Action::ToggleHistoryViewer
         }
-        // TASK-021: Ctrl+G for Go To Path
-        (KeyCode::Char('g'), KeyModifiers::CONTROL) | (KeyCode::Char('G'), KeyModifiers::CONTROL) => {
+        (KeyCode::Char('g'), KeyModifiers::CONTROL) | (KeyCode::Char('G'), KeyModifiers::CONTROL) if !has_shift => {
             Action::ToggleGoToPath
         }
-        // TASK-040: Ctrl+F for recursive search
-        (KeyCode::Char('f'), KeyModifiers::CONTROL) | (KeyCode::Char('F'), KeyModifiers::CONTROL) => {
-            Action::OpenRecursiveSearch
-        }
-        // T565-T566: Selection keybindings
+        // Selection - Ctrl+A without Shift
+        (KeyCode::Char('a'), _) | (KeyCode::Char('A'), _) if has_ctrl && !has_shift => Action::SelectAll,
         (KeyCode::Char(' '), KeyModifiers::NONE) => Action::ToggleSelection,
-        (KeyCode::Char('a'), KeyModifiers::CONTROL) => Action::SelectAll,
+        // Confirm dialogs
         (KeyCode::Char('y'), KeyModifiers::NONE) | (KeyCode::Char('Y'), KeyModifiers::NONE) => {
             Action::ConfirmYes
         }
@@ -118,7 +125,7 @@ pub fn map_key_to_action(key: KeyEvent) -> Action {
             Action::ConfirmNo
         }
         (KeyCode::Esc, _) => Action::Cancel,
-        // T128c: Alphanumeric quick navigation - jump to files starting with letter
+        // Alphanumeric quick navigation - jump to files starting with letter
         (KeyCode::Char(c), KeyModifiers::NONE) if c.is_alphanumeric() => {
             Action::QuickJump(c.to_ascii_lowercase())
         }
@@ -148,8 +155,8 @@ pub fn map_key_to_preview_action(key: KeyEvent) -> Action {
     }
 
     match key.code {
-        KeyCode::Up | KeyCode::Char('k') => Action::ScrollPreviewUp,
-        KeyCode::Down | KeyCode::Char('j') => Action::ScrollPreviewDown,
+        KeyCode::Up => Action::ScrollPreviewUp,
+        KeyCode::Down => Action::ScrollPreviewDown,
         KeyCode::PageUp => Action::PagePreviewUp,
         KeyCode::PageDown => Action::PagePreviewDown,
         KeyCode::Home => Action::JumpPreviewStart,
