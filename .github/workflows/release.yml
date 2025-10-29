@@ -189,7 +189,7 @@ jobs:
   build-linux-arm64:
     name: Build Linux ARM64 (Raspberry Pi 64-bit)
     needs: test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -234,7 +234,7 @@ jobs:
   build-linux-armv7:
     name: Build Linux ARMv7 (Raspberry Pi 32-bit)
     needs: test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
