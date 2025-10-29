@@ -8,7 +8,9 @@ use std::time::SystemTime;
 
 /// SMB filesystem implementation using VirtualFileSystem trait
 pub struct SmbFileSystem {
+    #[allow(dead_code)]
     config: ConnectionConfig,
+    #[allow(dead_code)]
     manager: Arc<SmbManager>,
     unc_path: String,  // \\server\share
 }

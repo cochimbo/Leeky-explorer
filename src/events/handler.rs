@@ -57,6 +57,12 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) -> Result<Action> {
         return handlers::dialogs::handle_compress_options_dialog(app, key);
     }
     
+    // Handle extract options dialog
+    if let Some(DialogState::ExtractOptions { .. }) = &app.dialog_state {
+        let action = map_key_to_action(key);
+        return handle_dialog_action(app, action);
+    }
+    
     // Handle remote connection dialog
     if let Some(DialogState::RemoteConnection { .. }) = &app.dialog_state {
         return handlers::dialogs::handle_connection_dialog(app, key);
