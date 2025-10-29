@@ -19,6 +19,12 @@ pub async fn copy_file_vfs(
     log::info!("VFS copy: {:?} -> {:?} (src_remote={}, dst_remote={})", 
                src, dst, src_vfs.is_some(), dst_vfs.is_some());
     
+    // If both are local (no VFS), use the optimized local copy with incremental progress
+    if src_vfs.is_none() && dst_vfs.is_none() {
+        log::info!("Both local: using copy_file_with_progress for incremental updates");
+        return crate::fs::operations::copy_file_with_progress(src, dst, tx, cancel_rx).await;
+    }
+    
     // Get file size for progress tracking
     let total_size = if let Some(vfs) = &src_vfs {
         // Remote source
@@ -183,6 +189,12 @@ pub async fn copy_dir_recursive_vfs(
     cancel_rx: Option<tokio::sync::watch::Receiver<bool>>,
 ) -> Result<()> {
     log::info!("VFS copy directory: {:?} -> {:?}", src, dst);
+    
+    // If both are local (no VFS), use the optimized local copy with better progress
+    if src_vfs.is_none() && dst_vfs.is_none() {
+        log::info!("Both local: using copy_dir_recursive for better progress");
+        return crate::fs::operations::copy_dir_recursive(src, dst, tx, total_size, cancel_rx).await;
+    }
     
     // Create destination directory
     create_dir_vfs(dst, dst_vfs.clone()).await?;
@@ -428,6 +440,12 @@ pub async fn move_item_vfs(
 ) -> Result<()> {
     log::info!("[VFS_MOVE] Starting move: {} -> {}", src.display(), dst.display());
     log::info!("[VFS_MOVE] src_vfs: {}, dst_vfs: {}", src_vfs.is_some(), dst_vfs.is_some());
+    
+    // If both are local (no VFS), use the optimized local move
+    if src_vfs.is_none() && dst_vfs.is_none() {
+        log::info!("Both local: using move_item for better progress");
+        return crate::fs::operations::move_item(src, dst, tx, cancel_rx).await;
+    }
     
     // Check if both source and dest are on same filesystem
     let same_fs = match (&src_vfs, &dst_vfs) {
