@@ -366,7 +366,7 @@ mod tests {
         assert!(editor.is_read_only());
         
         // Clean up: remove read-only flag
-    let perms = fs::metadata(&path).unwrap().permissions();
+    let mut perms = fs::metadata(&path).unwrap().permissions();
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
