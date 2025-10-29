@@ -12,13 +12,13 @@ A fast, dual-pane terminal file manager built with Rust and Ratatui.
 
 - **Dual-Pane Navigation**: Classic two-panel interface for efficient file management
 - **Fast & Responsive**: Built with Rust for maximum performance
-- **🎨 Theme System**: Choose from 8 beautiful built-in themes with live preview (F12)
-- **📚 Bookmarks**: Save and quickly access frequently used directories (Ctrl+D to add, Ctrl+B to manage)
-- **🔍 Text Editor**: Built-in text editor with syntax highlighting and undo/redo (F4 on text files)
-- **🔎 Recursive Search**: Search files across entire directory trees with glob pattern support (Ctrl+F)
-- **⏱️ Navigation History**: Go back/forward through visited directories (Alt+Left/Right)
-- **↗️ Go To Path**: Jump directly to any directory path (Ctrl+G)
-- **🔄 Auto-Refresh**: Automatically detects external directory changes every 5 seconds
+ **🎨 Theme System**: 8 built-in themes with live preview (`Ctrl+W`)
+ **📚 Bookmarks**: Save and manage up to 50 favorite directories (`Ctrl+Shift+D` to add, `Ctrl+B` to manage)
+ **🔍 Text Editor**: Built-in editor with syntax highlighting, undo/redo, and UTF-8/emoji support (`Ctrl+E` to open, `Ctrl+S` to save)
+ **🔎 Recursive Search**: Search files with glob patterns and real-time results (`Ctrl+F`)
+ **⏱️ Navigation History**: Per-panel history with dialogs and keyboard navigation (`Alt+Left/Right`, `Ctrl+H`)
+ **↗️ Go To Path**: Jump to any directory, with tilde/env expansion (`Ctrl+G`)
+ **Drive Selector**: Quick drive switching on Windows (`Ctrl+D`)
 - **Archive Support**: Extract and create ZIP, TAR.GZ, TAR.BZ2, TAR.XZ, and 7Z archives
 - **Password Protection**: Encrypt/decrypt ZIP archives with passwords
 - **File Preview**: View text files and images directly in the terminal (ASCII art)
@@ -246,7 +246,7 @@ make package
 | `Ctrl+G` | Go to path |
 | `Ctrl+H` | Navigation history |
 | `Alt+Left` / `Alt+Right` | Back / Forward in history |
-| `F12` | Theme selector |
+| `Ctrl+W` | Theme selector |
 
 **Built-in themes:**
 - 8 themes: Classic, Light, Dark, High Contrast, Nord, Dracula, Solarized Dark, Solarized Light
@@ -296,7 +296,7 @@ make package
 │                                          ││                                         │
 │                                          ││                                         │
 └──────────────────────────────────────────┘└──────────────────────────────────────────┘
- ? Help  F5 Copy  F6 Move  F7 MkDir  F8 Delete  Ctrl+E Extract  Ctrl+Z Compress  / Filter  q Quit
+ F1 :Help  ↑↓ :Nav  Tab :Switch  Enter :Open/Preview  Space :Select  Ctrl+Q :Quit
 ```
 
 ## 🚀 Usage Examples
