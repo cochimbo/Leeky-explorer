@@ -3,7 +3,6 @@
 // TODO: Consider using libsmbclient bindings for better integration
 
 use crate::models::remote::smb::SmbCredentials;
-use anyhow::{anyhow, Result};
 
 /// Connect to an SMB share
 /// On Unix, we don't actually "connect" in the same way as Windows
