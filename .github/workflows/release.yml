@@ -203,8 +203,9 @@ jobs:
 
       - name: Install cross-compilation tools and sysroot
         run: |
+          sudo dpkg --add-architecture arm64
           sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross pkg-config qemu-user-static
+          sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross pkg-config qemu-user-static libdbus-1-dev:arm64
           echo "PKG_CONFIG_SYSROOT_DIR=/usr/aarch64-linux-gnu" >> $GITHUB_ENV
           echo "PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig" >> $GITHUB_ENV
 
@@ -247,8 +248,9 @@ jobs:
 
       - name: Install cross-compilation tools and sysroot
         run: |
+          sudo dpkg --add-architecture armhf
           sudo apt-get update
-          sudo apt-get install -y gcc-arm-linux-gnueabihf libc6-dev-armhf-cross pkg-config qemu-user-static
+          sudo apt-get install -y gcc-arm-linux-gnueabihf libc6-dev-armhf-cross pkg-config qemu-user-static libdbus-1-dev:armhf
           echo "PKG_CONFIG_SYSROOT_DIR=/usr/arm-linux-gnueabihf" >> $GITHUB_ENV
           echo "PKG_CONFIG_PATH=/usr/lib/arm-linux-gnueabihf/pkgconfig" >> $GITHUB_ENV
 
