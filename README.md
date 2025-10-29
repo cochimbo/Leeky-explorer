@@ -77,7 +77,7 @@ Or visit [GitHub Releases](https://github.com/cochimbo/Leeky-explorer/releases/l
 
 > **Note:** FTP/FTPS support has been removed in 0.4.0. Only SFTP and SMB are supported for remote connections.
 ```bash
-wget https://github.com/cochimbo/Leeky-explorer/releases/download/v0.3.0/leeky-explorer-v0.3.0-linux-armv7.tar.gz
+wget https://github.com/cochimbo/Leeky-explorer/releases/download/v0.3.0/leeky-explorer-v0.4.0-linux-armv7.tar.gz
 tar -xzf leeky-explorer-v0.3.0-linux-armv7.tar.gz
 leeky-explorer
 ```
@@ -85,7 +85,7 @@ leeky-explorer
 #### 🪟 Windows (x86_64)
 ```powershell
 # Download from GitHub Releases page or use PowerShell
-Invoke-WebRequest -Uri "https://github.com/cochimbo/Leeky-explorer/releases/download/v0.3.0/leeky-explorer-v0.3.0-windows-x86_64.zip" -OutFile "leeky-explorer.zip"
+Invoke-WebRequest -Uri "https://github.com/cochimbo/Leeky-explorer/releases/download/v0.4.0/leeky-explorer-v0.3.0-windows-x86_64.zip" -OutFile "leeky-explorer.zip"
 
 # Extract
 Expand-Archive leeky-explorer.zip -DestinationPath .
@@ -100,7 +100,7 @@ Get-FileHash leeky-explorer.exe -Algorithm SHA256
 #### 🍎 macOS (Intel)
 ```bash
 # Download and extract
-curl -L -o leeky-explorer.tar.gz https://github.com/cochimbo/Leeky-explorer/releases/download/v0.3.0/leeky-explorer-v0.3.0-macos-x86_64.tar.gz
+curl -L -o leeky-explorer.tar.gz https://github.com/cochimbo/Leeky-explorer/releases/download/v0.4.0/leeky-explorer-v0.3.0-macos-x86_64.tar.gz
 tar -xzf leeky-explorer.tar.gz
 
 # Verify checksum (optional)
@@ -113,7 +113,7 @@ leeky-explorer
 #### 🍎 macOS (M1/M2/M3 Apple Silicon)
 ```bash
 # Download and extract
-curl -L -o leeky-explorer.tar.gz https://github.com/cochimbo/Leeky-explorer/releases/download/v0.3.0/leeky-explorer-v0.3.0-macos-arm64.tar.gz
+curl -L -o leeky-explorer.tar.gz https://github.com/cochimbo/Leeky-explorer/releases/download/v0.4.0/leeky-explorer-v0.3.0-macos-arm64.tar.gz
 tar -xzf leeky-explorer.tar.gz
 
 # Run
