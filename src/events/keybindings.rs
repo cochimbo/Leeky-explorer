@@ -35,7 +35,7 @@ pub enum Action {
     ToggleHistoryViewer, // Ctrl+H to toggle navigation history
     ToggleGoToPath,   // Ctrl+G to toggle Go To Path dialog
     OpenRecursiveSearch, // Ctrl+Shift+F to open recursive search dialog
-    OpenRemoteConnection, // Ctrl+N to open remote connection dialog
+    OpenRemoteConnection, // Ctrl+M to open remote connection dialog
     DisconnectRemote,     // Ctrl+Shift+M to disconnect from remote filesystem
     ScrollPreviewUp,
     ScrollPreviewDown,

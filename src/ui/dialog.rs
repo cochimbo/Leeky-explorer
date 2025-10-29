@@ -856,6 +856,22 @@ pub fn render_help_dialog(frame: &mut Frame, area: Rect, theme: &Theme) {
             Span::styled("  Ctrl+M", Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)),
             Span::raw("         Connect to remote server (SFTP/SMB)"),
         ]),
+        Line::from(vec![
+            Span::styled("  Ctrl+Shift+M", Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)),
+            Span::raw("   Disconnect from remote filesystem"),
+        ]),
+        Line::from(vec![
+            Span::styled("  r", Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)),
+            Span::raw("              Refresh current directory"),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Quick Access", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD | Modifier::UNDERLINED)),
+        ]),
+        Line::from(vec![
+            Span::styled("  a-z", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            Span::raw("            Quick jump to file starting with letter"),
+        ]),
         Line::from(""),
         Line::from(vec![
             Span::styled("Bookmarks", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD | Modifier::UNDERLINED)),
@@ -891,6 +907,10 @@ pub fn render_help_dialog(frame: &mut Frame, area: Rect, theme: &Theme) {
         Line::from(""),
         Line::from(vec![
             Span::styled("System", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD | Modifier::UNDERLINED)),
+        ]),
+        Line::from(vec![
+            Span::styled("  Esc", Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD)),
+            Span::raw("            Close dialog / Cancel / Clear selection"),
         ]),
         Line::from(vec![
             Span::styled("  Ctrl+W", Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD)),
