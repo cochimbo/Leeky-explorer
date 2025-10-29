@@ -55,13 +55,10 @@ fn check_known_host(host: &str, port: u16, key_hash: &[u8]) -> Result<bool> {
     for line in reader.lines() {
         let line = line?;
         let parts: Vec<&str> = line.split_whitespace().collect();
-        if parts.len() >= 2 && parts[0] == host_port {
-            // Compare the base64-encoded key
-            if let Ok(stored_key) = general_purpose::STANDARD.decode(parts[1]) {
-                if stored_key == key_hash {
-                    return Ok(true);
-                }
-            }
+        if parts.len() >= 2 && parts[0] == host_port
+            && let Ok(stored_key) = general_purpose::STANDARD.decode(parts[1])
+            && stored_key == key_hash {
+            return Ok(true);
         }
     }
     
@@ -228,7 +225,7 @@ impl SftpFileSystem {
         };
         
         let size = stat.size.unwrap_or(0);
-        let mtime = stat.mtime.unwrap_or(0) as u64;
+    let mtime = stat.mtime.unwrap_or(0);
         let modified = UNIX_EPOCH + std::time::Duration::from_secs(mtime);
         let permissions = stat.perm.unwrap_or(0o644);
         

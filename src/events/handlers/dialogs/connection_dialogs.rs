@@ -254,39 +254,34 @@ pub fn handle_connection_dialog(app: &mut AppState, key: KeyEvent) -> Result<Act
                                         initial_path: Some(PathBuf::from("/")),
                                     };
                                     
-                                    // Save password to keychain if requested
-                                    if *save_credentials {
-                                        if let Err(e) = config.store_password(password) {
-                                            log::warn!("Failed to store password in keychain: {}", e);
-                                        }
+                                    // Save password to keychain and connection config if requested
+                                    if *save_credentials && let Err(e) = config.store_password(password) {
+                                        log::warn!("Failed to store password in keychain: {}", e);
                                     }
-                                    
+
                                     // Try to connect (blocking operation - will freeze UI)
                                     log::info!("Calling SftpFileSystem::connect...");
                                     match SftpFileSystem::connect(config.clone()) {
                                         Ok(sftp_fs) => {
                                             log::info!("SFTP connection successful!");
-                                            
-                                            // Save connection config
-                                            if *save_credentials {
-                                                if let Ok(mut manager) = crate::remote::ConnectionManager::load() {
-                                                    if let Err(e) = manager.add(config) {
-                                                        log::warn!("Failed to save connection: {}", e);
-                                                    }
-                                                }
+
+                                            // Save connection config if requested
+                                            if *save_credentials && let Ok(mut manager) = crate::remote::ConnectionManager::load()
+                                                && let Err(e) = manager.add(config) {
+                                                log::warn!("Failed to save connection: {}", e);
                                             }
-                                            
+
                                             let vfs: Arc<dyn crate::remote::VirtualFileSystem> = Arc::new(sftp_fs);
                                             let conn_info = format!("{}@{}", username, host);
                                             let success_msg = format!("Connected to {}!", conn_info);
                                             let initial_path = PathBuf::from("/");
-                                            
+
                                             // Drop the borrow on state before modifying app
                                             let _ = state;
-                                            
+
                                             // Connect the active panel
                                             app.active_panel_mut().connect_remote(vfs, conn_info, initial_path);
-                                            
+
                                             // Immediately refresh to load directory contents
                                             if let Err(e) = app.active_panel_mut().refresh_entries() {
                                                 log::error!("Failed to refresh remote directory after connect: {}", e);
@@ -294,7 +289,7 @@ pub fn handle_connection_dialog(app: &mut AppState, key: KeyEvent) -> Result<Act
                                             } else {
                                                 app.error_message = Some(success_msg);
                                             }
-                                            
+
                                             app.close_dialog();
                                             return Ok(Action::Refresh);
                                         }
@@ -397,10 +392,8 @@ pub fn handle_connection_dialog(app: &mut AppState, key: KeyEvent) -> Result<Act
                                     };
                                     
                                     // Save password to keychain if requested
-                                    if *save_credentials && !*guest_mode {
-                                        if let Err(e) = config.store_password(password) {
-                                            log::warn!("Failed to store password in keychain: {}", e);
-                                        }
+                                    if *save_credentials && !*guest_mode && let Err(e) = config.store_password(password) {
+                                        log::warn!("Failed to store password in keychain: {}", e);
                                     }
                                     
                                     // Try to connect
@@ -410,12 +403,9 @@ pub fn handle_connection_dialog(app: &mut AppState, key: KeyEvent) -> Result<Act
                                             log::info!("SMB connection successful!");
                                             
                                             // Save connection config
-                                            if *save_credentials && !*guest_mode {
-                                                if let Ok(mut manager) = crate::remote::ConnectionManager::load() {
-                                                    if let Err(e) = manager.add(config) {
-                                                        log::warn!("Failed to save connection: {}", e);
-                                                    }
-                                                }
+                                            if *save_credentials && !*guest_mode && let Ok(mut manager) = crate::remote::ConnectionManager::load()
+                                                && let Err(e) = manager.add(config) {
+                                                log::warn!("Failed to save connection: {}", e);
                                             }
                                             
                                             let vfs: std::sync::Arc<dyn crate::remote::VirtualFileSystem> = std::sync::Arc::new(smb_fs);

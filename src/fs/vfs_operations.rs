@@ -51,11 +51,9 @@ pub async fn copy_file_vfs(
     };
     
     // Check for cancellation
-    if let Some(ref cancel_rx) = cancel_rx {
-        if *cancel_rx.borrow() {
-            log::info!("Copy operation cancelled by user");
-            return Err(anyhow::anyhow!("Operation cancelled by user"));
-        }
+    if let Some(ref cancel_rx) = cancel_rx && *cancel_rx.borrow() {
+        log::info!("Copy operation cancelled by user");
+        return Err(anyhow::anyhow!("Operation cancelled by user"));
     }
     
     // Write file content
@@ -239,11 +237,9 @@ pub async fn copy_dir_recursive_vfs(
     // Process each entry
     for entry in entries {
         // Check for cancellation
-        if let Some(ref cancel_rx) = cancel_rx {
-            if *cancel_rx.borrow() {
-                log::info!("Copy directory operation cancelled by user");
-                return Err(anyhow::anyhow!("Operation cancelled by user"));
-            }
+        if let Some(ref cancel_rx) = cancel_rx && *cancel_rx.borrow() {
+            log::info!("Copy directory operation cancelled by user");
+            return Err(anyhow::anyhow!("Operation cancelled by user"));
         }
         
         let src_path = &entry.path;

@@ -110,7 +110,7 @@ shasum -a 256 -c leeky-explorer-v0.3.0-macos-x86_64.tar.gz.sha256
 leeky-explorer
 ```
 
-#### 🍎 macOS (M1/M2/M3 Apple Silicon)
+#### 🍎 macOS (M1/M2/M3/M4 Apple Silicon)
 ```bash
 # Download and extract
 curl -L -o leeky-explorer.tar.gz https://github.com/cochimbo/Leeky-explorer/releases/download/v0.4.0/leeky-explorer-v0.3.0-macos-arm64.tar.gz

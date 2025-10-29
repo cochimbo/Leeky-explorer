@@ -74,10 +74,10 @@ impl SmbFileSystem {
     
     /// Convert UNC path back to VFS path
     /// E.g., "\\server\share\folder" -> "/folder"
-    fn from_unc_path(&self, unc_path: &Path) -> PathBuf {
+    fn from_unc_path(unc_path: &Path, unc_prefix: &str) -> PathBuf {
         let unc_str = unc_path.to_string_lossy();
         let relative = unc_str
-            .strip_prefix(&self.unc_path)
+            .strip_prefix(unc_prefix)
             .unwrap_or(&unc_str)
             .trim_start_matches('\\');
         
@@ -113,7 +113,7 @@ impl VirtualFileSystem for SmbFileSystem {
             };
             
             // Convert UNC path back to VFS path
-            let vfs_path = self.from_unc_path(&entry.path());
+            let vfs_path = SmbFileSystem::from_unc_path(&entry.path(), &self.unc_path);
             
             entries.push(VfsEntry {
                 name,
@@ -258,8 +258,8 @@ mod tests {
         assert_eq!(fs.to_unc_path(Path::new("/folder/sub")), PathBuf::from("\\\\server\\share\\folder\\sub"));
         
         // Test from_unc_path
-        assert_eq!(fs.from_unc_path(Path::new("\\\\server\\share")), PathBuf::from("/"));
-        assert_eq!(fs.from_unc_path(Path::new("\\\\server\\share\\folder")), PathBuf::from("/folder"));
-        assert_eq!(fs.from_unc_path(Path::new("\\\\server\\share\\folder\\sub")), PathBuf::from("/folder/sub"));
+    assert_eq!(SmbFileSystem::from_unc_path(Path::new("\\\\server\\share"), "\\\\server\\share"), PathBuf::from("/"));
+    assert_eq!(SmbFileSystem::from_unc_path(Path::new("\\\\server\\share\\folder"), "\\\\server\\share"), PathBuf::from("/folder"));
+    assert_eq!(SmbFileSystem::from_unc_path(Path::new("\\\\server\\share\\folder\\sub"), "\\\\server\\share"), PathBuf::from("/folder/sub"));
     }
 }

@@ -35,7 +35,7 @@ impl Progress {
         }
         let percentage = (self.bytes_done as f64 / self.bytes_total as f64) * 100.0;
         // Clamp to 0-100 range to prevent panic in gauge widget
-        percentage.min(100.0).max(0.0)
+    percentage.clamp(0.0, 100.0)
     }
 
     pub fn is_complete(&self) -> bool {

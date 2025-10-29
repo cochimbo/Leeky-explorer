@@ -1,3 +1,8 @@
+impl Default for ConnectionDialogState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 // Remote connection dialog UI
 use crate::remote::{AuthMethod, ConnectionConfig, ConnectionManager, ConnectionType};
 use crate::ui::theme::Theme;
@@ -310,7 +315,7 @@ fn render_type_selection(frame: &mut Frame, selected: usize, area: Rect, theme: 
     frame.render_widget(title, chunks[0]);
     
     // Connection types
-    let types = vec![
+    let types = [
         ("SFTP", "Secure File Transfer Protocol (SSH)"),
         ("SMB", "Server Message Block (Windows shares)"),
     ];

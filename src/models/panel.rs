@@ -271,9 +271,10 @@ impl Panel {
                             .map(|m| m.permissions())
                             .unwrap_or_else(|_| {
                                 // Create a default writable permission
-                                let mut perm = std::fs::OpenOptions::new()
+                                let perm = std::fs::OpenOptions::new()
                                     .write(true)
                                     .create(true)
+                                    .truncate(true)
                                     .open(temp_path.join("_temp_perm_check"))
                                     .and_then(|f| f.metadata())
                                     .map(|m| m.permissions())
@@ -283,10 +284,31 @@ impl Panel {
                                             .map(|m| m.permissions())
                                             .unwrap()
                                     });
-                                perm.set_readonly(false);
+                                #[cfg(unix)]
+                                {
+                                    use std::os::unix::fs::PermissionsExt;
+                                    perm.set_mode(0o644); // rw-r--r--
+                                }
+                                #[cfg(windows)]
+                                // On Windows, do not set_readonly(false) as per Clippy recommendation.
                                 perm
                             });
-                        p.set_readonly((ve.permissions & 0o200) == 0); // Check owner write bit
+                        #[cfg(unix)]
+                        {
+                            use std::os::unix::fs::PermissionsExt;
+                            let writable = (ve.permissions & 0o200) != 0;
+                            let mut mode = p.mode();
+                            if writable {
+                                mode |= 0o200;
+                            } else {
+                                mode &= !0o200;
+                            }
+                            p.set_mode(mode);
+                        }
+                        #[cfg(windows)]
+                        {
+                            p.set_readonly((ve.permissions & 0o200) == 0); // Check owner write bit
+                        }
                         p
                     }
                 };

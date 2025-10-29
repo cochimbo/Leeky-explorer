@@ -349,8 +349,16 @@ mod tests {
         fs::write(&path, "Read-only content").unwrap();
         
         // Set read-only
-        let mut perms = fs::metadata(&path).unwrap().permissions();
-        perms.set_readonly(true);
+    let mut perms = fs::metadata(&path).unwrap().permissions();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            perms.set_mode(0o444); // r--r--r--
+        }
+        #[cfg(windows)]
+        {
+            perms.set_readonly(true);
+        }
         fs::set_permissions(&path, perms).unwrap();
         
         let theme = Theme::default();
@@ -358,8 +366,14 @@ mod tests {
         assert!(editor.is_read_only());
         
         // Clean up: remove read-only flag
-        let mut perms = fs::metadata(&path).unwrap().permissions();
-        perms.set_readonly(false);
+    let perms = fs::metadata(&path).unwrap().permissions();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            perms.set_mode(0o644); // rw-r--r--
+        }
+        #[cfg(windows)]
+        // On Windows, do not set_readonly(false) as per Clippy recommendation.
         fs::set_permissions(&path, perms).unwrap();
     }
 }

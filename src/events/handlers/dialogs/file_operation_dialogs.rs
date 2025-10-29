@@ -56,7 +56,7 @@ pub fn handle_collision(app: &mut AppState, key: KeyEvent) -> Result<Action> {
                     0 => {
                         // Overwrite this file - process just this one, then continue with remaining
                         log::info!("[COLLISION] Overwrite selected, processing file and saving {} remaining files to pending_batch", remaining.len());
-                        process_single_file_operation(&collision_source, &dest, &src_vfs, &dst_vfs, operation_type.clone(), true, app)?;
+                        process_single_file_operation(&collision_source, dest.as_path(), &src_vfs, &dst_vfs, operation_type.clone(), true, app)?;
                         
                         // Save remaining files to process after this operation completes
                         if !remaining.is_empty() {
@@ -73,7 +73,7 @@ pub fn handle_collision(app: &mut AppState, key: KeyEvent) -> Result<Action> {
                     }
                     1 => {
                         // Overwrite All - process this one and all remaining without checking
-                        process_single_file_operation(&collision_source, &dest, &src_vfs, &dst_vfs, operation_type.clone(), true, app)?;
+                        process_single_file_operation(&collision_source, dest.as_path(), &src_vfs, &dst_vfs, operation_type.clone(), true, app)?;
                         
                         // Process all remaining files with overwrite enabled
                         if !remaining.is_empty() {
@@ -84,7 +84,7 @@ pub fn handle_collision(app: &mut AppState, key: KeyEvent) -> Result<Action> {
                     2 => {
                         // Rename - process this file with a new name, then continue with remaining
                         log::info!("[COLLISION] Rename selected, processing file and saving {} remaining files to pending_batch", remaining.len());
-                        process_single_file_operation(&collision_source, &dest, &src_vfs, &dst_vfs, operation_type.clone(), false, app)?;
+                        process_single_file_operation(&collision_source, dest.as_path(), &src_vfs, &dst_vfs, operation_type.clone(), false, app)?;
                         
                         // Save remaining files to process after this operation completes
                         if !remaining.is_empty() {

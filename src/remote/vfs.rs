@@ -109,12 +109,10 @@ impl VirtualFileSystem for LocalFileSystem {
             } else {
                 std::fs::remove_file(path)?;
             }
+        } else if path.is_dir() {
+            std::fs::remove_dir(path)?;
         } else {
-            if path.is_dir() {
-                std::fs::remove_dir(path)?;
-            } else {
-                std::fs::remove_file(path)?;
-            }
+            std::fs::remove_file(path)?;
         }
         Ok(())
     }

@@ -190,17 +190,16 @@ pub fn start_copy_operation(app: &mut AppState) -> Result<()> {
         }
         
         // T953: Check available disk space before copying (only for local destinations)
-        if dest_vfs.is_none() {
-            if let Ok(available_space) = fs2::available_space(&dest_panel_path)
-                && available_space < total_bytes {
-                    let size_mb = total_bytes / (1024 * 1024);
-                    let avail_mb = available_space / (1024 * 1024);
-                    app.show_error(format!(
-                        "Espacio insuficiente. Se necesitan {} MB, disponibles {} MB",
-                        size_mb, avail_mb
-                    ));
-                    return Ok(());
-                }
+        if dest_vfs.is_none()
+            && let Ok(available_space) = fs2::available_space(&dest_panel_path)
+            && available_space < total_bytes {
+            let size_mb = total_bytes / (1024 * 1024);
+            let avail_mb = available_space / (1024 * 1024);
+            app.show_error(format!(
+                "Espacio insuficiente. Se necesitan {} MB, disponibles {} MB",
+                size_mb, avail_mb
+            ));
+            return Ok(());
         }
         
         // T956: Warn about large operations
@@ -243,17 +242,16 @@ pub fn start_copy_operation(app: &mut AppState) -> Result<()> {
                 }
             
             // T953: Check available disk space before copying (only for local destinations)
-            if dest_vfs.is_none() {
-                if let Ok(available_space) = fs2::available_space(&dest_panel_path)
-                    && available_space < total_bytes {
-                        let size_mb = total_bytes / (1024 * 1024);
-                        let avail_mb = available_space / (1024 * 1024);
-                        app.show_error(format!(
-                            "Espacio insuficiente. Se necesitan {} MB, disponibles {} MB",
-                            size_mb, avail_mb
-                        ));
-                        return Ok(());
-                    }
+            if dest_vfs.is_none()
+                && let Ok(available_space) = fs2::available_space(&dest_panel_path)
+                && available_space < total_bytes {
+                let size_mb = total_bytes / (1024 * 1024);
+                let avail_mb = available_space / (1024 * 1024);
+                app.show_error(format!(
+                    "Espacio insuficiente. Se necesitan {} MB, disponibles {} MB",
+                    size_mb, avail_mb
+                ));
+                return Ok(());
             }
             
             let total_files = 1; // Single file or directory

@@ -240,9 +240,8 @@ fn test_tilde_with_path() {
 // Helper functions for tests (mirroring handler.rs logic)
 
 fn expand_tilde(input: &str) -> String {
-    if input.starts_with('~') {
+    if let Some(rest) = input.strip_prefix('~') {
         if let Some(home) = dirs::home_dir() {
-            let rest = &input[1..];
             if rest.is_empty() {
                 home.to_string_lossy().to_string()
             } else {
@@ -321,7 +320,7 @@ fn validate_path_exists(path: &str) -> Result<(), String> {
     }
 }
 
-fn validate_is_directory(path: &PathBuf) -> Result<(), String> {
+fn validate_is_directory(path: &std::path::Path) -> Result<(), String> {
     if !path.is_dir() {
         Err(format!("Path is not a directory: {}", path.display()))
     } else {

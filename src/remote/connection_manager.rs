@@ -138,7 +138,7 @@ impl ConnectionConfig {
     pub fn resolve_password(&mut self) -> Result<Option<String>> {
         match &self.auth {
             AuthMethod::Password { password: Some(pwd), .. } => {
-                return Ok(Some(pwd.clone()));
+                Ok(Some(pwd.clone()))
             }
             AuthMethod::Password { password: None, stored: true } => {
                 // Try to load from keychain
@@ -148,7 +148,7 @@ impl ConnectionConfig {
                         if let AuthMethod::Password { password, .. } = &mut self.auth {
                             *password = Some(pwd.clone());
                         }
-                        return Ok(Some(pwd));
+                        Ok(Some(pwd))
                     }
                     Err(e) => {
                         log::warn!("Failed to retrieve password from keychain: {}", e);
@@ -156,15 +156,15 @@ impl ConnectionConfig {
                         if let AuthMethod::Password { stored, .. } = &mut self.auth {
                             *stored = false;
                         }
-                        return Ok(None);
+                        Ok(None)
                     }
                 }
             }
             AuthMethod::Password { .. } => {
-                return Ok(None);
+                Ok(None)
             }
             AuthMethod::PublicKey { passphrase: Some(pp), .. } => {
-                return Ok(Some(pp.clone()));
+                Ok(Some(pp.clone()))
             }
             AuthMethod::PublicKey { passphrase: None, stored: true, .. } => {
                 match self.get_password() {
@@ -173,22 +173,22 @@ impl ConnectionConfig {
                         if let AuthMethod::PublicKey { passphrase, .. } = &mut self.auth {
                             *passphrase = Some(pp.clone());
                         }
-                        return Ok(Some(pp));
+                        Ok(Some(pp))
                     }
                     Err(e) => {
                         log::warn!("Failed to retrieve passphrase from keychain: {}", e);
                         if let AuthMethod::PublicKey { stored, .. } = &mut self.auth {
                             *stored = false;
                         }
-                        return Ok(None);
+                        Ok(None)
                     }
                 }
             }
             AuthMethod::PublicKey { .. } => {
-                return Ok(None);
+                Ok(None)
             }
             AuthMethod::Anonymous => {
-                return Ok(None);
+                Ok(None)
             }
         }
     }
@@ -211,10 +211,8 @@ impl ConnectionManager {
         let path = crate::config::paths::get_connections_file_path()?;
         
         // Run migration to clean up any plain-text passwords
-        if path.exists() {
-            if let Err(e) = crate::remote::migration::migrate_connections_file(&path) {
-                log::warn!("Failed to migrate connection file: {}", e);
-            }
+        if path.exists() && let Err(e) = crate::remote::migration::migrate_connections_file(&path) {
+            log::warn!("Failed to migrate connection file: {}", e);
         }
         
         if path.exists() {

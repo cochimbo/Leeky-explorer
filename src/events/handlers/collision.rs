@@ -13,7 +13,7 @@ use crate::models::operation::Operation;
 /// Process a single file with collision handling
 pub fn process_single_file_operation(
     source: &PathBuf,
-    dest_dir: &PathBuf,
+    dest_dir: &std::path::Path,
     source_vfs: &Option<Arc<dyn crate::remote::vfs::VirtualFileSystem>>,
     dest_vfs: &Option<Arc<dyn crate::remote::vfs::VirtualFileSystem>>,
     operation: crate::app::CollisionOperation,
@@ -120,7 +120,7 @@ pub fn continue_batch_operation(
     app: &mut AppState,
 ) -> Result<()> {
     // Check if next file has a collision
-    while let Some(source) = remaining_files.first() {
+    if let Some(source) = remaining_files.first() {
         let file_name = source.file_name()
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_default();
@@ -150,7 +150,7 @@ pub fn continue_batch_operation(
         }
         
         // No collision - process this file and continue
-        process_single_file_operation(source, &dest_dir, &source_vfs, &dest_vfs, operation.clone(), false, app)?;
+    process_single_file_operation(source, dest_dir.as_path(), &source_vfs, &dest_vfs, operation.clone(), false, app)?;
         remaining_files.remove(0);
         
         // If there are more files, they will be processed after this operation completes

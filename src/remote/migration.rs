@@ -44,37 +44,31 @@ pub fn migrate_connections_file(file_path: &Path) -> Result<bool> {
                             modified = true;
                         }
                         // If it's an object but has plain-text password field
-                        else if let Some(pwd_obj) = password_val.as_object() {
-                            if pwd_obj.contains_key("0") || pwd_obj.get("password").is_some() {
-                                if let Some(pwd_str) = pwd_obj.get("password").and_then(|p| p.as_str()) {
-                                    if !pwd_str.is_empty() {
-                                        log::warn!("Found stored plain-text password, removing it");
-                                        obj.insert("Password".to_string(), serde_json::json!({
-                                            "password": null,
-                                            "stored": false
-                                        }));
-                                        modified = true;
-                                    }
-                                }
-                            }
+                        else if let Some(pwd_obj) = password_val.as_object()
+                            && (pwd_obj.contains_key("0") || pwd_obj.get("password").is_some())
+                            && let Some(pwd_str) = pwd_obj.get("password").and_then(|p| p.as_str())
+                            && !pwd_str.is_empty() {
+                            log::warn!("Found stored plain-text password, removing it");
+                            obj.insert("Password".to_string(), serde_json::json!({
+                                "password": null,
+                                "stored": false
+                            }));
+                            modified = true;
                         }
                     }
                     
                     // Check PublicKey passphrase
-                    if let Some(pk_val) = obj.get("PublicKey") {
-                        if let Some(pk_obj) = pk_val.as_object() {
-                            if let Some(pass_str) = pk_obj.get("passphrase").and_then(|p| p.as_str()) {
-                                if !pass_str.is_empty() {
-                                    log::warn!("Found stored plain-text passphrase, removing it");
-                                    obj.insert("PublicKey".to_string(), serde_json::json!({
-                                        "key_path": pk_obj.get("key_path"),
-                                        "passphrase": null,
-                                        "stored": false
-                                    }));
-                                    modified = true;
-                                }
-                            }
-                        }
+                    if let Some(pk_val) = obj.get("PublicKey")
+                        && let Some(pk_obj) = pk_val.as_object()
+                        && let Some(pass_str) = pk_obj.get("passphrase").and_then(|p| p.as_str())
+                        && !pass_str.is_empty() {
+                        log::warn!("Found stored plain-text passphrase, removing it");
+                        obj.insert("PublicKey".to_string(), serde_json::json!({
+                            "key_path": pk_obj.get("key_path"),
+                            "passphrase": null,
+                            "stored": false
+                        }));
+                        modified = true;
                     }
                 }
             }
