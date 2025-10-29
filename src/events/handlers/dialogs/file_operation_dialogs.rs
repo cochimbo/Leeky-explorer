@@ -177,7 +177,7 @@ pub fn handle_rename_dialog(app: &mut AppState, key: KeyEvent) -> Result<Action>
                 let new_name = value.trim();
                 
                 if new_name.is_empty() {
-                    app.show_error("El nombre no puede estar vacío".to_string());
+                    app.show_error("Name cannot be empty".to_string());
                     return Ok(Action::None);
                 }
                 
@@ -330,18 +330,18 @@ pub fn handle_compress_options_dialog(app: &mut AppState, key: KeyEvent) -> Resu
             }) = &app.dialog_state {
                 // Validate output name
                 if output_name.trim().is_empty() {
-                    app.show_error("El nombre no puede estar vacío".to_string());
+                    app.show_error("Name cannot be empty".to_string());
                     return Ok(Action::None);
                 }
                 
                 // Validate passwords if enabled
                 if *use_password {
                     if password.is_empty() {
-                        app.show_error("La contraseña no puede estar vacía".to_string());
+                        app.show_error("Password cannot be empty".to_string());
                         return Ok(Action::None);
                     }
                     if password != confirm_password {
-                        app.show_error("Las contraseñas no coinciden".to_string());
+                        app.show_error("Passwords do not match".to_string());
                         return Ok(Action::None);
                     }
                 }

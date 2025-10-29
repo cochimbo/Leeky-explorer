@@ -35,31 +35,47 @@ A fast, dual-pane terminal file manager built with Rust and Ratatui.
 
 ### Pre-built Binaries (Recommended)
 
-Download the latest release for your platform from [GitHub Releases](https://github.com/cochimbo/Leeky-explorer/releases/latest).
+
+Download the latest release for your platform:
+
+- [Windows x86_64 (ZIP)](https://github.com/cochimbo/Leeky-explorer/releases/download/v0.4.0/leeky-explorer-v0.4.0-windows-x86_64.zip)
+- [Linux x86_64 (tar.gz)](https://github.com/cochimbo/Leeky-explorer/releases/download/v0.4.0/leeky-explorer-v0.4.0-linux-x86_64.tar.gz)
+- [Linux ARM64 (Raspberry Pi)](https://github.com/cochimbo/Leeky-explorer/releases/download/v0.4.0/leeky-explorer-v0.4.0-linux-arm64.tar.gz)
+
+Or visit [GitHub Releases](https://github.com/cochimbo/Leeky-explorer/releases/latest).
+
 
 #### 🐧 Linux (x86_64)
-```bash
-# Download and extract
-wget https://github.com/cochimbo/Leeky-explorer/releases/download/v0.3.0/leeky-explorer-v0.3.0-linux-x86_64.tar.gz
-tar -xzf leeky-explorer-v0.3.0-linux-x86_64.tar.gz
 
-# Verify checksum (optional)
-sha256sum -c leeky-explorer-v0.3.0-linux-x86_64.tar.gz.sha256
+## ✨ Features
 
-# Run
-leeky-explorer
-```
+- **Dual-Pane Navigation**: Classic two-panel interface for efficient file management
+- **Fast & Responsive**: Built with Rust for maximum performance
+- **🎨 Theme System**: 8 built-in themes with live preview (F12)
+- **📚 Bookmarks**: Save and manage up to 50 favorite directories (Ctrl+D/Ctrl+B)
+- **🔍 Text Editor**: Built-in editor with syntax highlighting, undo/redo, and UTF-8/emoji support (F4)
+- **🔎 Recursive Search**: Search files with glob patterns and real-time results (Ctrl+F)
+- **⏱️ Navigation History**: Per-panel history with dialogs and keyboard navigation (Alt+Left/Right, Ctrl+H)
+- **↗️ Go To Path**: Jump to any directory, with tilde/env expansion (Ctrl+G)
+- **🔄 Auto-Refresh**: Detects external directory changes every 5 seconds
+- **Archive Support**: Extract/create ZIP, TAR.GZ, TAR.BZ2, TAR.XZ, 7Z (with password for ZIP)
+- **Password Protection**: Encrypt/decrypt ZIP archives with passwords
+- **File Preview**: View text files and images (ASCII art) in terminal
+- **Multi-Selection**: Select multiple files for batch operations
+- **Smart Search**: Quick filter with glob pattern support (`*.txt`, `test*`, etc.)
+- **Drive Selector**: Quick drive switching on Windows (F10)
+- **Progress Tracking**: Real-time progress bars for copy, move, extract, and delete
+- **Operation Cancellation**: Press ESC to cancel ongoing operations
+- **Safe Operations**: Collision detection, disk space validation, permission checks
+- **Session Persistence**: Remembers panel positions, active panel, and theme between sessions
+- **Remote Connections**:
+   - **SFTP**: Secure file transfer (fully supported)
+   - **SMB (experimental)**: Connect to Windows shares (direct connection)
+   - **FTP/FTPS**: [Removed in 0.4.0]
+- **Robustness**: Improved error handling, progress/cancel in all file operations
+- **Cross-Platform**: Windows, Linux, macOS, Raspberry Pi (ARM)
 
-#### 🍓 Raspberry Pi / ARM Devices
-
-**ARM64 (Raspberry Pi 3/4/5 - 64-bit OS)**:
-```bash
-wget https://github.com/cochimbo/Leeky-explorer/releases/download/v0.3.0/leeky-explorer-v0.3.0-linux-arm64.tar.gz
-tar -xzf leeky-explorer-v0.3.0-linux-arm64.tar.gz
-leeky-explorer
-```
-
-**ARMv7 (Raspberry Pi 2/3 - 32-bit OS)**:
+> **Note:** FTP/FTPS support has been removed in 0.4.0. Only SFTP and SMB are supported for remote connections.
 ```bash
 wget https://github.com/cochimbo/Leeky-explorer/releases/download/v0.3.0/leeky-explorer-v0.3.0-linux-armv7.tar.gz
 tar -xzf leeky-explorer-v0.3.0-linux-armv7.tar.gz
@@ -165,127 +181,106 @@ make package
 
 | Key | Action |
 |-----|--------|
-| `↑` | Move cursor up |
-| `↓` | Move cursor down |
-| `Enter` | Enter directory |
+| `↑` / `↓` | Move cursor up/down |
+| `Enter` | Enter directory / Preview file |
 | `Backspace` | Go to parent directory |
 | `Tab` | Switch active panel |
 | `Home` | Jump to first item |
 | `End` | Jump to last item |
-| `Page Up` | Scroll up one page |
-| `Page Down` | Scroll down one page |
+| `Page Up` / `Page Down` | Scroll by page |
+| `Ctrl+Q` | Quit application |
 
 ### File Operations
 
 | Key | Action |
 |-----|--------|
-| `F2` | Rename file/directory (name only) |
-| `Shift+F2` | Rename with extension |
-| `F5` | Copy file(s) to opposite panel |
-| `F6` | Move file(s) to opposite panel |
-| `F7` | Create new directory |
-| `F8` / `Delete` | Delete selected file(s) |
-| `Space` | Mark/Unmark file for batch operations |
-| `Ctrl+A` | Select/Deselect all files |
+| `Ctrl+C` | Copy file(s) |
+| `Ctrl+X` | Move file(s) |
+| `Delete` | Delete file(s) |
+| `Ctrl+Shift+N` | New folder |
+| `Ctrl+R` | Rename file/directory |
+| `Space` | Mark/Unmark file |
+| `Ctrl+A` | Select all |
+| `Esc` | Cancel selection / operation |
 
 ### Archive Operations
 
 | Key | Action |
 |-----|--------|
-| `F9` | Extract archive to current directory |
-| `Shift+F9` | Compress selected files |
+| `Ctrl+Shift+E` | Extract archive |
+| `Ctrl+Shift+A` | Compress file(s) |
 
-**Compression Options**:
-- Format: ZIP, TAR.GZ, TAR.BZ2, TAR.XZ
-- Compression Level: Fast, Normal, Maximum
-- Password Protection (ZIP only)
+**Compression options:**
+- Formats: ZIP, TAR.GZ, TAR.BZ2, TAR.XZ
+- Levels: Fast, Normal, Maximum
+- Password protection (ZIP only)
 
 ### Search & Filter
 
+
+
 | Key | Action |
 |-----|--------|
-| `F3` | Start search/filter mode |
-| `F3` (again) | Clear filter and exit search |
-| `Shift+F3` | Clear search pattern and filter |
-| `Esc` | Clear filter (in search mode) |
 | `Ctrl+F` | Recursive search in current directory |
-| Any character | Filter files by pattern (while in search mode) |
+| Any character | Filter files by pattern (in filter mode) |
+| `Esc` | Clear filter / cancel search |
 
-**Local Search (F3)** supports:
-- Glob patterns: `*.rs`, `test*`, `file?.txt`
-- Case-insensitive matching
-- Real-time filtering of current directory
+**Recursive search (Ctrl+F):**
+- Search through entire directory tree
+- Supports glob patterns (`*.txt`, `test*`, `**/*.rs`)
+- Real-time results
+- Enter to go to found file
+- Esc to cancel search
 
-**Recursive Search (Ctrl+F)** features:
-- Search through entire directory trees
-- Glob pattern support (`*.txt`, `test*`, `**/*.rs`)
-- Real-time results as search progresses
-- Shows file size, location, and match count
-- Press Enter to navigate to found file
-- Press Esc to cancel search
+
 
 ### System & Customization
 
 | Key | Action |
 |-----|--------|
-| `F4` | Preview file (text/image) or Edit text file |
-| `F10` | Drive selector (Windows) |
-| `F12` | Theme selector with live preview |
+| `Ctrl+E` | Open integrated text editor |
+| `Ctrl+S` | Save in text editor |
+| `Ctrl+D` | Drive selector (Windows) |
+| `Ctrl+Shift+D` | Add directory to bookmarks |
 | `Ctrl+B` | Bookmark manager |
-| `Ctrl+D` | Add current directory to bookmarks |
-| `Ctrl+G` | Go to path dialog |
-| `Alt+Left` | Navigate backward in history |
-| `Alt+Right` | Navigate forward in history |
-| `Ctrl+H` | Show navigation history |
+| `Ctrl+G` | Go to path |
+| `Ctrl+H` | Navigation history |
+| `Alt+Left` / `Alt+Right` | Back / Forward in history |
+| `F12` | Theme selector |
 
-**Built-in Themes**:
-- 🌟 Classic (default)
-- ☀️ Light
-- 🌙 Dark
-- ⚡ High Contrast
-- 🌊 Nord
-- 🧛 Dracula
-- 🌅 Solarized Dark
-- 🌄 Solarized Light
+**Built-in themes:**
+- 8 themes: Classic, Light, Dark, High Contrast, Nord, Dracula, Solarized Dark, Solarized Light
 
-**Bookmarks**:
-- Save up to 50 favorite directories
-- Quick access with custom names
-- Sorted by most recently accessed
-- Persistent across sessions
+**Bookmarks:**
+- Up to 50 favorite directories
+- Quick and persistent access
 
-### Preview Mode
+
+
+### Preview & Editor Mode
 
 | Key | Action |
 |-----|--------|
-| `F4` | Open file preview/editor (on file) |
-| `Esc` / `q` | Close preview |
-| `↑` / `k` | Scroll up |
-| `↓` / `j` | Scroll down |
-| `Page Up` | Scroll up one page |
-| `Page Down` | Scroll down one page |
-| `Home` | Jump to start |
-| `End` | Jump to end |
+| `Ctrl+E` | Open text editor (on text file) |
+| `Ctrl+S` | Save changes in editor |
+| `Esc` / `q` | Close preview/editor |
+| `↑` / `↓` | Scroll up/down |
+| `Page Up` / `Page Down` | Scroll by page |
+| `Home` / `End` | Jump to start/end |
 
-**Text Editor Mode (F4 on text files)**:
-- Full-featured text editing with line numbers
-- Ctrl+S to save changes
-- Unsaved changes warning on exit
-- Undo/Redo support
-- Read-only mode for protected files
-- External modification detection
-
-**Supported Formats**:
+**Supported formats:**
 - **Text**: .txt, .md, .rs, .json, .toml, .yml, README, LICENSE, etc.
-- **Images**: .png, .jpg, .jpeg, .gif, .bmp (rendered as ASCII art)
-- **Archives**: Shows format and compression info
+- **Images**: .png, .jpg, .jpeg, .gif, .bmp (ASCII art)
+- **Archives**: shows format and compression info
+
+
 
 ### Other
 
 | Key | Action |
 |-----|--------|
 | `Ctrl+Q` | Quit application |
-| `Esc` | Cancel operation / Close dialog |
+| `Esc` | Cancel operation / close dialog |
 
 ## 🖼️ Screenshot
 
@@ -308,94 +303,89 @@ make package
 
 ### Basic Navigation
 
-1. **Switch between panels**: Press `Tab` or `→` / `←`
+1. **Switch panels**: Press `Tab`
 2. **Enter directory**: Press `Enter` on a folder
 3. **Go up**: Press `Backspace`
-4. **Jump to location**: Use `Home` / `End` for first/last item
+4. **Jump to first/last item**: Use `Home` / `End`
 
-### Copy Files
+### Copy/Move Files
 
-1. Navigate to source file in one panel
-2. Navigate to destination directory in other panel
-3. Press `F5` to copy
-4. Confirm in dialog
+1. Navigate to the source file in one panel
+2. Navigate to the destination directory in the other panel
+3. Press `Ctrl+C` to copy or `Ctrl+X` to move
+4. Confirm in the dialog
 
-### Multi-Select Operations
+### Multi-Select
 
 1. Mark files with `Space`
 2. Or press `Ctrl+A` to select all
-3. Press `F5` (copy), `F6` (move), or `F8` (delete)
+3. Press `Ctrl+C` (copy), `Ctrl+X` (move), or `Delete` (delete)
 4. All marked files will be processed
 
 ### Search/Filter
 
-**Local Search (F3)**:
-1. Press `F3` to start search mode
-2. Type pattern (e.g., `*.rs` for Rust files)
-3. Results update in real-time
-4. Press `Esc` to clear filter
+**Local filter:**
+1. Type any character to filter files in the panel
+2. Results update in real time
+3. Press `Esc` to clear the filter
 
-**Recursive Search (Ctrl+F)**:
+**Recursive search (Ctrl+F):**
 1. Press `Ctrl+F` to start recursive search
-2. Type search pattern (e.g., `*.txt` or `test*`)
-3. Results appear in real-time with location and size
-4. Press Enter on result to navigate to file
-5. Press Esc to close search dialog
+2. Type the search pattern (e.g., `*.txt` or `test*`)
+3. Real-time results with location and size
+4. Press `Enter` on a result to navigate
+5. Press `Esc` to close the search
 
 ### Bookmarks
 
-**Add Bookmark**:
-1. Navigate to directory you want to bookmark
-2. Press `Ctrl+D`
-3. Enter a memorable name
+**Add bookmark:**
+1. Navigate to the directory you want to save
+2. Press `Ctrl+Shift+D`
+3. Enter a name
 4. Bookmark saved!
 
-**Use Bookmarks**:
-1. Press `Ctrl+B` to open bookmark manager
-2. Use arrow keys to select bookmark
-3. Press Enter to navigate
+**Use bookmarks:**
+1. Press `Ctrl+B` to open the bookmark manager
+2. Use arrow keys to select
+3. Press `Enter` to navigate
 4. Press `d` to delete, `r` to rename
 
 ### Navigation History
 
-1. Navigate through directories normally
+1. Navigate normally
 2. Press `Alt+Left` to go back
 3. Press `Alt+Right` to go forward
-4. Press `Ctrl+H` to see full history list
+4. Press `Ctrl+H` to see the full history
 
 ### Go To Path
 
 1. Press `Ctrl+G`
-2. Type absolute or relative path
-3. Supports `~` for home directory
-4. Supports environment variables (`%USERPROFILE%` on Windows, `$HOME` on Unix)
-5. Press Enter to navigate
+2. Type the absolute or relative path
+3. Supports `~` for home and environment variables
+4. Press `Enter` to navigate
 
 ### Edit Text Files
 
-1. Navigate to text file (`.txt`, `.md`, `.rs`, etc.)
-2. Press `F4`
-3. Edit using arrow keys and typing
-4. Press `Ctrl+S` to save
-5. Press `Esc` to exit (warns if unsaved changes)
-
-### Create Archive
-
-1. Select files to compress (use `Space` for multiple)
-2. Press `Ctrl+Z`
-3. Choose format (ZIP, TAR.GZ, etc.)
-4. Choose compression level
-5. Optionally add password (ZIP only)
-6. Confirm to create
-
-### Extract Archive
-
-1. Navigate to `.zip`, `.tar.gz`, `.7z`, etc.
+1. Navigate to a text file (`.txt`, `.md`, `.rs`, etc.)
 2. Press `Ctrl+E`
-3. Choose extraction option:
-   - Extract here
-   - Extract to new folder
-4. Archive contents appear in current panel
+3. Edit with the keyboard
+4. Press `Ctrl+S` to save
+5. Press `Esc` to exit (warns if there are unsaved changes)
+
+### Compress Files
+
+1. Select files (use `Space` for multiple)
+2. Press `Ctrl+Shift+A`
+3. Choose format and compression level
+4. Optionally add password (ZIP)
+5. Confirm to create the archive
+
+### Extract Archives
+
+1. Navigate to a compressed file (`.zip`, `.tar.gz`, etc.)
+2. Press `Ctrl+Shift+E`
+3. Choose extraction option
+4. Contents will appear in the current panel
 
 ## 🛠️ Architecture
 

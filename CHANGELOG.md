@@ -1,3 +1,26 @@
+# [0.4.0] - 2025-10-29
+
+### Changed
+- Refactor: Modularización de archivos grandes (`dialogs.rs`, `event_loop.rs`, `extractor.rs`) en submódulos mantenibles.
+- Refactor: Limpieza de código, eliminación de archivos de refactoring y warnings.
+
+### Fixed
+- El diálogo de extracción ahora captura correctamente el foco del teclado.
+- Restaurado el progreso incremental en operaciones de copiar/mover locales (barra de progreso en tiempo real).
+- Progreso de extracción de archivos sigue funcionando correctamente.
+
+### Removed
+- Eliminado soporte para FTP/FTPS (solo SFTP y SMB).
+
+### Added
+- Soporte básico de conexión SMB (solo conexión directa, sin discovery).
+- Mejoras de robustez y testeo en operaciones de archivos.
+
+### Download
+- [Windows x86_64 (ZIP)](https://github.com/cochimbo/Leeky-explorer/releases/download/v0.4.0/leeky-explorer-v0.4.0-windows-x86_64.zip)
+- [Linux x86_64 (tar.gz)](https://github.com/cochimbo/Leeky-explorer/releases/download/v0.4.0/leeky-explorer-v0.4.0-linux-x86_64.tar.gz)
+- [Linux ARM64 (Raspberry Pi)](https://github.com/cochimbo/Leeky-explorer/releases/download/v0.4.0/leeky-explorer-v0.4.0-linux-arm64.tar.gz)
+
 # Changelog
 
 All notable changes to Leeky Explorer will be documented in this file.

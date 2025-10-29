@@ -117,10 +117,10 @@ pub fn render_preview_modal(f: &mut Frame, preview_state: &PreviewState, theme: 
             let footer_text = vec![
                 Span::raw("↑↓: Scroll | "),
                 Span::raw("Home/End: Inicio/Fin | "),
-                Span::raw("PgUp/PgDn: Página | "),
+                Span::raw("PgUp/PgDn: Page | "),
                 Span::styled("Esc/Q: Cerrar", Style::default().add_modifier(Modifier::BOLD)),
                 Span::raw(format!(
-                    "  |  Línea {}/{} ({}%)",
+                    "  |  Line {}/{} ({}%)",
                     start_line + 1,
                     total_lines,
                     progress_percent

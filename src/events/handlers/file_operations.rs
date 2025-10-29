@@ -207,15 +207,15 @@ pub fn start_copy_operation(app: &mut AppState) -> Result<()> {
         let size_gb = total_bytes as f64 / (1024.0 * 1024.0 * 1024.0);
         if size_gb > 1.0 || count > 1000 {
             let warning_msg = if size_gb > 1.0 && count > 1000 {
-                format!("Operación grande: {:.1} GB y {} archivos. ¿Continuar?", size_gb, count)
+                format!("Large operation: {:.1} GB and {} files. Continue?", size_gb, count)
             } else if size_gb > 1.0 {
-                format!("Operación grande: {:.1} GB. ¿Continuar?", size_gb)
+                format!("Large operation: {:.1} GB. Continue?", size_gb)
             } else {
-                format!("Operación grande: {} archivos. ¿Continuar?", count)
+                format!("Large operation: {} files. Continue?", count)
             };
             
             app.show_error(warning_msg);
-            // TODO: En el futuro, mostrar diálogo de confirmación en lugar de error
+            // TODO: In the future, show confirmation dialog instead of error
             // Por ahora, mostramos advertencia pero continuamos
         }
         

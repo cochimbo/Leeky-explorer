@@ -98,7 +98,7 @@ pub fn handle_connection_dialog(app: &mut AppState, key: KeyEvent) -> Result<Act
                                     if !password_resolved {
                                         // Password not available, show error and ask user to enter it
                                         app.show_error(format!(
-                                            "Contraseña no disponible para '{}'. Por favor, crea una nueva conexión con tus credenciales.",
+                                            "Password not available for '{}'. Please create a new connection with your credentials.",
                                             config.name
                                         ));
                                         return Ok(Action::None);

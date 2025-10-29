@@ -122,7 +122,7 @@ pub fn handle_password_input(
     let format = *format;
     let password = value.to_string();
     
-    start_extraction_with_password(app, source, dest, format, password, "Extrayendo archivo con contraseña...");
+    start_extraction_with_password(app, source, dest, format, password, "Extracting archive with password...");
     
     Ok(())
 }
@@ -268,7 +268,7 @@ pub async fn handle_compress_options(
                     }
                     
                     app.close_dialog();
-                    app.show_error("Compresión cancelada por el usuario".to_string());
+                    app.show_error("Compression cancelled by user".to_string());
                     
                     return Err(anyhow::anyhow!("Compression cancelled by user"));
                 }
@@ -305,7 +305,7 @@ pub async fn handle_compress_options(
         }
         Err(e) => {
             log::error!("Compression task failed: {}", e);
-            app.show_error(format!("Error en tarea de compresión: {}", e));
+            app.show_error(format!("Compression task error: {}", e));
         }
     }
     
