@@ -90,6 +90,38 @@ pub fn render_panel(
         area
     };
 
+    // Reserve space for header (2 lines: header + separator)
+    let header_area = Rect {
+        x: list_area.x,
+        y: list_area.y,
+        width: list_area.width,
+        height: 2,
+    };
+    let data_area = Rect {
+        x: list_area.x,
+        y: list_area.y + 2,
+        width: list_area.width,
+        height: list_area.height.saturating_sub(2),
+    };
+
+    // Render header and separator at the top
+    let header_line = build_header_row(&layout, theme);
+    let header_widget = Paragraph::new(header_line).block(Block::default());
+    frame.render_widget(header_widget, header_area);
+
+    let separator = "─".repeat(content_width as usize);
+    let separator_area = Rect {
+        x: header_area.x,
+        y: header_area.y + 1,
+        width: header_area.width,
+        height: 1,
+    };
+    let separator_widget = Paragraph::new(Line::from(Span::styled(
+        separator,
+        Style::default().fg(theme.inactive_border),
+    )));
+    frame.render_widget(separator_widget, separator_area);
+
     // T409: Show "No results" message if filter is active but no entries
     let items: Vec<ListItem> = if panel.entries.is_empty() && panel.has_filter() {
         vec![ListItem::new(Line::from(Span::styled(
@@ -97,19 +129,8 @@ pub fn render_panel(
             Style::default().fg(theme.error_color),
         )))]
     } else {
-        // Build column header as first item
+        // Build data rows only (header and separator are rendered separately)
         let mut all_items = Vec::new();
-        
-        // Header row
-        let header_line = build_header_row(&layout, theme);
-        all_items.push(ListItem::new(header_line));
-        
-        // Separator row
-        let separator = "─".repeat(content_width as usize);
-        all_items.push(ListItem::new(Line::from(Span::styled(
-            separator,
-            Style::default().fg(theme.inactive_border),
-        ))));
         
         // Data rows
         for (idx, entry) in panel.entries.iter().enumerate() {
@@ -165,11 +186,10 @@ pub fn render_panel(
 
 
     let mut state = ListState::default();
-    // Offset cursor by 2 to account for header and separator rows
-    let cursor_offset = if panel.entries.is_empty() { 0 } else { panel.cursor + 2 };
-    state.select(Some(cursor_offset));
+    // No offset needed since header and separator are rendered separately
+    state.select(Some(panel.cursor));
 
-    frame.render_stateful_widget(list, list_area, &mut state);
+    frame.render_stateful_widget(list, data_area, &mut state);
 
     // T408: Render search bar at bottom of panel if active
     if is_active && search_mode {
