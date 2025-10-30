@@ -39,6 +39,9 @@ async fn main() -> Result<()> {
     // Initialize app state
     let mut app = AppState::new()?;
     
+    // Initialize welcome screen logo (random selection)
+    app.init_welcome_logo()?;
+    
     // Load initial directory contents and store for filtering
     app.left_panel.refresh_entries()?;
     app.left_all_entries = app.left_panel.entries.clone();

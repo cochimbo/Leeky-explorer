@@ -35,6 +35,7 @@ pub struct AppState {
     pub selection_state: SelectionState,
     pub preview_state: Option<PreviewState>,
     pub show_welcome: bool,
+    pub welcome_logo: Option<String>, // Cache for random welcome screen logo
     // T077: Disk space cache with 5-second TTL
     pub disk_space_cache: HashMap<PathBuf, (crate::fs::disk_info::DiskSpaceInfo, Instant)>,
     // US5: Current theme
@@ -242,6 +243,7 @@ impl AppState {
             selection_state: SelectionState::new(),
             preview_state: None,
             show_welcome: true,
+            welcome_logo: None, // Will be initialized after terminal setup
             disk_space_cache: HashMap::new(),
             theme, // US5: Set loaded theme
             bookmarks, // TASK-004: Initialize bookmarks
@@ -881,6 +883,21 @@ impl AppState {
         
         Ok(())
     }
+
+    /// Initialize the random welcome screen logo
+    /// Should be called after terminal is set up to get proper dimensions
+    pub fn init_welcome_logo(&mut self) -> anyhow::Result<()> {
+        use crate::ui::welcome_screen::load_logo;
+        use crossterm::terminal;
+        
+        // Get terminal size
+        let (width, height) = terminal::size().unwrap_or((120, 30));
+        let area = ratatui::layout::Rect::new(0, 0, width, height);
+        
+        // Load random logo once
+        self.welcome_logo = Some(load_logo(area));
+        Ok(())
+    }
 }
 
 impl Default for AppState {
@@ -900,6 +917,7 @@ impl Default for AppState {
                 selection_state: SelectionState::new(),
                 preview_state: None,
                 show_welcome: true,
+                welcome_logo: None, // Initialize with no logo
                 disk_space_cache: HashMap::new(),
                 theme: crate::ui::theme::Theme::default(), // US5: Default theme
                 bookmarks: crate::config::bookmarks::BookmarkManager::new(PathBuf::from("bookmarks.json")), // TASK-004: Fallback empty bookmarks

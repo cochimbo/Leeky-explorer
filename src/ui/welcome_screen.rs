@@ -17,24 +17,40 @@ use super::parse_ansi_line;
 
 
 
-/// Load and convert the logo PNG to ASCII art
+use std::fs;
+use rand::prelude::IndexedRandom;
+
+/// Load and convert a random logo PNG to ASCII art
 /// 
 /// # Arguments
 /// * `terminal_area` - Full terminal area to calculate appropriate dimensions
 /// 
 /// # Returns
 /// ASCII art string with ANSI color codes, or fallback text on error
-fn load_logo(terminal_area: Rect) -> String {
+pub fn load_logo(terminal_area: Rect) -> String {
     // Calculate max dimensions similar to image preview
     // Use most of the terminal space, leaving room for version and instruction
     let max_width = terminal_area.width.saturating_sub(4); // Leave margin
     let max_height = terminal_area.height.saturating_sub(8); // Leave space for version + instruction
     
-    // Try to load the PNG logo using tokio blocking (since we're in sync context)
-    let logo_path = std::path::Path::new("assets/images/leekpc.png");
+    // Try to find and load a random PNG logo
+    let images_dir = std::path::Path::new("assets/images");
     
-    // Use image crate directly for synchronous loading
-    match image::open(logo_path) {
+    // Get all image files from the directory
+    let image_paths = match get_image_files(images_dir) {
+        Ok(paths) if !paths.is_empty() => paths,
+        _ => return fallback_logo(), // Fallback if no images found
+    };
+    
+    // Choose a random image
+    let mut rng = rand::rng();
+    let selected_path = match image_paths.choose(&mut rng) {
+        Some(path) => path,
+        None => return fallback_logo(),
+    };
+    
+    // Load the selected image
+    match image::open(selected_path) {
         Ok(img) => {
             // Convert to ASCII art with calculated dimensions
             match image_to_ascii(&img, max_width as u32, max_height as u32) {
@@ -44,6 +60,31 @@ fn load_logo(terminal_area: Rect) -> String {
         }
         Err(_) => fallback_logo(),
     }
+}
+
+/// Get all supported image files from the specified directory
+fn get_image_files(dir_path: &std::path::Path) -> Result<Vec<std::path::PathBuf>, std::io::Error> {
+    let entries = fs::read_dir(dir_path)?;
+    
+    let mut image_files = Vec::new();
+    
+    for entry in entries {
+        let entry = entry?;
+        let path = entry.path();
+        
+        // Check if it's a file and has a supported image extension
+        if path.is_file() {
+            if let Some(extension) = path.extension() {
+                let ext_str = extension.to_string_lossy().to_lowercase();
+                // Support common image formats that the image crate can handle
+                if matches!(ext_str.as_str(), "png" | "jpg" | "jpeg" | "gif" | "bmp" | "tiff" | "webp") {
+                    image_files.push(path);
+                }
+            }
+        }
+    }
+    
+    Ok(image_files)
 }
 
 /// Fallback logo text when PNG conversion fails
@@ -171,4 +212,76 @@ fn render_minimal(frame: &mut Frame, area: Rect, version: &str, theme: &Theme) {
         .split(area);
 
     frame.render_widget(paragraph, centered[1]);
+}
+
+/// Render the welcome screen with pre-loaded logo
+/// 
+/// # Arguments
+/// * `frame` - Ratatui frame for rendering
+/// * `area` - Full terminal area
+/// * `version` - Application version string (e.g., "0.3.0")
+/// * `theme` - Theme to use for colors
+/// * `logo_text` - Pre-loaded ASCII art logo text
+pub fn render_with_logo(frame: &mut Frame, area: Rect, version: &str, theme: &Theme, logo_text: &str) {
+    // Handle very small terminals
+    if area.width < 40 || area.height < 10 {
+        render_minimal(frame, area, version, theme);
+        return;
+    }
+
+    // Parse ASCII art with ANSI color codes
+    let logo_lines: Vec<Line> = logo_text
+        .lines()
+        .map(parse_ansi_line)
+        .collect();
+
+    // Create vertical layout: logo, version, instruction
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Min(1),           // Logo area (takes most space)
+            Constraint::Length(3),         // Version display
+            Constraint::Length(2),         // Instruction
+        ])
+        .split(area);
+
+    // Render logo centered with parsed ANSI codes
+    let logo_paragraph = Paragraph::new(logo_lines)
+        .alignment(Alignment::Center)
+        .style(Style::default().bg(theme.panel_bg));
+    frame.render_widget(logo_paragraph, chunks[0]);
+
+    // Render version
+    let version_line = Line::from(vec![
+        Span::styled(
+            format!("Version {}", version),
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ),
+    ]);
+    let version_paragraph = Paragraph::new(version_line)
+        .alignment(Alignment::Center);
+    frame.render_widget(version_paragraph, chunks[1]);
+
+    // Render instruction
+    let instruction = Line::from(vec![
+        Span::styled(
+            "Press ",
+            Style::default().fg(theme.info_color),
+        ),
+        Span::styled(
+            "Enter",
+            Style::default()
+                .fg(Color::Green)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(
+            " to continue...",
+            Style::default().fg(theme.info_color),
+        ),
+    ]);
+    let instruction_paragraph = Paragraph::new(instruction)
+        .alignment(Alignment::Center);
+    frame.render_widget(instruction_paragraph, chunks[2]);
 }

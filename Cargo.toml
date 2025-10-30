@@ -47,6 +47,7 @@ suppaftp = { version = "6.0", features = ["secure"] }  # FTP/FTPS support
 base64 = "0.22"  # For known_hosts file encoding
 keyring = { version = "3.6", features = ["windows-native", "sync-secret-service"] }  # Secure credential storage using OS keychain
 uuid = { version = "1.0", features = ["v4"] }  # UUID generation for connection IDs
+rand = "0.9.2"
 
 # SMB/CIFS support (TASK-055)
 [target.'cfg(windows)'.dependencies]

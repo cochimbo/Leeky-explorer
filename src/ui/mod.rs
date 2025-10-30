@@ -244,8 +244,9 @@ pub fn render_footer(frame: &mut Frame, area: Rect, theme: &Theme) {
 /// * `frame` - Ratatui frame for rendering
 /// * `version` - Application version string
 /// * `theme` - Theme to use for colors
-pub fn render_welcome(frame: &mut Frame, version: &str, theme: &Theme) {
+/// * `logo` - Pre-loaded ASCII art logo
+pub fn render_welcome_with_logo(frame: &mut Frame, version: &str, theme: &Theme, logo: &str) {
     let area = frame.area();
-    welcome_screen::render(frame, area, version, theme);
+    welcome_screen::render_with_logo(frame, area, version, theme, logo);
 }
 
