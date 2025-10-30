@@ -2,7 +2,7 @@
 use crate::app::{AppState, DialogState};
 use crate::models::operation::Progress;
 use crate::ui::theme::Theme;
-use crate::ui::utils::create_dialog_block;
+use crate::ui::utils::{centered_rect, create_dialog_block};
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
@@ -920,24 +920,4 @@ pub fn render_help_dialog(frame: &mut Frame, area: Rect, theme: &Theme) {
         .wrap(Wrap { trim: false });
     
     frame.render_widget(paragraph, inner);
-}
-
-fn centered_rect(percent_x: u16, percent_y: u16, area: Rect) -> Rect {
-    let popup_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Percentage((100 - percent_y) / 2),
-            Constraint::Percentage(percent_y),
-            Constraint::Percentage((100 - percent_y) / 2),
-        ])
-        .split(area);
-    
-    Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage((100 - percent_x) / 2),
-            Constraint::Percentage(percent_x),
-            Constraint::Percentage((100 - percent_x) / 2),
-        ])
-        .split(popup_layout[1])[1]
 }

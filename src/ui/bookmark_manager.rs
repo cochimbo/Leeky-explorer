@@ -10,7 +10,7 @@ use ratatui::{
 use crate::config::bookmarks::BookmarkManager;
 use crate::models::bookmark::Bookmark;
 use crate::ui::theme::Theme;
-use crate::ui::utils::SelectableState;
+use crate::ui::utils::{centered_rect, SelectableState};
 
 /// State for the bookmark manager dialog
 #[derive(Debug, Clone)]
@@ -265,27 +265,6 @@ fn create_bookmark_item(
     };
     
     ListItem::new(line).style(item_style)
-}
-
-/// Helper function to create a centered rectangle
-fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
-    let popup_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Percentage((100 - percent_y) / 2),
-            Constraint::Percentage(percent_y),
-            Constraint::Percentage((100 - percent_y) / 2),
-        ])
-        .split(r);
-
-    Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage((100 - percent_x) / 2),
-            Constraint::Percentage(percent_x),
-            Constraint::Percentage((100 - percent_x) / 2),
-        ])
-        .split(popup_layout[1])[1]
 }
 
 #[cfg(test)]

@@ -8,6 +8,7 @@ use ratatui::{
 };
 
 use crate::ui::theme::Theme;
+use crate::ui::utils::centered_rect;
 use crate::fs::disk_info::{format_size, get_disk_space};
 
 /// Render the drive selector dialog with usage bars
@@ -127,27 +128,6 @@ pub fn render(
         .style(Style::default().fg(theme.info_color))
         .alignment(Alignment::Center);
     frame.render_widget(footer, chunks[2]);
-}
-
-/// Helper function to create a centered rectangle
-fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
-    let popup_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Percentage((100 - percent_y) / 2),
-            Constraint::Percentage(percent_y),
-            Constraint::Percentage((100 - percent_y) / 2),
-        ])
-        .split(r);
-
-    Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage((100 - percent_x) / 2),
-            Constraint::Percentage(percent_x),
-            Constraint::Percentage((100 - percent_x) / 2),
-        ])
-        .split(popup_layout[1])[1]
 }
 
 /// Create gradient usage bar as multiple colored spans

@@ -6,7 +6,7 @@ impl Default for ConnectionDialogState {
 // Remote connection dialog UI
 use crate::remote::{AuthMethod, ConnectionConfig, ConnectionManager, ConnectionType};
 use crate::ui::theme::Theme;
-use crate::ui::utils::create_dialog_block;
+use crate::ui::utils::{centered_rect, create_dialog_block};
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
@@ -14,6 +14,56 @@ use ratatui::{
     widgets::{Clear, List, ListItem, Paragraph},
     Frame,
 };
+
+/// Validate hostname/IP address format
+fn is_valid_hostname(host: &str) -> bool {
+    if host.is_empty() || host.len() > 253 {
+        return false;
+    }
+
+    // Allow localhost and IP addresses
+    if host == "localhost" {
+        return true;
+    }
+
+    // Check if it's a valid IP address (basic validation)
+    if host.chars().all(|c| c.is_ascii_digit() || c == '.') {
+        let parts: Vec<&str> = host.split('.').collect();
+        if parts.len() == 4 {
+            return parts.iter().all(|part| {
+                part.len() <= 3 && part.chars().all(|c| c.is_ascii_digit()) &&
+                part.parse::<u8>().is_ok()
+            });
+        }
+    }
+
+    // For hostnames: allow alphanumeric, hyphens, dots
+    host.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '.') &&
+    !host.starts_with('-') && !host.ends_with('-') &&
+    !host.contains("..")
+}
+
+/// Validate connection name (no special characters that could cause issues)
+fn is_valid_connection_name(name: &str) -> bool {
+    !name.is_empty() && name.len() <= 50 &&
+    name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-' || c == ' ')
+}
+
+/// Validate port number
+fn parse_port(port_str: &str) -> Result<u16, String> {
+    if port_str.is_empty() {
+        return Ok(22); // Default SFTP port
+    }
+
+    port_str.parse::<u16>().map_err(|_| "Invalid port number".to_string())
+    .and_then(|port| {
+        if port == 0 {
+            Err("Port cannot be zero".to_string())
+        } else {
+            Ok(port)
+        }
+    })
+}
 
 #[derive(Debug, Clone)]
 pub enum ConnectionDialogState {
@@ -113,11 +163,22 @@ impl ConnectionDialogState {
                 save_credentials,
                 ..
             } => {
-                if name.is_empty() || host.is_empty() || username.is_empty() {
+                // Validate SFTP connection parameters
+                if !is_valid_connection_name(name) {
                     return None;
                 }
-                
-                let port = port.parse().unwrap_or(22);
+                if !is_valid_hostname(host) {
+                    return None;
+                }
+                if username.is_empty() {
+                    return None;
+                }
+
+                let port = match parse_port(port) {
+                    Ok(p) => p,
+                    Err(_) => return None,
+                };
+
                 let auth = if *auth_type == 0 {
                     if password.is_empty() {
                         return None;
@@ -157,10 +218,17 @@ impl ConnectionDialogState {
                 save_credentials,
                 ..
             } => {
-                if name.is_empty() || host.is_empty() || share.is_empty() {
+                // Validate SMB connection parameters
+                if !is_valid_connection_name(name) {
                     return None;
                 }
-                
+                if !is_valid_hostname(host) {
+                    return None;
+                }
+                if share.is_empty() {
+                    return None;
+                }
+
                 // If guest mode, allow empty username/password
                 let final_username = if *guest_mode {
                     "guest".to_string()
@@ -581,24 +649,4 @@ fn render_password_field(frame: &mut Frame, area: Rect, label: &str, value: &str
     let text = format!("{}: {}{}", label, masked, cursor);
     let field = Paragraph::new(text).style(style);
     frame.render_widget(field, area);
-}
-
-fn centered_rect(percent_x: u16, percent_y: u16, area: Rect) -> Rect {
-    let popup_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Percentage((100 - percent_y) / 2),
-            Constraint::Percentage(percent_y),
-            Constraint::Percentage((100 - percent_y) / 2),
-        ])
-        .split(area);
-    
-    Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage((100 - percent_x) / 2),
-            Constraint::Percentage(percent_x),
-            Constraint::Percentage((100 - percent_x) / 2),
-        ])
-        .split(popup_layout[1])[1]
 }

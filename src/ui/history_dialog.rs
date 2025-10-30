@@ -9,7 +9,7 @@ use ratatui::{
 
 use crate::models::panel::Panel;
 use crate::ui::theme::Theme;
-use crate::ui::utils::{centered_rect, create_bordered_block};
+use crate::ui::utils::{centered_rect, create_bordered_block, SelectableState};
 
 /// State for history dialog
 #[derive(Debug, Clone)]
@@ -41,6 +41,32 @@ impl HistoryDialogState {
     }
 
     pub fn reset_selection(&mut self) {
+        self.selected = 0;
+    }
+}
+
+impl SelectableState for HistoryDialogState {
+    fn selected(&self) -> usize {
+        self.selected
+    }
+
+    fn set_selected(&mut self, index: usize) {
+        self.selected = index;
+    }
+
+    fn move_up(&mut self, max_items: usize) {
+        if max_items > 0 && self.selected > 0 {
+            self.selected = self.selected.saturating_sub(1);
+        }
+    }
+
+    fn move_down(&mut self, max_items: usize) {
+        if max_items > 0 && self.selected + 1 < max_items {
+            self.selected += 1;
+        }
+    }
+
+    fn reset_selection(&mut self) {
         self.selected = 0;
     }
 }

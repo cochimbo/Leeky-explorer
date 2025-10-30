@@ -243,11 +243,15 @@ mod tests {
                             }
                             #[cfg(not(unix))]
                             {
-                                // On Windows, try to get permissions from a known location
-                                std::fs::metadata(".").map(|m| m.permissions()).unwrap_or_else(|_| {
-                                    // If all fails, this will be handled by outer error handling
-                                    panic!("Cannot determine file permissions - this should not happen in normal operation")
-                                })
+                                // On Windows, try to get permissions from current directory, then temp directory
+                                std::fs::metadata(".").map(|m| m.permissions())
+                                    .or_else(|_| std::env::temp_dir().metadata().map(|m| m.permissions()))
+                                    .unwrap_or_else(|_| {
+                                        // Safe fallback for test environments: use executable permissions
+                                        std::fs::metadata(std::env::current_exe().unwrap_or_else(|_| std::path::PathBuf::from(".")))
+                                            .map(|m| m.permissions())
+                                            .unwrap_or_else(|_| panic!("Cannot determine file permissions - filesystem is inaccessible"))
+                                    })
                             }
                         })
                 }

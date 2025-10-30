@@ -1,6 +1,7 @@
 use crate::search::{RecursiveSearcher, SearchResult};
 use crate::remote::VirtualFileSystem;
 use crate::ui::theme::Theme;
+use crate::ui::utils::SelectableState;
 use std::sync::Arc;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
@@ -317,6 +318,33 @@ impl SearchDialog {
             self.files_scanned = searcher.files_scanned();
             self.is_searching = searcher.is_running();
         }
+    }
+}
+
+// Implement SelectableState trait for SearchDialog
+impl SelectableState for SearchDialog {
+    fn selected(&self) -> usize {
+        self.selected_index
+    }
+
+    fn set_selected(&mut self, index: usize) {
+        self.selected_index = index;
+    }
+
+    fn move_up(&mut self, _max_items: usize) {
+        if self.selected_index > 0 {
+            self.selected_index -= 1;
+        }
+    }
+
+    fn move_down(&mut self, _max_items: usize) {
+        if self.selected_index + 1 < self.results.len() {
+            self.selected_index += 1;
+        }
+    }
+
+    fn reset_selection(&mut self) {
+        self.selected_index = 0;
     }
 }
 
