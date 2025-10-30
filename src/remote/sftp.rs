@@ -245,7 +245,7 @@ impl VirtualFileSystem for SftpFileSystem {
         let normalized_path = normalize_remote_path(path);
         log::debug!("SFTP list_dir called with path: {:?} (normalized: {:?})", path, normalized_path);
         
-        let sftp = self.sftp.lock().unwrap();
+        let sftp = self.sftp.lock().expect("SFTP mutex should not be poisoned");
         let mut entries = Vec::new();
         
         let result = sftp.readdir(&normalized_path);
@@ -272,7 +272,7 @@ impl VirtualFileSystem for SftpFileSystem {
     
     fn read_file(&self, path: &Path) -> Result<Vec<u8>> {
         let normalized_path = normalize_remote_path(path);
-        let sftp = self.sftp.lock().unwrap();
+        let sftp = self.sftp.lock().expect("SFTP mutex should not be poisoned");
         
         let mut file = sftp.open(&normalized_path)
             .with_context(|| {
@@ -300,7 +300,7 @@ impl VirtualFileSystem for SftpFileSystem {
         use std::io::Write;
         
         let normalized_path = normalize_remote_path(path);
-        let sftp = self.sftp.lock().unwrap();
+        let sftp = self.sftp.lock().expect("SFTP mutex should not be poisoned");
         
         let mut file = sftp.create(&normalized_path)
             .with_context(|| format!("Failed to create remote file: {}", normalized_path.display()))?;
@@ -320,7 +320,7 @@ impl VirtualFileSystem for SftpFileSystem {
     
     fn create_dir(&self, path: &Path) -> Result<()> {
         let normalized_path = normalize_remote_path(path);
-        let sftp = self.sftp.lock().unwrap();
+        let sftp = self.sftp.lock().expect("SFTP mutex should not be poisoned");
         
         sftp.mkdir(&normalized_path, 0o755)
             .with_context(|| {
@@ -335,7 +335,7 @@ impl VirtualFileSystem for SftpFileSystem {
     
     fn delete(&self, path: &Path, recursive: bool) -> Result<()> {
         let normalized_path = normalize_remote_path(path);
-        let sftp = self.sftp.lock().unwrap();
+        let sftp = self.sftp.lock().expect("SFTP mutex should not be poisoned");
         
         let stat = sftp.stat(&normalized_path)
             .with_context(|| {
@@ -398,7 +398,7 @@ impl VirtualFileSystem for SftpFileSystem {
     fn rename(&self, from: &Path, to: &Path) -> Result<()> {
         let normalized_from = normalize_remote_path(from);
         let normalized_to = normalize_remote_path(to);
-        let sftp = self.sftp.lock().unwrap();
+        let sftp = self.sftp.lock().expect("SFTP mutex should not be poisoned");
         
         sftp.rename(&normalized_from, &normalized_to, None)
             .with_context(|| {
@@ -414,7 +414,7 @@ impl VirtualFileSystem for SftpFileSystem {
     
     fn metadata(&self, path: &Path) -> Result<VfsEntry> {
         let normalized_path = normalize_remote_path(path);
-        let sftp = self.sftp.lock().unwrap();
+        let sftp = self.sftp.lock().expect("SFTP mutex should not be poisoned");
         
         let stat = sftp.stat(&normalized_path)
             .with_context(|| {
@@ -430,7 +430,7 @@ impl VirtualFileSystem for SftpFileSystem {
     
     fn exists(&self, path: &Path) -> Result<bool> {
         let normalized_path = normalize_remote_path(path);
-        let sftp = self.sftp.lock().unwrap();
+        let sftp = self.sftp.lock().expect("SFTP mutex should not be poisoned");
         Ok(sftp.stat(&normalized_path).is_ok())
     }
     

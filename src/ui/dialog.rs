@@ -2,6 +2,7 @@
 use crate::app::{AppState, DialogState};
 use crate::models::operation::Progress;
 use crate::ui::theme::Theme;
+use crate::ui::utils::create_dialog_block;
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
@@ -77,10 +78,7 @@ pub fn render_extract_options_dialog(frame: &mut Frame, archive_name: &str, dest
     
     frame.render_widget(Clear, dialog_area);
     
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title(" Extract Archive ")
-        .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
+    let block = create_dialog_block(" Extract Archive ", theme);
     
     let inner = block.inner(dialog_area);
     frame.render_widget(block, dialog_area);
@@ -194,10 +192,7 @@ pub fn render_input_dialog(frame: &mut Frame, prompt: &str, value: &str, area: R
     
     frame.render_widget(Clear, dialog_area);
     
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title(" Input ")
-        .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
+    let block = create_dialog_block(" Input ", theme);
     
     let inner = block.inner(dialog_area);
     frame.render_widget(block, dialog_area);
@@ -537,10 +532,7 @@ fn render_compress_options_dialog(
     
     frame.render_widget(Clear, dialog_area);
     
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title(" Comprimir Archivos ")
-        .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
+    let block = create_dialog_block(" Comprimir Archivos ", theme);
     
     let inner = block.inner(dialog_area);
     frame.render_widget(block, dialog_area);
@@ -755,10 +747,7 @@ pub fn render_help_dialog(frame: &mut Frame, area: Rect, theme: &Theme) {
     
     frame.render_widget(Clear, dialog_area);
     
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title(" ⌨️  Keyboard Shortcuts (ESC to close) ")
-        .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
+    let block = create_dialog_block(" ⌨️  Keyboard Shortcuts (ESC to close) ", theme);
     
     let inner = block.inner(dialog_area);
     frame.render_widget(block, dialog_area);

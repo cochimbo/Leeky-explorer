@@ -134,7 +134,7 @@ impl RecursiveSearcher {
         std::thread::spawn(move || {
             // Mark as running
             {
-                let mut state = state_clone.lock().unwrap();
+                let mut state = state_clone.lock().expect("Search state mutex should not be poisoned");
                 state.is_running = true;
                 state.results.clear();
                 state.files_scanned = 0;
@@ -142,7 +142,7 @@ impl RecursiveSearcher {
             
             // Get search parameters
             let (query, root, use_glob, max_depth) = {
-                let state = state_clone.lock().unwrap();
+                let state = state_clone.lock().expect("Search state mutex should not be poisoned");
                 (
                     state.query.clone(),
                     state.root_path.clone(),
@@ -164,7 +164,7 @@ impl RecursiveSearcher {
             
             // Mark as finished
             {
-                let mut state = state_clone.lock().unwrap();
+                let mut state = state_clone.lock().expect("Search state mutex should not be poisoned");
                 state.is_running = false;
             }
         })
@@ -187,7 +187,7 @@ impl RecursiveSearcher {
         
         // TASK-041: Check if we've hit the result limit
         {
-            let state_guard = state.lock().unwrap();
+            let state_guard = state.lock().expect("Search state mutex should not be poisoned");
             if state_guard.results.len() >= MAX_RESULTS {
                 return;
             }
@@ -233,7 +233,7 @@ impl RecursiveSearcher {
             
             // TASK-041: Throttle progress updates (every 100 files)
             {
-                let mut s = state.lock().unwrap();
+                let mut s = state.lock().expect("Search state mutex should not be poisoned");
                 s.files_scanned += 1;
                 // Only update UI-visible counter periodically
                 // (The actual counter is always updated, this is just for optimization notes)
@@ -267,11 +267,11 @@ impl RecursiveSearcher {
                     
                     if matches {
                         // Get root path for relative path calculation
-                        let root = state.lock().unwrap().root_path.clone();
+                        let root = state.lock().expect("Search state mutex should not be poisoned").root_path.clone();
                         
                         // Create search result
                         if let Ok(result) = SearchResult::new(path.to_path_buf(), &root) {
-                            let mut s = state.lock().unwrap();
+                            let mut s = state.lock().expect("Search state mutex should not be poisoned");
                             s.results.push(result);
                             
                             // TASK-041: Stop search if we've hit the result limit
@@ -294,17 +294,17 @@ impl RecursiveSearcher {
     
     /// Get current results (non-blocking)
     pub fn get_results(&self) -> Vec<SearchResult> {
-        self.state.lock().unwrap().results.clone()
+        self.state.lock().expect("Search state mutex should not be poisoned").results.clone()
     }
     
     /// Check if search is still running
     pub fn is_running(&self) -> bool {
-        self.state.lock().unwrap().is_running
+        self.state.lock().expect("Search state mutex should not be poisoned").is_running
     }
     
     /// Get progress (files scanned)
     pub fn files_scanned(&self) -> usize {
-        self.state.lock().unwrap().files_scanned
+        self.state.lock().expect("Search state mutex should not be poisoned").files_scanned
     }
 }
 

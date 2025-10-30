@@ -6,11 +6,12 @@ impl Default for ConnectionDialogState {
 // Remote connection dialog UI
 use crate::remote::{AuthMethod, ConnectionConfig, ConnectionManager, ConnectionType};
 use crate::ui::theme::Theme;
+use crate::ui::utils::create_dialog_block;
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
+    widgets::{Clear, List, ListItem, Paragraph},
     Frame,
 };
 
@@ -223,10 +224,7 @@ fn render_saved_connections(frame: &mut Frame, state: &ConnectionDialogState, ar
         return;
     };
     
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title(" 📚 Saved Connections ")
-        .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
+    let block = create_dialog_block(" 📚 Saved Connections ", theme);
     
     let inner = block.inner(area);
     frame.render_widget(block, area);
@@ -292,10 +290,7 @@ fn render_saved_connections(frame: &mut Frame, state: &ConnectionDialogState, ar
 }
 
 fn render_type_selection(frame: &mut Frame, selected: usize, area: Rect, theme: &Theme) {
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title(" 🌐 New Remote Connection ")
-        .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
+    let block = create_dialog_block(" 🌐 New Remote Connection ", theme);
     
     let inner = block.inner(area);
     frame.render_widget(block, area);
@@ -380,10 +375,7 @@ fn render_sftp_form(frame: &mut Frame, state: &ConnectionDialogState, area: Rect
         _ => return,
     };
     
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title(" 🔐 SFTP Connection ")
-        .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
+    let block = create_dialog_block(" 🔐 SFTP Connection ", theme);
     
     let inner = block.inner(area);
     frame.render_widget(block, area);
@@ -474,10 +466,7 @@ fn render_smb_form(frame: &mut Frame, state: &ConnectionDialogState, area: Rect,
         _ => return,
     };
     
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title(" 🖧 SMB/CIFS Connection ")
-        .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
+    let block = create_dialog_block(" 🖧 SMB/CIFS Connection ", theme);
     
     let inner = block.inner(area);
     frame.render_widget(block, area);

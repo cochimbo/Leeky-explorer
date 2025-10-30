@@ -3,12 +3,13 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
+    widgets::{Clear, List, ListItem, Paragraph},
     Frame,
 };
 
 use crate::models::panel::Panel;
 use crate::ui::theme::Theme;
+use crate::ui::utils::{centered_rect, create_bordered_block};
 
 /// State for history dialog
 #[derive(Debug, Clone)]
@@ -26,19 +27,19 @@ impl HistoryDialogState {
     pub fn new() -> Self {
         Self { selected: 0 }
     }
-    
+
     pub fn move_up(&mut self, count: usize) {
         if count > 0 && self.selected > 0 {
             self.selected -= 1;
         }
     }
-    
+
     pub fn move_down(&mut self, count: usize) {
         if count > 0 && self.selected + 1 < count {
             self.selected += 1;
         }
     }
-    
+
     pub fn reset_selection(&mut self) {
         self.selected = 0;
     }
@@ -57,12 +58,8 @@ pub fn render(
     frame.render_widget(Clear, area);
     
     // Create main block
-    let block = Block::default()
-        .title(" Navigation History (Ctrl+H) ")
-        .title_alignment(Alignment::Center)
-        .borders(Borders::ALL)
-        .border_style(Style::default().fg(theme.active_border))
-        .style(Style::default().bg(theme.dialog_bg));
+    let block = create_bordered_block(Some(" Navigation History (Ctrl+H) "), theme.active_border, Some(theme.dialog_bg))
+        .title_alignment(Alignment::Center);
     
     frame.render_widget(block, area);
     
@@ -157,27 +154,6 @@ pub fn render(
         .style(Style::default().fg(theme.info_color))
         .alignment(Alignment::Center);
     frame.render_widget(footer, chunks[2]);
-}
-
-/// Helper function to create a centered rectangle
-fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
-    let popup_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Percentage((100 - percent_y) / 2),
-            Constraint::Percentage(percent_y),
-            Constraint::Percentage((100 - percent_y) / 2),
-        ])
-        .split(r);
-
-    Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage((100 - percent_x) / 2),
-            Constraint::Percentage(percent_x),
-            Constraint::Percentage((100 - percent_x) / 2),
-        ])
-        .split(popup_layout[1])[1]
 }
 
 #[cfg(test)]

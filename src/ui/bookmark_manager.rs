@@ -10,6 +10,7 @@ use ratatui::{
 use crate::config::bookmarks::BookmarkManager;
 use crate::models::bookmark::Bookmark;
 use crate::ui::theme::Theme;
+use crate::ui::utils::SelectableState;
 
 /// State for the bookmark manager dialog
 #[derive(Debug, Clone)]
@@ -44,9 +45,29 @@ impl BookmarkManagerState {
     }
 }
 
-impl Default for BookmarkManagerState {
-    fn default() -> Self {
-        Self::new()
+impl SelectableState for BookmarkManagerState {
+    fn selected(&self) -> usize {
+        self.selected
+    }
+
+    fn set_selected(&mut self, index: usize) {
+        self.selected = index;
+    }
+
+    fn move_up(&mut self, max_items: usize) {
+        if max_items > 0 && self.selected > 0 {
+            self.selected = self.selected.saturating_sub(1);
+        }
+    }
+
+    fn move_down(&mut self, max_items: usize) {
+        if max_items > 0 && self.selected < max_items - 1 {
+            self.selected = self.selected.saturating_add(1);
+        }
+    }
+
+    fn reset_selection(&mut self) {
+        self.selected = 0;
     }
 }
 

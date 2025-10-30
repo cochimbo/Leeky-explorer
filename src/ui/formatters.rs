@@ -2,6 +2,8 @@
 use crate::models::file_entry::FileEntry;
 use std::time::SystemTime;
 use unicode_width::UnicodeWidthStr;
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
 
 /// Calculate the visual width of a string (handles emojis correctly)
 /// Emojis and wide characters take 2 cells, ASCII takes 1 cell
@@ -234,10 +236,19 @@ mod tests {
                         .and_then(|f| f.metadata())
                         .map(|m| m.permissions())
                         .unwrap_or_else(|_| {
-                            // Last resort: Clone from a known file
-                            std::fs::metadata(std::env::current_exe().unwrap())
-                                .map(|m| m.permissions())
-                                .unwrap()
+                            // Last resort: Use default permissions (this is a fallback)
+                            #[cfg(unix)]
+                            {
+                                std::fs::Permissions::from_mode(0o644)
+                            }
+                            #[cfg(not(unix))]
+                            {
+                                // On Windows, try to get permissions from a known location
+                                std::fs::metadata(".").map(|m| m.permissions()).unwrap_or_else(|_| {
+                                    // If all fails, this will be handled by outer error handling
+                                    panic!("Cannot determine file permissions - this should not happen in normal operation")
+                                })
+                            }
                         })
                 }
             });
