@@ -212,7 +212,7 @@ jobs:
           deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy-security main restricted universe multiverse
           EOF
           sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross pkg-config qemu-user-static libdbus-1-dev:arm64 libssl-dev:arm64
+          sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross pkg-config qemu-user-static libdbus-1-dev:arm64 libssl-dev:arm64 liblzma-dev:arm64
           echo "PKG_CONFIG_SYSROOT_DIR=/usr/aarch64-linux-gnu" >> $GITHUB_ENV
           echo "PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig" >> $GITHUB_ENV
 
@@ -264,7 +264,7 @@ jobs:
           deb [arch=armhf] http://ports.ubuntu.com/ubuntu-ports jammy-security main restricted universe multiverse
           EOF
           sudo apt-get update
-          sudo apt-get install -y gcc-arm-linux-gnueabihf libc6-dev-armhf-cross pkg-config qemu-user-static libdbus-1-dev:armhf libssl-dev:armhf
+          sudo apt-get install -y gcc-arm-linux-gnueabihf libc6-dev-armhf-cross pkg-config qemu-user-static libdbus-1-dev:armhf libssl-dev:armhf liblzma-dev:armhf
           echo "PKG_CONFIG_SYSROOT_DIR=/usr/arm-linux-gnueabihf" >> $GITHUB_ENV
           echo "PKG_CONFIG_PATH=/usr/lib/arm-linux-gnueabihf/pkgconfig" >> $GITHUB_ENV
 
